@@ -1,0 +1,19 @@
+# Build output
+build/
+*.bin
+*.elf
+*.o
+
+# Secrets and local config
+secrets.h
+*.env
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# PlatformIO / Arduino CLI
+.pio/
+.arduino/
