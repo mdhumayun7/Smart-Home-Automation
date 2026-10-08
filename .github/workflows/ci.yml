@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  host-tests:
+    name: Firmware host tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Wokwi circuit JSON
+        run: python3 -c "import json; json.load(open('wokwi/diagram.json'))"
+      - name: Run firmware logic tests
+        run: ./tests/host/run_tests.sh
