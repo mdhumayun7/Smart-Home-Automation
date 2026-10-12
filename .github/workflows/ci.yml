@@ -50,6 +50,34 @@ jobs:
             - --warnings="all"
           enable-warnings-report: true
           sketches-report-path: sketches-reports
+      - name: Report flash and RAM usage
+        env:
+          CORE: ${{ matrix.core }}
+        run: |
+          python3 - <<'PY'
+          import glob, json, os
+          def walk(node):
+              if isinstance(node, dict):
+                  if "name" in node and "current" in node and "maximum" in node:
+                      yield node
+                  for v in node.values():
+                      yield from walk(v)
+              elif isinstance(node, list):
+                  for v in node:
+                      yield from walk(v)
+          seen = set()
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write(f"### ESP32 build, arduino-esp32 {os.environ['CORE']}\n")
+              for f in glob.glob("sketches-reports/*.json"):
+                  for s in walk(json.load(open(f))):
+                      cur, mx = s["current"].get("absolute"), s["maximum"]
+                      if s["name"] in seen or not isinstance(cur, int):
+                          continue
+                      seen.add(s["name"])
+                      line = f"{s['name']}: {cur} of {mx} bytes ({100 * cur / mx:.1f} %)"
+                      print(f"::notice title=ESP32 {os.environ['CORE']}::{line}")
+                      out.write(f"- {line}\n")
+          PY
       - name: Upload size report
         uses: actions/upload-artifact@v4
         with:
