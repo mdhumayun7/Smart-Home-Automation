@@ -1,7 +1,18 @@
 /*
- * Smart Home Surveillance System  -  firmware v2.0.0
+ * Smart Home Surveillance System  -  firmware v2.1.0
  * Target : ESP32 DevKit (Wokwi simulation or real hardware)
  * Author : MD Humayun
+ *
+ * New in v2.1
+ *   - Armed state is stored in NVS and restored after a power cut or reset.
+ *   - Loop task is supervised by the ESP32 task watchdog; the boot event reports
+ *     the reset reason (power-on, watchdog, brown-out, ...).
+ *   - Credentials live in an optional secrets.h (not committed); optional TLS and
+ *     broker authentication. Remote DISARM cannot be enabled without TLS.
+ *   - Home Assistant MQTT discovery: the device appears as an alarm panel.
+ *   - Every event carries a sequence number so a client can detect gaps and duplicates.
+ *   - Fixed a race in which an event could be lost without being counted when the
+ *     offline queue overflowed while the network task was delivering the backlog.
  *
  * What changed compared with v1
  *   - No blocking delay() anywhere in the safety path (v1 froze for 5 s per alarm).
@@ -28,8 +39,10 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <PubSubClient.h>
+#include <Preferences.h>
+#include <esp_system.h>
 
-#define FW_VERSION "2.0.0"
+#define FW_VERSION "2.1.0"
 
 // ============================================================================
 //  Configuration
@@ -49,7 +62,7 @@ constexpr uint8_t PIN_SCL       = 22;  // OLED SCL
 constexpr uint32_t EXIT_DELAY_MS      = 10000;  // time to leave after pressing ARM
 constexpr uint32_t ENTRY_DELAY_MS     = 10000;  // time to disarm after a trigger
 constexpr uint32_t ALARM_DURATION_MS  = 30000;  // siren length, then system re-arms
-constexpr uint32_t PIR_WARMUP_MS      = 10000;  // use 30000-60000 on a real HC-SR501
+constexpr uint32_t PIR_WARMUP_MS      = 10000;  // 10 s suits Wokwi; use 60000 on a real HC-SR501
 constexpr uint32_t PIR_CONFIRM_MS     = 150;    // PIR must stay HIGH this long
 constexpr uint32_t DEBOUNCE_MS        = 40;
 constexpr uint32_t OLED_REFRESH_MS    = 250;
@@ -59,27 +72,73 @@ constexpr uint32_t WIFI_RETRY_MS      = 15000;
 constexpr uint32_t MQTT_RETRY_MS      = 5000;
 
 // ---- Network ----------------------------------------------------------------
-// Wokwi-GUEST is the open Wi-Fi provided by the simulator (channel 6 connects fastest).
-// For real hardware move credentials out of the source (separate secrets.h, not committed).
-const char*    WIFI_SSID    = "Wokwi-GUEST";
-const char*    WIFI_PASS    = "";
-constexpr int  WIFI_CHANNEL = 6;
+// Real credentials go in secrets.h next to this file (copy secrets.example.h; the file
+// is git-ignored). Without it the defaults below are used: the open Wi-Fi of the Wokwi
+// simulator and the public HiveMQ broker, which anyone can read and write.
+#if defined(__has_include)
+#  if __has_include("secrets.h")
+#    include "secrets.h"
+#  endif
+#endif
+#ifndef SECRET_WIFI_SSID
+#  define SECRET_WIFI_SSID "Wokwi-GUEST"
+#  define SECRET_WIFI_PASS ""
+#endif
+#ifndef SECRET_WIFI_CHANNEL
+#  define SECRET_WIFI_CHANNEL 6        // Wokwi connects fastest on channel 6; 0 = scan
+#endif
+#ifndef SECRET_MQTT_HOST
+#  define SECRET_MQTT_HOST "broker.hivemq.com"
+#endif
+#ifndef MQTT_USE_TLS
+#  define MQTT_USE_TLS 0               // 1 = TLS (port 8883) with the CA certificate below
+#endif
+#ifndef SECRET_MQTT_PORT
+#  define SECRET_MQTT_PORT (MQTT_USE_TLS ? 8883 : 1883)
+#endif
+#ifndef SECRET_MQTT_USER
+#  define SECRET_MQTT_USER nullptr
+#  define SECRET_MQTT_PASS nullptr
+#  define MQTT_HAS_LOGIN 0
+#else
+#  define MQTT_HAS_LOGIN 1
+#endif
+#if MQTT_USE_TLS && !defined(SECRET_MQTT_CA_CERT)
+#  error "MQTT_USE_TLS needs SECRET_MQTT_CA_CERT (PEM of the broker's CA) in secrets.h"
+#endif
 
-// Public test broker: anyone can read or write your topics. Fine for a demo, not for a home.
-// For deployment use a private broker with username/password and TLS (port 8883).
-const char*    MQTT_HOST    = "broker.hivemq.com";
-constexpr uint16_t MQTT_PORT = 1883;
-const char*    MQTT_USER    = nullptr;
-const char*    MQTT_PASS    = nullptr;
+const char*    WIFI_SSID    = SECRET_WIFI_SSID;
+const char*    WIFI_PASS    = SECRET_WIFI_PASS;
+constexpr int  WIFI_CHANNEL = SECRET_WIFI_CHANNEL;
+const char*    MQTT_HOST    = SECRET_MQTT_HOST;
+constexpr uint16_t MQTT_PORT = SECRET_MQTT_PORT;
+const char*    MQTT_USER    = SECRET_MQTT_USER;
+const char*    MQTT_PASS    = SECRET_MQTT_PASS;
 #define TOPIC_ROOT "svnit/smarthome"
+
+// Home Assistant MQTT discovery (retained config under homeassistant/alarm_control_panel/).
+#define HA_DISCOVERY 1
+#define HA_PREFIX "homeassistant"
+
+// Restore the armed state from NVS after a power cut or reset (recommended).
+#define RESTORE_ARMED_ON_BOOT 1
+
+// Supervise the safety loop with the task watchdog (default timeout 5 s).
+#define ENABLE_LOOP_WDT 1
 
 // 0 = passive piezo buzzer driven with a 2.7 kHz tone (also what Wokwi needs to make sound).
 // 1 = active buzzer with built-in oscillator, driven with a plain HIGH/LOW level.
 #define BUZZER_ACTIVE 0
 constexpr uint32_t BUZZER_FREQ_HZ = 2700;
 
-// 0 = remote DISARM is refused (recommended on an unauthenticated broker).
-#define ALLOW_REMOTE_DISARM 0
+// 0 = remote DISARM is refused. It can only be enabled together with TLS and a broker
+// login, because otherwise anyone who learns the topic could switch the alarm off.
+#ifndef ALLOW_REMOTE_DISARM
+#  define ALLOW_REMOTE_DISARM 0
+#endif
+#if ALLOW_REMOTE_DISARM && (!MQTT_USE_TLS || !MQTT_HAS_LOGIN)
+#  error "ALLOW_REMOTE_DISARM requires MQTT_USE_TLS 1 and broker credentials in secrets.h"
+#endif
 
 #define TZ_STRING "IST-5:30"
 
@@ -91,6 +150,7 @@ enum class SysState : uint8_t { DISARMED, EXIT_DELAY, ARMED, ENTRY_DELAY, ALARM 
 enum class Cmd      : uint8_t { ARM, DISARM, STATUS };
 
 struct Event {
+  uint32_t seq;       // increases by one per event since boot; gaps reveal losses
   uint32_t epoch;     // UTC seconds, 0 if clock not yet synced
   uint32_t upMs;      // millis() at the moment of the event
   char     type[16];
@@ -114,6 +174,33 @@ struct Debounced {
   bool     lastRaw;
   uint32_t changedAt;
 };
+
+// State names in the vocabulary of the Home Assistant MQTT alarm control panel.
+static const char* haStateName(SysState s) {
+  switch (s) {
+    case SysState::DISARMED:    return "disarmed";
+    case SysState::EXIT_DELAY:  return "arming";
+    case SysState::ARMED:       return "armed_away";
+    case SysState::ENTRY_DELAY: return "pending";
+    case SysState::ALARM:       return "triggered";
+  }
+  return "unknown";
+}
+
+static const char* resetReasonName(esp_reset_reason_t r) {
+  switch (r) {
+    case ESP_RST_POWERON:   return "poweron";
+    case ESP_RST_EXT:       return "external";
+    case ESP_RST_SW:        return "software";
+    case ESP_RST_PANIC:     return "panic";
+    case ESP_RST_INT_WDT:   return "int_wdt";
+    case ESP_RST_TASK_WDT:  return "task_wdt";
+    case ESP_RST_WDT:       return "wdt";
+    case ESP_RST_DEEPSLEEP: return "deepsleep";
+    case ESP_RST_BROWNOUT:  return "brownout";
+    default:                return "unknown";
+  }
+}
 
 static const char* stateName(SysState s) {
   switch (s) {
@@ -147,6 +234,10 @@ static uint32_t  pirHighSince = 0;
 static bool      pirConfirmed = false;
 
 static uint32_t  eventCount  = 0;
+static uint32_t  eventSeq    = 0;
+static Preferences prefs;
+static bool      nvsOk       = false;
+static bool      persistedArmed = false;
 static uint32_t  alarmCount  = 0;
 static volatile uint32_t eventsDropped = 0;
 static char      lastEvent[16] = "none";
@@ -164,12 +255,18 @@ static volatile bool     statusPublishNow = false;
 static volatile bool     netWifiUp   = false;
 static volatile bool     netMqttUp   = false;
 static volatile int8_t   netRssi     = 0;
+static volatile uint32_t netDropped  = 0;    // events the network task had to discard
 
 // ---- Network core (network task, core 0) -----------------------------------
-static WiFiClient   wifiClient;
-static PubSubClient mqtt(wifiClient);
+#if MQTT_USE_TLS
+#include <WiFiClientSecure.h>
+static WiFiClientSecure netClient;
+#else
+static WiFiClient       netClient;
+#endif
+static PubSubClient mqtt(netClient);
 static char deviceId[24];
-static char topicAvail[64], topicState[64], topicEvent[64], topicCmd[64];
+static char topicAvail[64], topicState[64], topicEvent[64], topicCmd[64], topicHa[96];
 static uint32_t lastWifiTry = 0, lastMqttTry = 0, lastHeartbeat = 0;
 
 // ============================================================================
@@ -225,6 +322,7 @@ static bool debounceUpdate(Debounced& d, uint32_t now) {
 
 static void emitEvent(const char* type, const char* src) {
   Event e = {};
+  e.seq   = ++eventSeq;
   e.epoch = epochNow();
   e.upMs  = millis();
   copyStr(e.type, sizeof e.type, type);
@@ -240,11 +338,21 @@ static void emitEvent(const char* type, const char* src) {
   Serial.printf("[%8lu] EVENT %-12s src=%s\n", (unsigned long)e.upMs, type, src);
 }
 
+// Writes the armed flag to NVS only when it changes (one write per arm and per disarm),
+// so flash wear is negligible. A write takes a few milliseconds.
+static void persistArmed(bool armed) {
+  if (!nvsOk || armed == persistedArmed) return;
+  prefs.putBool("armed", armed);
+  persistedArmed = armed;
+}
+
 static void setState(SysState next, const char* evType, const char* src, uint32_t now) {
   state      = next;
   stateSince = now;
   statusDirty = true;
   emitEvent(evType, src);
+  if (next == SysState::ARMED)    persistArmed(true);
+  if (next == SysState::DISARMED) persistArmed(false);
 }
 
 static bool pirWarm(uint32_t now) { return (now - bootMs) >= PIR_WARMUP_MS; }
@@ -479,11 +587,27 @@ static void onMqttMessage(char* topic, uint8_t* payload, unsigned int len) {
   for (unsigned i = 0; i < len; i++) if (buf[i] >= 'a' && buf[i] <= 'z') buf[i] -= 32;
 
   Cmd c;
-  if      (strcmp(buf, "ARM")    == 0) c = Cmd::ARM;
+  if      (strcmp(buf, "ARM") == 0 || strcmp(buf, "ARM_AWAY") == 0) c = Cmd::ARM;
   else if (strcmp(buf, "DISARM") == 0) c = Cmd::DISARM;
   else if (strcmp(buf, "STATUS") == 0) c = Cmd::STATUS;
   else { Serial.printf("MQTT: unknown command '%s'\n", buf); return; }
   xQueueSend(cmdQ, &c, 0);
+}
+
+// Home Assistant discovery: the device shows up as an alarm control panel. The panel
+// reads the "ha" field of the state message and sends ARM / DISARM on the command topic.
+static void publishDiscovery() {
+  char msg[720];
+  snprintf(msg, sizeof msg,
+           "{\"name\":\"Alarm\",\"unique_id\":\"%s_alarm\",\"state_topic\":\"%s\","
+           "\"value_template\":\"{{ value_json.ha }}\",\"command_topic\":\"%s\","
+           "\"payload_arm_away\":\"ARM\",\"payload_disarm\":\"DISARM\","
+           "\"supported_features\":[\"arm_away\"],\"code_arm_required\":false,"
+           "\"code_disarm_required\":false,\"availability_topic\":\"%s\","
+           "\"device\":{\"identifiers\":[\"%s\"],\"name\":\"Smart Home Surveillance\","
+           "\"manufacturer\":\"MD Humayun\",\"model\":\"ESP32 DevKit v1\",\"sw_version\":\"%s\"}}",
+           deviceId, topicState, topicCmd, topicAvail, deviceId, FW_VERSION);
+  mqtt.publish(topicHa, msg, true);
 }
 
 static bool connectMqtt() {
@@ -491,16 +615,19 @@ static bool connectMqtt() {
   if (!ok) { Serial.printf("MQTT connect failed, rc=%d\n", mqtt.state()); return false; }
   mqtt.publish(topicAvail, "online", true);
   mqtt.subscribe(topicCmd);
+#if HA_DISCOVERY
+  publishDiscovery();
+#endif
   statusPublishNow = true;
   Serial.println("MQTT connected");
   return true;
 }
 
 static bool publishEvent(const Event& e) {
-  char msg[160];
+  char msg[176];
   snprintf(msg, sizeof msg,
-           "{\"id\":\"%s\",\"ts\":%lu,\"up\":%lu,\"event\":\"%s\",\"src\":\"%s\"}",
-           deviceId, (unsigned long)e.epoch, (unsigned long)e.upMs, e.type, e.src);
+           "{\"id\":\"%s\",\"seq\":%lu,\"ts\":%lu,\"up\":%lu,\"event\":\"%s\",\"src\":\"%s\"}",
+           deviceId, (unsigned long)e.seq, (unsigned long)e.epoch, (unsigned long)e.upMs, e.type, e.src);
   return mqtt.publish(topicEvent, msg);
 }
 
@@ -510,15 +637,15 @@ static void publishState() {
   s = sharedStatus;
   xSemaphoreGive(statusMutex);
 
-  char msg[320];
+  char msg[360];
   snprintf(msg, sizeof msg,
-           "{\"id\":\"%s\",\"fw\":\"%s\",\"ts\":%lu,\"state\":\"%s\",\"door\":\"%s\",\"pir\":\"%s\","
+           "{\"id\":\"%s\",\"fw\":\"%s\",\"ts\":%lu,\"state\":\"%s\",\"ha\":\"%s\",\"door\":\"%s\",\"pir\":\"%s\","
            "\"rssi\":%d,\"events\":%lu,\"alarms\":%lu,\"dropped\":%lu,\"queued\":%u,\"up_s\":%lu}",
-           deviceId, FW_VERSION, (unsigned long)epochNow(), stateName(s.state),
+           deviceId, FW_VERSION, (unsigned long)epochNow(), stateName(s.state), haStateName(s.state),
            s.doorOpen ? "open" : "closed",
            !s.pirWarm ? "warmup" : (s.pirActive ? "motion" : "idle"),
            (int)netRssi, (unsigned long)s.events, (unsigned long)s.alarms,
-           (unsigned long)s.dropped, (unsigned)uxQueueMessagesWaiting(eventQ),
+           (unsigned long)(s.dropped + netDropped), (unsigned)uxQueueMessagesWaiting(eventQ),
            (unsigned long)(s.upMs / 1000));
   mqtt.publish(topicState, msg, true);   // retained: a new subscriber sees the last state at once
 }
@@ -553,12 +680,16 @@ static void networkStep(uint32_t now) {
   netMqttUp = true;
   mqtt.loop();
 
-  // Deliver queued events oldest first; remove from the queue only after a good publish.
+  // Deliver queued events oldest first. The event is taken out of the queue before it is
+  // published, so the loop task's drop-oldest overflow handling can never remove a
+  // different event than the one in flight. If the link drops, the event goes back to
+  // the front of the queue and is retried after reconnecting.
   Event e;
-  for (int i = 0; i < 4 && xQueuePeek(eventQ, &e, 0) == pdTRUE; i++) {
-    bool ok = publishEvent(e);
-    if (!ok && !mqtt.connected()) break;   // link lost: keep the event, retry after reconnect
-    xQueueReceive(eventQ, &e, 0);          // delivered (or unpublishable): remove it
+  for (int i = 0; i < 4 && xQueueReceive(eventQ, &e, 0) == pdTRUE; i++) {
+    if (publishEvent(e)) continue;
+    if (mqtt.connected()) { netDropped++; continue; }           // unsendable message
+    if (xQueueSendToFront(eventQ, &e, 0) != pdTRUE) netDropped++;  // queue refilled meanwhile
+    break;
   }
 
   if (statusPublishNow || (now - lastHeartbeat) >= HEARTBEAT_MS) {
@@ -617,12 +748,16 @@ void setup() {
   snprintf(topicState, sizeof topicState, "%s/%s/state",        TOPIC_ROOT, deviceId);
   snprintf(topicEvent, sizeof topicEvent, "%s/%s/event",        TOPIC_ROOT, deviceId);
   snprintf(topicCmd,   sizeof topicCmd,   "%s/%s/cmd",          TOPIC_ROOT, deviceId);
+  snprintf(topicHa,    sizeof topicHa,    "%s/alarm_control_panel/%s/config", HA_PREFIX, deviceId);
 
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(onMqttMessage);
-  mqtt.setBufferSize(512);
+  mqtt.setBufferSize(1024);   // discovery config is about 700 bytes
   mqtt.setKeepAlive(30);
   mqtt.setSocketTimeout(3);
+#if MQTT_USE_TLS
+  netClient.setCACert(SECRET_MQTT_CA_CERT);
+#endif
 
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -636,7 +771,21 @@ void setup() {
   armBtn.stable = armBtn.lastRaw = digitalRead(PIN_ARM_BTN) == HIGH;
 
   Serial.printf("Device %s, topics under %s/%s/\n", deviceId, TOPIC_ROOT, deviceId);
-  emitEvent("boot", "system");
+  emitEvent("boot", resetReasonName(esp_reset_reason()));
+
+  // Restore the armed state after a power cut, so cutting the supply cannot disarm the house.
+  nvsOk = prefs.begin("alarm", false);
+  persistedArmed = nvsOk && prefs.getBool("armed", false);
+#if RESTORE_ARMED_ON_BOOT
+  if (persistedArmed) {
+    setState(SysState::ARMED, "restored_armed", "nvs", bootMs);
+    if (door.stable) trigger("door_open", "door", bootMs);   // door found open at power-up
+  }
+#endif
+
+#if ENABLE_LOOP_WDT
+  enableLoopWDT();   // the Arduino loop task now feeds the task watchdog on every pass
+#endif
 
   xTaskCreatePinnedToCore(networkTask, "net", 8192, nullptr, 1, nullptr, 0);
 }
