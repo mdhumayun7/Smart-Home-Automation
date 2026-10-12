@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   host-tests:
@@ -15,3 +16,42 @@ jobs:
         run: python3 -c "import json; json.load(open('wokwi/diagram.json'))"
       - name: Run firmware logic tests
         run: ./tests/host/run_tests.sh
+
+  esp32-build:
+    name: ESP32 build (arduino-esp32 ${{ matrix.core }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - core: "2.0.17"
+            platforms: |
+              - name: esp32:esp32
+                source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+                version: 2.0.17
+          - core: latest
+            platforms: |
+              - name: esp32:esp32
+                source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile firmware for ESP32 DevKit
+        uses: arduino/compile-sketches@v1
+        with:
+          fqbn: esp32:esp32:esp32
+          platforms: ${{ matrix.platforms }}
+          libraries: |
+            - name: Adafruit SSD1306
+            - name: Adafruit GFX Library
+            - name: PubSubClient
+          sketch-paths: |
+            - firmware/smart_home
+          cli-compile-flags: |
+            - --warnings="all"
+          enable-warnings-report: true
+          sketches-report-path: sketches-reports
+      - name: Upload size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: size-report-${{ matrix.core }}
+          path: sketches-reports
