@@ -1,7 +1,7 @@
 # Smart Home Surveillance System
 
 [![CI](https://github.com/mdhumayun7/Smart-Home-Automation/actions/workflows/ci.yml/badge.svg)](https://github.com/mdhumayun7/Smart-Home-Automation/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/mdhumayun7/Smart-Home-Automation)](https://github.com/mdhumayun7/Smart-Home-Automation/releases)
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
 ![Platform](https://img.shields.io/badge/platform-ESP32-blue)
 ![Framework](https://img.shields.io/badge/arduino--esp32-2.0.17%20%7C%203.3.12-informational)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
