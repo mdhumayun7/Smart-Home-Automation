@@ -4,8 +4,9 @@ static int fails = 0;
 #define CHECK(c, ...) do { if (!(c)) { fails++; printf("  FAIL line %d: %s  ", __LINE__, #c); printf(__VA_ARGS__); printf("\n"); } else printf("  ok: %s\n", #c); } while (0)
 
 static std::vector<std::string> evs;
+static std::vector<uint32_t> seqs;
 static bool autoDrain = true;
-static void drain() { Event e; while (xQueueReceive(eventQ, &e, 0) == pdTRUE) evs.push_back(std::string(e.type) + ":" + e.src); }
+static void drain() { Event e; while (xQueueReceive(eventQ, &e, 0) == pdTRUE) { evs.push_back(std::string(e.type) + ":" + e.src); seqs.push_back(e.seq); } }
 static void run(uint32_t ms) {
   uint32_t end = g_now + ms;
   while ((int32_t)(end - g_now) > 0) { loop(); g_now += 3; if (autoDrain) drain(); }
@@ -27,7 +28,7 @@ static void pirPulse(uint32_t ms) { g_pin[PIN_PIR] = HIGH; run(ms); g_pin[PIN_PI
 
 static void s_basic(uint32_t st) {
   init(st);
-  CHECK(joined() == "boot:system ", "got [%s]", joined().c_str());
+  CHECK(joined() == "boot:poweron ", "got [%s]", joined().c_str());
   evs.clear();
   run(100);
   CHECK(state == SysState::DISARMED, "state");
@@ -124,6 +125,53 @@ static void s_remote(uint32_t st) {
   onMqttMessage((char*)"t", (uint8_t*)"rm -rf /", 8);
   onMqttMessage((char*)"t", (uint8_t*)"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 36);
   CHECK(uxQueueMessagesWaiting(cmdQ) == 0, "unknown / oversized payloads ignored");
+  onMqttMessage((char*)"t", (uint8_t*)"ARM_AWAY", 8);   // Home Assistant arm-away payload
+  CHECK(uxQueueMessagesWaiting(cmdQ) == 1, "ARM_AWAY accepted as ARM");
+}
+
+// v2.1: armed state stored in NVS, written only on arm / disarm
+static void s_persist(uint32_t st) {
+  init(st);
+  CHECK(g_nvsWrites == 0, "no NVS write at boot while disarmed");
+  run(PIR_WARMUP_MS + 100);
+  press(); run(EXIT_DELAY_MS + 100);
+  CHECK(state == SysState::ARMED && g_nvs["armed"] && g_nvsWrites == 1, "arming persisted once (writes=%d)", g_nvsWrites);
+  pirPulse(500); run(ENTRY_DELAY_MS + ALARM_DURATION_MS + 200);
+  CHECK(state == SysState::ARMED && g_nvsWrites == 1, "alarm cycle adds no flash writes (writes=%d)", g_nvsWrites);
+  press();
+  CHECK(state == SysState::DISARMED && !g_nvs["armed"] && g_nvsWrites == 2, "disarm persisted");
+}
+
+// v2.1: power cut while armed -> device comes back armed
+static void s_restore(uint32_t st) {
+  g_nvs["armed"] = true;
+  init(st);
+  CHECK(state == SysState::ARMED && has("restored_armed:nvs"), "restored to ARMED: %s", joined().c_str());
+  CHECK(g_nvsWrites == 0, "restore does not rewrite NVS");
+  pirPulse(500);
+  CHECK(state == SysState::ARMED, "PIR still ignored during warm-up after restore");
+  run(PIR_WARMUP_MS); pirPulse(500);
+  CHECK(state == SysState::ENTRY_DELAY && has("motion:pir"), "motion after warm-up triggers");
+}
+
+static void s_restore_door(uint32_t st) {
+  g_nvs["armed"] = true;
+  g_now = st;
+  g_pin[PIN_DOOR] = HIGH; g_pin[PIN_ARM_BTN] = HIGH; g_pin[PIN_PIR] = LOW;
+  setup(); drain();
+  CHECK(state == SysState::ENTRY_DELAY && has("door_open:door"), "door open at power-up triggers entry delay: %s", joined().c_str());
+}
+
+// v2.1: diagnostics - reset reason, watchdog, event sequence numbers
+static void s_diag(uint32_t st) {
+  g_resetReason = ESP_RST_TASK_WDT;
+  init(st);
+  CHECK(has("boot:task_wdt"), "reset reason reported: %s", joined().c_str());
+  CHECK(g_loopWdt, "loop watchdog enabled");
+  press(); run(EXIT_DELAY_MS + 100); press();
+  bool inc = seqs.size() >= 4;
+  for (size_t i = 1; i < seqs.size(); i++) if (seqs[i] != seqs[i - 1] + 1) inc = false;
+  CHECK(inc && seqs[0] == 1, "event seq numbers start at 1 and increase by one (%zu events)", seqs.size());
 }
 
 static void s_display_fail(uint32_t st) {
@@ -177,6 +225,16 @@ static void s_network(uint32_t st) {
   CHECK(gotBoot, "queued boot event delivered");
   CHECK(gotState, "retained state published");
   CHECK(uxQueueMessagesWaiting(eventQ) == 0, "queue drained");
+  bool gotHa = false;
+  for (auto& p : g_pubs)
+    if (p.topic == "homeassistant/alarm_control_panel/" + std::string(deviceId) + "/config" && p.retained &&
+        p.payload.find("\"state_topic\":\"" + base + "/state\"") != std::string::npos &&
+        p.payload.find("\"command_topic\":\"" + base + "/cmd\"") != std::string::npos &&
+        p.payload.find("\"availability_topic\":\"" + base + "/availability\"") != std::string::npos) gotHa = true;
+  CHECK(gotHa, "Home Assistant discovery config published (retained)");
+  bool haState = false;
+  for (auto& p : g_pubs) if (p.topic == base + "/state" && p.payload.find("\"ha\":\"disarmed\"") != std::string::npos) haState = true;
+  CHECK(haState, "state carries Home Assistant state name");
 
   // Offline queue, order preserved
   g_linkUp = false; g_brokerAccepts = false;
@@ -199,6 +257,22 @@ static void s_network(uint32_t st) {
   g_now += MQTT_RETRY_MS; networkStep(g_now);
   int seen = 0; for (size_t i = n1; i < g_pubs.size(); i++) if (g_pubs[i].payload.find("keepme") != std::string::npos) seen++;
   CHECK(seen == 1 && uxQueueMessagesWaiting(eventQ) == 0, "delivered exactly once, seen=%d", seen);
+
+  // Race path: the loop task refills the queue while a publish is failing. The event in
+  // flight cannot go back; it must be counted, never silently lost.
+  {
+    uint32_t nd0 = netDropped;
+    g_publishHook = [] { while (uxQueueMessagesWaiting(eventQ) < 16) emitEvent("fill", "t"); };
+    g_failNextPublishAndDrop = true;
+    emitEvent("inflight", "t");
+    g_now += 50; networkStep(g_now);
+    g_publishHook = nullptr;
+    CHECK(netDropped - nd0 == 1 && uxQueueMessagesWaiting(eventQ) == 16, "in-flight event counted as dropped when queue is full (nd=%u q=%u)",
+          (unsigned)(netDropped - nd0), uxQueueMessagesWaiting(eventQ));
+    g_brokerAccepts = true; g_now += MQTT_RETRY_MS;
+    for (int i = 0; i < 6; i++) { g_now += 30; networkStep(g_now); }
+    CHECK(uxQueueMessagesWaiting(eventQ) == 0, "backlog delivered after race");
+  }
 
   // Overflow
   g_linkUp = false; g_brokerAccepts = false;
@@ -227,7 +301,8 @@ int main(int argc, char** argv) {
   struct { const char* n; void (*f)(uint32_t); } all[] = {
     {"basic", s_basic}, {"arm_alarm", s_arm_alarm}, {"disarm_in_entry", s_disarm_in_entry},
     {"door_left_open", s_door_left_open}, {"pir_edge", s_pir_edge}, {"pir_glitch", s_pir_glitch},
-    {"remote", s_remote}, {"display_fail", s_display_fail}, {"oled", s_oled}, {"network", s_network}};
+    {"remote", s_remote}, {"display_fail", s_display_fail}, {"oled", s_oled}, {"network", s_network},
+    {"persist", s_persist}, {"restore", s_restore}, {"restore_door", s_restore_door}, {"diag", s_diag}};
   for (auto& a : all) if (!strcmp(a.n, name)) { a.f(start); printf(fails ? "RESULT FAIL (%d)\n" : "RESULT PASS\n", fails); return fails ? 1 : 0; }
   printf("unknown scenario\n"); return 2;
 }

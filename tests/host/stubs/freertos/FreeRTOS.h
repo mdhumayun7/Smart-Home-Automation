@@ -12,6 +12,9 @@ inline QueueHandle_t xQueueCreate(uint32_t len, uint32_t item) { return new Stub
 inline BaseType_t xQueueSend(QueueHandle_t h, const void* it, TickType_t) {
   auto* q = (StubQueue*)h; if (q->q.size() >= q->cap) return pdFALSE;
   q->q.emplace_back((const uint8_t*)it, (const uint8_t*)it + q->item); return pdTRUE; }
+inline BaseType_t xQueueSendToFront(QueueHandle_t h, const void* it, TickType_t) {
+  auto* q = (StubQueue*)h; if (q->q.size() >= q->cap) return pdFALSE;
+  q->q.emplace_front((const uint8_t*)it, (const uint8_t*)it + q->item); return pdTRUE; }
 inline BaseType_t xQueueReceive(QueueHandle_t h, void* it, TickType_t) {
   auto* q = (StubQueue*)h; if (q->q.empty()) return pdFALSE;
   memcpy(it, q->q.front().data(), q->item); q->q.pop_front(); return pdTRUE; }

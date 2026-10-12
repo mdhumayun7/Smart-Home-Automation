@@ -19,6 +19,8 @@ inline uint8_t g_out[40] = {0};
 inline uint32_t g_buzzEdges = 0;
 inline bool g_verbose = false;
 inline unsigned long millis() { return g_now; }
+inline bool g_loopWdt = false;
+inline void enableLoopWDT() { g_loopWdt = true; }
 inline void delay(uint32_t) {}
 inline void pinMode(uint8_t, uint8_t) {}
 inline int digitalRead(uint8_t p) { return g_pin[p]; }

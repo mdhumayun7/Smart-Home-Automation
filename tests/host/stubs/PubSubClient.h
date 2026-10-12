@@ -8,6 +8,7 @@ inline bool g_linkUp = false;          // socket currently alive
 inline int  g_connectCalls = 0;
 inline bool g_failNextPublishAndDrop = false;
 inline std::string g_lastWillTopic;
+inline void (*g_publishHook)() = nullptr;   // lets a test act "during" a publish
 struct PubSubClient {
   void (*cb)(char*, uint8_t*, unsigned int) = nullptr;
   PubSubClient(WiFiClient&) {}
@@ -25,6 +26,7 @@ struct PubSubClient {
   bool subscribe(const char* t) { g_subs.push_back(t); return true; }
   bool publish(const char* t, const char* p) { return publish(t, p, false); }
   bool publish(const char* t, const char* p, bool r) {
+    if (g_publishHook) g_publishHook();
     if (!g_linkUp) return false;
     if (g_failNextPublishAndDrop) { g_failNextPublishAndDrop = false; g_linkUp = false; return false; }
     g_pubs.push_back({t, p, r}); return true; }
