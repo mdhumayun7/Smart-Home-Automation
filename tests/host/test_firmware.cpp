@@ -107,26 +107,178 @@ static void s_pir_glitch(uint32_t st) {
   CHECK(state == SysState::ARMED && !has("motion:pir"), "short glitch ignored");
 }
 
+static void sendCmd(Cmd c) { CmdMsg m = { c, false, 0 }; xQueueSend(cmdQ, &m, 0); }
+
+// v2.2: PIR + mmWave radar fusion logic for the three modes.
+static void s_fusion(uint32_t st) {
+  (void)st;
+  // OR mode: either sensor alone triggers.
+  SensorFusion f; fusion_init(f, FUSION_OR, 1500);
+  CHECK(fusion_step(f, true,  false, 100), "OR: PIR alone fires");
+  CHECK(fusion_step(f, false, true,  200), "OR: radar edge alone fires");
+  CHECK(!fusion_step(f, false, true, 250), "OR: steady radar presence does not re-fire");
+
+  // AND mode: a lone PIR edge with no radar does not fire (this is the false-alarm case).
+  SensorFusion g; fusion_init(g, FUSION_AND, 1500);
+  CHECK(!fusion_step(g, true, false, 100), "AND: lone PIR does not fire");
+  CHECK(!fusion_step(g, false, false, 200), "AND: nothing keeps quiet");
+  // Radar presence then a PIR edge within the window: fires.
+  SensorFusion h; fusion_init(h, FUSION_AND, 1500);
+  fusion_step(h, false, true, 1000);               // radar sees presence
+  CHECK(fusion_step(h, true, true, 1200), "AND: PIR + radar within window fires");
+  // PIR edge, then radar only after the window has passed: does not fire.
+  SensorFusion k; fusion_init(k, FUSION_AND, 1500);
+  fusion_step(k, true, false, 1000);               // PIR edge, no radar yet
+  CHECK(!fusion_step(k, false, true, 4000), "AND: radar too late does not fire");
+
+  // PIR-only mode: radar is ignored entirely.
+  SensorFusion p; fusion_init(p, FUSION_PIR_ONLY, 1500);
+  CHECK(!fusion_step(p, false, true, 100), "PIR_ONLY: radar ignored");
+  CHECK(fusion_step(p, true, false, 200), "PIR_ONLY: PIR fires");
+}
+
 static void s_remote(uint32_t st) {
   init(st);
   run(200); evs.clear();
-  Cmd c = Cmd::ARM;    xQueueSend(cmdQ, &c, 0); run(50);
+  sendCmd(Cmd::ARM); run(50);
   CHECK(state == SysState::EXIT_DELAY && has("exit_delay:remote"), "remote arm");
-  c = Cmd::DISARM;     xQueueSend(cmdQ, &c, 0); run(50);
+  sendCmd(Cmd::DISARM); run(50);
   CHECK(has("cmd_rejected:remote") && state == SysState::EXIT_DELAY, "remote disarm refused");
-  c = Cmd::ARM;        xQueueSend(cmdQ, &c, 0); run(50);
+  sendCmd(Cmd::ARM); run(50);
   CHECK(has("cmd_ignored:remote"), "duplicate arm ignored");
   statusPublishNow = false;
-  c = Cmd::STATUS;     xQueueSend(cmdQ, &c, 0); run(50);
+  sendCmd(Cmd::STATUS); run(50);
   CHECK(statusPublishNow, "status request leads to publish");
   onMqttMessage((char*)"t", (uint8_t*)"disarm", 6);
   CHECK(uxQueueMessagesWaiting(cmdQ) == 1, "lowercase command parsed");
-  Cmd x; xQueueReceive(cmdQ, &x, 0);
+  CmdMsg x; xQueueReceive(cmdQ, &x, 0);
   onMqttMessage((char*)"t", (uint8_t*)"rm -rf /", 8);
   onMqttMessage((char*)"t", (uint8_t*)"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 36);
   CHECK(uxQueueMessagesWaiting(cmdQ) == 0, "unknown / oversized payloads ignored");
   onMqttMessage((char*)"t", (uint8_t*)"ARM_AWAY", 8);   // Home Assistant arm-away payload
   CHECK(uxQueueMessagesWaiting(cmdQ) == 1, "ARM_AWAY accepted as ARM");
+}
+
+// v2.2: authenticated commands -- forgery, replay, and a valid signed DISARM.
+// Builds the same "<VERB>:<ctr>:<tag>" string the signer tool and the device agree on.
+static std::string signCmd(const char* verb, uint32_t ctr) {
+  char base[32]; snprintf(base, sizeof base, "%s:%lu", verb, (unsigned long)ctr);
+  uint8_t mac[32];
+  authmac::hmac_sha256((const uint8_t*)SECRET_CMD_KEY, strlen(SECRET_CMD_KEY),
+                       (const uint8_t*)base, strlen(base), mac);
+  char out[80]; int n = snprintf(out, sizeof out, "%s:", base);
+  for (size_t i = 0; i < AUTH_TAG_BYTES; i++) n += snprintf(out + n, sizeof out - n, "%02x", mac[i]);
+  return std::string(out);
+}
+
+// v2.2: ESP-NOW signed alert message build/verify, tamper detection and replay rejection.
+static void s_alert(uint32_t st) {
+  (void)st;
+  const char* key = "demo-alert-key-change-me";
+  AlertMsg m;
+  alert_build(m, key, strlen(key), ALERT_ALARM, 7, 123456, "esp32-112233445566");
+  CHECK(alert_verify(m, key, strlen(key)), "freshly built alert verifies");
+  CHECK(m.event == ALERT_ALARM && m.counter == 7, "fields round-trip (event=%u ctr=%lu)", m.event, (unsigned long)m.counter);
+
+  // Any single-bit change anywhere in the signed region is caught.
+  AlertMsg t = m; t.event = ALERT_LINK_LOST;
+  CHECK(!alert_verify(t, key, strlen(key)), "tampered event field rejected");
+  t = m; t.deviceId[0] ^= 1;
+  CHECK(!alert_verify(t, key, strlen(key)), "tampered device id rejected");
+  t = m; t.tag[0] ^= 1;
+  CHECK(!alert_verify(t, key, strlen(key)), "tampered tag rejected");
+
+  // A different key does not verify (no cross-device acceptance).
+  CHECK(!alert_verify(m, "other-key", 9), "wrong key rejected");
+
+  // The receiver's duplicate/replay rule: counter must strictly advance.
+  uint32_t last = 0;
+  bool accept7 = (m.counter > last); last = accept7 ? m.counter : last;
+  bool replay7 = (m.counter > last);
+  CHECK(accept7 && !replay7, "receiver accepts once, rejects replay");
+}
+
+// v2.2: Wi-Fi deauth-flood detector logic (sliding window, threshold, cooldown).
+static void s_wifiguard(uint32_t st) {
+  (void)st;
+  DeauthDetector d;
+  deauth_init(d, 2000, 8, 10000);
+  int fires = 0;
+  // 7 frames in the window: below threshold, no detection.
+  for (int i = 0; i < 7; i++) fires += deauth_observe(d, 100 + i * 10) ? 1 : 0;
+  CHECK(fires == 0, "below threshold does not fire (%d)", fires);
+  // 8th frame reaches the threshold: one detection.
+  CHECK(deauth_observe(d, 180), "threshold reached fires once");
+  // More frames inside the cooldown do not fire again.
+  fires = 0;
+  for (int i = 0; i < 10; i++) fires += deauth_observe(d, 200 + i * 10) ? 1 : 0;
+  CHECK(fires == 0, "cooldown suppresses repeat reports (%d)", fires);
+  // After the cooldown, a fresh flood fires again.
+  DeauthDetector d2; deauth_init(d2, 2000, 8, 10000);
+  for (int i = 0; i < 8; i++) deauth_observe(d2, 1000 + i);
+  bool again = false;
+  for (int i = 0; i < 8; i++) again |= deauth_observe(d2, 20000 + i);
+  CHECK(again, "fresh flood after cooldown fires");
+  // Frames spread wider than the window never reach the threshold.
+  DeauthDetector d3; deauth_init(d3, 2000, 8, 10000);
+  bool slow = false;
+  for (int i = 0; i < 20; i++) slow |= deauth_observe(d3, i * 5000);
+  CHECK(!slow, "slow trickle outside the window never fires");
+}
+
+// v2.2: losing Wi-Fi while armed raises a link_lost security event; while disarmed it does not.
+static void s_linklost(uint32_t st) {
+  init(st);
+  g_wifiUp = true; networkStep(g_now); run(50);
+  run(PIR_WARMUP_MS + 100);
+  press(); run(EXIT_DELAY_MS + 100);        // ARMED
+  evs.clear();
+  g_wifiUp = false; networkStep(g_now); run(50);
+  CHECK(has("link_lost:radio"), "link loss while armed is flagged: %s", joined().c_str());
+  // Disarm, bring Wi-Fi back, drop it again: no link_lost while disarmed.
+  press(); run(50);
+  g_wifiUp = true; networkStep(g_now); run(50);
+  evs.clear();
+  g_wifiUp = false; networkStep(g_now); run(50);
+  CHECK(!has("link_lost:radio"), "link loss while disarmed is not a security event");
+}
+
+static void s_auth(uint32_t st) {
+  init(st);
+  run(200); evs.clear();
+
+  // A forged tag (right shape, wrong key) is rejected and never changes state.
+  std::string forged = signCmd("ARM", 5);
+  forged[forged.size() - 1] ^= 1;   // flip one hex nibble of the tag
+  onMqttMessage((char*)"t", (uint8_t*)forged.data(), forged.size()); run(50);
+  CHECK(has("cmd_badmac:remote") && state == SysState::DISARMED, "forged tag rejected: %s", joined().c_str());
+
+  // A correctly signed ARM at counter 10 is accepted.
+  std::string a10 = signCmd("ARM", 10);
+  onMqttMessage((char*)"t", (uint8_t*)a10.data(), a10.size()); run(50);
+  CHECK(state == SysState::EXIT_DELAY && has("exit_delay:remote_auth"), "signed ARM accepted: %s", joined().c_str());
+  CHECK(g_nvsU["cmdctr"] == 10, "counter persisted to NVS (%u)", g_nvsU["cmdctr"]);
+
+  // Replaying that exact ARM (counter 10 again) is rejected.
+  evs.clear();
+  onMqttMessage((char*)"t", (uint8_t*)a10.data(), a10.size()); run(50);
+  CHECK(has("cmd_replay:remote"), "replayed command rejected: %s", joined().c_str());
+
+  // A signed DISARM at a higher counter is accepted even though plain remote DISARM is refused.
+  run(EXIT_DELAY_MS + 100);          // reach ARMED
+  evs.clear();
+  std::string d11 = signCmd("DISARM", 11);
+  onMqttMessage((char*)"t", (uint8_t*)d11.data(), d11.size()); run(50);
+  CHECK(state == SysState::DISARMED && has("disarmed:remote_auth"), "signed DISARM accepted: %s", joined().c_str());
+  CHECK(g_nvsU["cmdctr"] == 11, "counter advanced to 11 (%u)", g_nvsU["cmdctr"]);
+
+  // The replay floor survives a reset: after reboot, counter 11 is still rejected.
+  autoDrain = true; evs.clear();
+  init(st + 500);                    // g_nvs / g_nvsU persist across init(); NVS is not cleared
+  run(200); evs.clear();
+  std::string d11b = signCmd("DISARM", 11);
+  onMqttMessage((char*)"t", (uint8_t*)d11b.data(), d11b.size()); run(50);
+  CHECK(has("cmd_replay:remote"), "counter floor restored from NVS after reset: %s", joined().c_str());
 }
 
 // v2.1: armed state stored in NVS, written only on arm / disarm
@@ -302,7 +454,8 @@ int main(int argc, char** argv) {
     {"basic", s_basic}, {"arm_alarm", s_arm_alarm}, {"disarm_in_entry", s_disarm_in_entry},
     {"door_left_open", s_door_left_open}, {"pir_edge", s_pir_edge}, {"pir_glitch", s_pir_glitch},
     {"remote", s_remote}, {"display_fail", s_display_fail}, {"oled", s_oled}, {"network", s_network},
-    {"persist", s_persist}, {"restore", s_restore}, {"restore_door", s_restore_door}, {"diag", s_diag}};
+    {"persist", s_persist}, {"restore", s_restore}, {"restore_door", s_restore_door}, {"diag", s_diag},
+    {"auth", s_auth}, {"wifiguard", s_wifiguard}, {"linklost", s_linklost}, {"alert", s_alert}, {"fusion", s_fusion}};
   for (auto& a : all) if (!strcmp(a.n, name)) { a.f(start); printf(fails ? "RESULT FAIL (%d)\n" : "RESULT PASS\n", fails); return fails ? 1 : 0; }
   printf("unknown scenario\n"); return 2;
 }

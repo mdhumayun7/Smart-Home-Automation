@@ -4,7 +4,7 @@
 # arduino-esp32 2.x and 3.x LEDC APIs.
 set -euo pipefail
 cd "$(dirname "$0")"
-SCENARIOS="basic arm_alarm disarm_in_entry door_left_open pir_edge pir_glitch remote display_fail oled network persist restore restore_door diag"
+SCENARIOS="basic arm_alarm disarm_in_entry door_left_open pir_edge pir_glitch remote display_fail oled network persist restore restore_door diag auth wifiguard linklost alert fusion"
 STARTS="0 2147483000 4294950000"
 fail=0
 # Every MQTT payload that looks like JSON must parse (state, events, Home Assistant discovery).
@@ -31,9 +31,28 @@ for core in 3 2; do
   done
 done
 
-# Build-only check of the TLS + credentials configuration.
-g++ -std=c++17 -Wall -Wextra -Werror -Wno-unused-parameter -fsyntax-only -I stubs \
+# Build-only checks of the optional configurations.
+buildcheck() {  # <label> <flags...>
+  local label="$1"; shift
+  if g++ -std=c++17 -Wall -Wextra -Werror -Wno-unused-parameter -fsyntax-only -I stubs "$@" test_firmware.cpp; then
+    echo "PASS build $label"
+  else
+    echo "FAIL build $label"; fail=1
+  fi
+}
+buildcheck "TLS + remote disarm config" \
     -DMQTT_USE_TLS=1 -DSECRET_MQTT_CA_CERT='"-----BEGIN CERTIFICATE-----"' \
-    -DSECRET_MQTT_USER='"user"' -DSECRET_MQTT_PASS='"pass"' -DALLOW_REMOTE_DISARM=1 test_firmware.cpp \
-  && echo "PASS build TLS + remote disarm config" || { echo "FAIL build TLS config"; fail=1; }
+    -DSECRET_MQTT_USER='"user"' -DSECRET_MQTT_PASS='"pass"' -DALLOW_REMOTE_DISARM=1
+buildcheck "authenticated commands required" -DAUTH_COMMANDS=1
+buildcheck "PIR + radar fusion (AND)"        -DFUSION_MODE=FUSION_AND
+buildcheck "Wi-Fi guard disabled"            -DENABLE_WIFI_GUARD=0
+
+# The shared headers in the ESP-NOW receiver must be byte-identical to the alarm's.
+for h in authmac.h alertmsg.h; do
+  if diff -q "../../firmware/smart_home/$h" "../../firmware/espnow_receiver/$h" >/dev/null; then
+    echo "PASS shared header in sync: $h"
+  else
+    echo "FAIL shared header drift: $h"; fail=1
+  fi
+done
 exit $fail
