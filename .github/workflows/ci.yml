@@ -47,6 +47,7 @@ jobs:
             - name: PubSubClient
           sketch-paths: |
             - firmware/smart_home
+            - firmware/espnow_receiver
           cli-compile-flags: |
             - --warnings="all"
           enable-warnings-report: true
@@ -84,3 +85,25 @@ jobs:
         with:
           name: size-report-${{ matrix.core }}
           path: sketches-reports
+      - name: Compile with optional features on (ESP-NOW, radar fusion, signed commands)
+        if: matrix.core == '3.3.12'
+        uses: arduino/compile-sketches@v1
+        with:
+          fqbn: esp32:esp32:esp32
+          sketch-paths: |
+            - firmware/smart_home
+          cli-compile-flags: |
+            - --build-property
+            - compiler.cpp.extra_flags=-DENABLE_ESPNOW=1 -DFUSION_MODE=FUSION_AND -DAUTH_COMMANDS=1
+
+  formal-verification:
+    name: Formal verification (TLA+)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Model-check the alarm state machine with TLC
+        run: ./formal/run_tlc.sh
