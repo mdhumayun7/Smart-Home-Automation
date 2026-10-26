@@ -41,8 +41,12 @@
 #include <PubSubClient.h>
 #include <Preferences.h>
 #include <esp_system.h>
+#include "authmac.h"
+#include "wifi_guard.h"
+#include "alertmsg.h"
+#include "sensor_fusion.h"
 
-#define FW_VERSION "2.1.0"
+#define FW_VERSION "2.2.0"
 
 // ============================================================================
 //  Configuration
@@ -50,6 +54,7 @@
 
 // ---- Pins -------------------------------------------------------------------
 constexpr uint8_t PIN_PIR       = 13;  // PIR OUT            (input)
+constexpr uint8_t PIN_RADAR     = 33;  // mmWave radar presence OUT (input), used when fusion is on
 constexpr uint8_t PIN_BUZZER    = 23;  // buzzer +           (output)
 constexpr uint8_t PIN_DOOR      = 14;  // door switch to GND (input, pull-up) HIGH = open
 constexpr uint8_t PIN_ARM_BTN   = 27;  // arm/disarm button to GND (input, pull-up)
@@ -126,18 +131,75 @@ const char*    MQTT_PASS    = SECRET_MQTT_PASS;
 // Supervise the safety loop with the task watchdog (default timeout 5 s).
 #define ENABLE_LOOP_WDT 1
 
+// ---- Wi-Fi attack detection -------------------------------------------------
+// Passively watch for a deauthentication / disassociation flood, the usual way to knock
+// a Wi-Fi alarm off the network and silence it. A burst of such frames is reported as a
+// "wifi_deauth" event; losing the link while armed is reported as "link_lost". Both are
+// treated as security events, not mere connectivity glitches. This only observes frames;
+// it never transmits. Promiscuous capture needs the real radio, so it is ESP32 only.
+#ifndef ENABLE_WIFI_GUARD
+#  define ENABLE_WIFI_GUARD 1
+#endif
+constexpr uint32_t DEAUTH_WINDOW_MS   = 2000;   // observation window
+constexpr uint32_t DEAUTH_THRESHOLD   = 8;      // frames in the window that signal a flood
+constexpr uint32_t DEAUTH_COOLDOWN_MS = 10000;  // at most one report per 10 s
+
+// ---- ESP-NOW fallback alert channel -----------------------------------------
+// When MQTT is unreachable, send signed alerts for critical events over ESP-NOW to a
+// nearby receiver node (see firmware/espnow_receiver). Needs the receiver's MAC in
+// secrets.h (SECRET_ESPNOW_PEER) and a shared SECRET_ALERT_KEY; off by default.
+#ifndef ENABLE_ESPNOW
+#  define ENABLE_ESPNOW 0
+#endif
+#ifndef SECRET_ALERT_KEY
+#  define SECRET_ALERT_KEY "demo-alert-key-change-me"
+#endif
+#ifndef SECRET_ESPNOW_PEER
+#  define SECRET_ESPNOW_PEER {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}   // broadcast until set
+#endif
+
+// ---- Sensor fusion ----------------------------------------------------------
+// Combine the PIR with an mmWave presence radar (LD2410 OUT on PIN_RADAR). Default is
+// PIR only, so existing hardware and behaviour are unchanged. FUSION_AND reduces false
+// alarms by requiring both sensors to agree within FUSION_WINDOW_MS; FUSION_OR raises
+// sensitivity. See sensor_fusion.h.
+#ifndef FUSION_MODE
+#  define FUSION_MODE FUSION_PIR_ONLY
+#endif
+constexpr uint32_t FUSION_WINDOW_MS = 1500;
+
 // 0 = passive piezo buzzer driven with a 2.7 kHz tone (also what Wokwi needs to make sound).
 // 1 = active buzzer with built-in oscillator, driven with a plain HIGH/LOW level.
 #define BUZZER_ACTIVE 0
 constexpr uint32_t BUZZER_FREQ_HZ = 2700;
 
-// 0 = remote DISARM is refused. It can only be enabled together with TLS and a broker
-// login, because otherwise anyone who learns the topic could switch the alarm off.
+// ---- Authenticated commands -------------------------------------------------
+// A command on the MQTT topic is only trusted if it carries a valid HMAC-SHA256 tag
+// over a strictly increasing counter. The tag proves the sender holds the shared key
+// (integrity + source), and the counter stops an eavesdropper from replaying a
+// captured "DISARM". The key is stored in secrets.h; the demo key below is public.
+//
+// Wire format of a signed command:  <CMD>:<counter>:<hex-tag>
+//   e.g.  DISARM:42:5f3c9e7a1b2d4c6e8a0f1234567890ab
+// <CMD> is ARM, DISARM or STATUS; <counter> is a decimal that must exceed the last
+// accepted one; <hex-tag> is the first AUTH_TAG_BYTES of HMAC-SHA256(key, "<CMD>:<counter>").
+#ifndef AUTH_COMMANDS
+#  define AUTH_COMMANDS 0      // 1 = require signed commands; unsigned ones are rejected
+#endif
+#ifndef SECRET_CMD_KEY
+#  define SECRET_CMD_KEY "demo-shared-key-change-me"   // public demo key; override in secrets.h
+#endif
+constexpr size_t AUTH_TAG_BYTES = 16;   // 128-bit tag: ample against forgery, short on the wire
+
+// 0 = remote DISARM is refused. With AUTH_COMMANDS a signed DISARM is safe (the counter and
+// tag defeat replay and forgery), so remote disarm is permitted when commands are authenticated.
+// Without authentication it still needs TLS and a broker login, because otherwise anyone who
+// learns the topic could switch the alarm off.
 #ifndef ALLOW_REMOTE_DISARM
 #  define ALLOW_REMOTE_DISARM 0
 #endif
-#if ALLOW_REMOTE_DISARM && (!MQTT_USE_TLS || !MQTT_HAS_LOGIN)
-#  error "ALLOW_REMOTE_DISARM requires MQTT_USE_TLS 1 and broker credentials in secrets.h"
+#if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && (!MQTT_USE_TLS || !MQTT_HAS_LOGIN)
+#  error "ALLOW_REMOTE_DISARM needs AUTH_COMMANDS 1, or MQTT_USE_TLS 1 with broker credentials"
 #endif
 
 #define TZ_STRING "IST-5:30"
@@ -148,6 +210,15 @@ constexpr uint32_t BUZZER_FREQ_HZ = 2700;
 
 enum class SysState : uint8_t { DISARMED, EXIT_DELAY, ARMED, ENTRY_DELAY, ALARM };
 enum class Cmd      : uint8_t { ARM, DISARM, STATUS };
+
+// A command as it crosses from the network task (core 0) to the safety loop (core 1).
+// The MAC is verified on core 0; the replay-counter check and its NVS write happen on
+// core 1, where all other NVS access lives, so the counter has a single owner.
+struct CmdMsg {
+  Cmd      cmd;
+  bool     authed;   // carried a valid MAC over its counter
+  uint32_t ctr;      // sender's counter (meaningful only when authed)
+};
 
 struct Event {
   uint32_t seq;       // increases by one per event since boot; gaps reveal losses
@@ -232,11 +303,18 @@ static Debounced armBtn      = {PIN_ARM_BTN, true, true, 0};   // LOW  = pressed
 static bool      pirHigh     = false;
 static uint32_t  pirHighSince = 0;
 static bool      pirConfirmed = false;
+static SensorFusion fusion;
 
 static uint32_t  eventCount  = 0;
 static uint32_t  eventSeq    = 0;
+static uint32_t  cmdCounter  = 0;      // highest accepted authenticated command counter
+[[maybe_unused]] static uint32_t alertCounter = 0;  // ESP-NOW alert counter, persisted across resets
 static Preferences prefs;
 static bool      nvsOk       = false;
+
+// Sends an ESP-NOW fallback alert for a critical event when MQTT is down. Defined later;
+// a no-op when ESP-NOW is disabled or off-device.
+static void espnowOnEvent(const char* type);
 static bool      persistedArmed = false;
 static uint32_t  alarmCount  = 0;
 static volatile uint32_t eventsDropped = 0;
@@ -256,6 +334,9 @@ static volatile bool     netWifiUp   = false;
 static volatile bool     netMqttUp   = false;
 static volatile int8_t   netRssi     = 0;
 static volatile uint32_t netDropped  = 0;    // events the network task had to discard
+static volatile uint32_t deauthAlerts = 0;   // set by the Wi-Fi monitor, read by the loop
+static bool      wasWifiUp   = false;        // previous Wi-Fi state, for link-loss detection
+static uint32_t  lastDeauthSeen = 0;         // loop-side copy of the alert count
 
 // ---- Network core (network task, core 0) -----------------------------------
 #if MQTT_USE_TLS
@@ -336,6 +417,7 @@ static void emitEvent(const char* type, const char* src) {
     eventsDropped++;
   }
   Serial.printf("[%8lu] EVENT %-12s src=%s\n", (unsigned long)e.upMs, type, src);
+  espnowOnEvent(type);
 }
 
 // Writes the armed flag to NVS only when it changes (one write per arm and per disarm),
@@ -356,6 +438,95 @@ static void setState(SysState next, const char* evType, const char* src, uint32_
 }
 
 static bool pirWarm(uint32_t now) { return (now - bootMs) >= PIR_WARMUP_MS; }
+
+// ---- Wi-Fi monitor ---------------------------------------------------------
+#if ENABLE_WIFI_GUARD
+static DeauthDetector deauthDet;
+
+#if defined(ARDUINO_ARCH_ESP32)
+#include <esp_wifi.h>
+// Promiscuous callback: runs in Wi-Fi context, so it must be short and must not call the
+// event path directly. It only parses the 802.11 frame-control byte and, when a flood is
+// detected, bumps a counter the safety loop reads. Subtypes 0x0C = deauth, 0x0A = disassoc.
+static void IRAM_ATTR wifiSniffer(void* buf, wifi_promiscuous_pkt_type_t type) {
+  if (type != WIFI_PKT_MGMT) return;
+  const wifi_promiscuous_pkt_t* p = (const wifi_promiscuous_pkt_t*)buf;
+  uint8_t fc = p->payload[0];
+  uint8_t ftype = (fc >> 2) & 0x3;
+  uint8_t fsub  = (fc >> 4) & 0xF;
+  if (ftype != 0 /* management */) return;
+  if (fsub != 0x0C && fsub != 0x0A) return;
+  if (deauth_observe(deauthDet, millis())) deauthAlerts++;
+}
+
+static void wifiGuardBegin() {
+  deauth_init(deauthDet, DEAUTH_WINDOW_MS, DEAUTH_THRESHOLD, DEAUTH_COOLDOWN_MS);
+  esp_wifi_set_promiscuous(true);
+  wifi_promiscuous_filter_t filter = { .filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT };
+  esp_wifi_set_promiscuous_filter(&filter);
+  esp_wifi_set_promiscuous_rx_cb(&wifiSniffer);
+}
+#else
+static void wifiGuardBegin() { deauth_init(deauthDet, DEAUTH_WINDOW_MS, DEAUTH_THRESHOLD, DEAUTH_COOLDOWN_MS); }
+#endif  // ARDUINO_ARCH_ESP32
+
+// Called from the safety loop. Raises a "wifi_deauth" event when the monitor has flagged a
+// flood, and a "link_lost" event when Wi-Fi drops while the system is armed (an attempt to
+// silence the alarm is itself worth recording and escalating).
+static void wifiGuardStep(uint32_t now) {
+  if (deauthAlerts != lastDeauthSeen) {
+    lastDeauthSeen = deauthAlerts;
+    emitEvent("wifi_deauth", "radio");
+  }
+  bool up = netWifiUp;
+  bool armed = (state != SysState::DISARMED);
+  if (wasWifiUp && !up && armed) emitEvent("link_lost", "radio");
+  wasWifiUp = up;
+}
+#endif  // ENABLE_WIFI_GUARD
+
+// ---- ESP-NOW fallback sender -----------------------------------------------
+#if ENABLE_ESPNOW && defined(ARDUINO_ARCH_ESP32)
+#include <esp_now.h>
+static bool espnowReady = false;
+
+static void espnowBegin() {
+  static uint8_t peer[6] = SECRET_ESPNOW_PEER;
+  if (esp_now_init() != ESP_OK) { Serial.println("ESP-NOW init failed"); return; }
+  esp_now_peer_info_t pi = {};
+  memcpy(pi.peer_addr, peer, 6);
+  pi.channel = 0;            // use the current Wi-Fi channel
+  pi.encrypt = false;        // our own HMAC authenticates the payload
+  if (esp_now_add_peer(&pi) != ESP_OK) { Serial.println("ESP-NOW add_peer failed"); return; }
+  espnowReady = true;
+  alertCounter = nvsOk ? prefs.getULong("alertctr", 0) : 0;
+}
+
+// Map a critical event name to an alert code; 0 means "not critical, do not send".
+static uint8_t alertCodeFor(const char* type) {
+  if (!strcmp(type, "alarm"))       return ALERT_ALARM;
+  if (!strcmp(type, "entry_delay")) return ALERT_ENTRY;
+  if (!strcmp(type, "wifi_deauth")) return ALERT_WIFI_DEAUTH;
+  if (!strcmp(type, "link_lost"))   return ALERT_LINK_LOST;
+  return 0;
+}
+
+static void espnowOnEvent(const char* type) {
+  if (!espnowReady) return;
+  if (netMqttUp) return;                 // MQTT is the primary path; fall back only when it is down
+  uint8_t code = alertCodeFor(type);
+  if (!code) return;
+  static uint8_t peer[6] = SECRET_ESPNOW_PEER;
+  uint32_t ctr = ++alertCounter;
+  if (nvsOk) prefs.putULong("alertctr", ctr);
+  AlertMsg m;
+  alert_build(m, SECRET_ALERT_KEY, strlen(SECRET_ALERT_KEY), code, ctr, millis(), deviceId);
+  esp_now_send(peer, (const uint8_t*)&m, sizeof m);
+}
+#else
+static void espnowBegin() {}
+static void espnowOnEvent(const char* type) { (void)type; }
+#endif  // ENABLE_ESPNOW
 
 static void startBeep(uint32_t now, uint32_t ms) { beeping = true; beepUntil = now + ms; }
 
@@ -393,8 +564,17 @@ static void readInputs(uint32_t now, bool& pirEdge, bool& doorOpened, bool& butt
     pirHigh = false;
   }
   bool confirmed = pirHigh && (now - pirHighSince) >= PIR_CONFIRM_MS && pirWarm(now);
-  pirEdge = confirmed && !pirConfirmed;
+  bool pirRise = confirmed && !pirConfirmed;
   pirConfirmed = confirmed;
+
+  // Fuse with the mmWave radar. In PIR-only mode (the default) this returns the PIR edge
+  // unchanged. The radar is only read when fusion is enabled, so the pin can stay unused.
+  if (FUSION_MODE == FUSION_PIR_ONLY) {
+    pirEdge = pirRise;
+  } else {
+    bool radarPresent = digitalRead(PIN_RADAR) == HIGH && pirWarm(now);
+    pirEdge = fusion_step(fusion, pirRise, radarPresent, now);
+  }
 
   // Door: HIGH = open (pull-up, switch closes to GND).
   if (debounceUpdate(door, now)) {
@@ -409,20 +589,47 @@ static void readInputs(uint32_t now, bool& pirEdge, bool& doorOpened, bool& butt
   if (debounceUpdate(armBtn, now) && !armBtn.stable) buttonPressed = true;
 }
 
+// Persist the command counter only when it advances, so replay protection survives a reset.
+static void persistCounter(uint32_t v) {
+  if (!nvsOk || v <= cmdCounter) return;
+  cmdCounter = v;
+  prefs.putULong("cmdctr", v);
+}
+
 static void handleCommands(uint32_t now) {
-  Cmd c;
-  while (xQueueReceive(cmdQ, &c, 0) == pdTRUE) {
-    switch (c) {
+  CmdMsg m;
+  while (xQueueReceive(cmdQ, &m, 0) == pdTRUE) {
+    // Marker from the network task for a command whose MAC did not verify.
+    if (!m.authed && m.ctr == 0xFFFFFFFFu) { emitEvent("cmd_badmac", "remote"); continue; }
+
+    if (m.authed) {
+      // Reject a replay: the counter must strictly advance.
+      if (m.ctr <= cmdCounter) { emitEvent("cmd_replay", "remote"); continue; }
+      persistCounter(m.ctr);
+    }
+#if AUTH_COMMANDS
+    else {
+      // Authentication is required but this command was unsigned.
+      emitEvent("cmd_unauth", "remote");
+      continue;
+    }
+#endif
+    const char* src = m.authed ? "remote_auth" : "remote";
+    switch (m.cmd) {
       case Cmd::ARM:
-        if (state == SysState::DISARMED) beginArm("remote", now);
-        else emitEvent("cmd_ignored", "remote");
+        if (state == SysState::DISARMED) beginArm(src, now);
+        else emitEvent("cmd_ignored", src);
         break;
       case Cmd::DISARM:
-#if ALLOW_REMOTE_DISARM
-        if (state != SysState::DISARMED) disarm("remote", now);
-#else
-        emitEvent("cmd_rejected", "remote");
-#endif
+        // A validly signed command proves the key holder sent it, so disarm is safe even
+        // when unauthenticated remote disarm is off. ALLOW_REMOTE_DISARM keeps the old
+        // escape hatch for a TLS + login deployment without command signing.
+        if (m.authed || ALLOW_REMOTE_DISARM) {
+          if (state != SysState::DISARMED) disarm(src, now);
+          else emitEvent("cmd_ignored", src);
+        } else {
+          emitEvent("cmd_rejected", src);
+        }
         break;
       case Cmd::STATUS:
         statusDirty = true;
@@ -578,20 +785,84 @@ static void copyStatusForNetwork(uint32_t now) {
 //  Network task (core 0)
 // ============================================================================
 
+// Map a verb (already upper-cased) to a command. Returns false for anything unknown.
+static bool parseVerb(const char* v, Cmd& out) {
+  if      (strcmp(v, "ARM") == 0 || strcmp(v, "ARM_AWAY") == 0) out = Cmd::ARM;
+  else if (strcmp(v, "DISARM") == 0) out = Cmd::DISARM;
+  else if (strcmp(v, "STATUS") == 0) out = Cmd::STATUS;
+  else return false;
+  return true;
+}
+
+// Verify a signed command "<VERB>:<ctr>:<hex-tag>". On success fills cmd and ctr and
+// returns true. The MAC is computed over the exact "<VERB>:<ctr>" bytes as received
+// (before upper-casing), so the signer and the device agree on one canonical string.
+static bool verifySigned(const char* s, unsigned len, Cmd& cmd, uint32_t& ctr) {
+  const char* c1 = (const char*)memchr(s, ':', len);
+  if (!c1) return false;
+  const char* rest = c1 + 1;
+  unsigned restLen = len - (unsigned)(rest - s);
+  const char* c2 = (const char*)memchr(rest, ':', restLen);
+  if (!c2) return false;
+
+  unsigned verbLen = (unsigned)(c1 - s);
+  unsigned ctrLen  = (unsigned)(c2 - rest);
+  const char* tag  = c2 + 1;
+  unsigned tagLen  = len - (unsigned)(tag - s);
+  if (verbLen == 0 || verbLen > 10 || ctrLen == 0 || ctrLen > 10) return false;
+  if (tagLen != AUTH_TAG_BYTES * 2) return false;
+
+  char verb[12];
+  memcpy(verb, s, verbLen); verb[verbLen] = 0;
+  for (unsigned i = 0; i < verbLen; i++) if (verb[i] >= 'a' && verb[i] <= 'z') verb[i] -= 32;
+  if (!parseVerb(verb, cmd)) return false;
+
+  uint32_t v = 0;
+  for (unsigned i = 0; i < ctrLen; i++) {
+    if (rest[i] < '0' || rest[i] > '9') return false;
+    v = v * 10 + (uint32_t)(rest[i] - '0');
+  }
+  ctr = v;
+
+  uint8_t want[AUTH_TAG_BYTES];
+  if (authmac::hex_decode(tag, tagLen, want, sizeof want) != (int)AUTH_TAG_BYTES) return false;
+
+  uint8_t full[32];
+  unsigned signedLen = (unsigned)(c2 - s);   // "<VERB>:<ctr>" exactly as received
+  authmac::hmac_sha256((const uint8_t*)SECRET_CMD_KEY, strlen(SECRET_CMD_KEY),
+                       (const uint8_t*)s, signedLen, full);
+  return authmac::ct_equal(full, want, AUTH_TAG_BYTES);
+}
+
 static void onMqttMessage(char* topic, uint8_t* payload, unsigned int len) {
   (void)topic;
+  if (len == 0 || len > 80) return;
+
+  CmdMsg m = {};
+  // A colon marks the signed form "<VERB>:<ctr>:<tag>".
+  if (memchr(payload, ':', len) != nullptr) {
+    if (verifySigned((const char*)payload, len, m.cmd, m.ctr)) {
+      m.authed = true;
+      xQueueSend(cmdQ, &m, 0);
+    } else {
+      m.cmd = Cmd::STATUS; m.authed = false; m.ctr = 0;    // marker: a bad signed command
+      // Flag it so the safety loop can log a rejection; STATUS is harmless if mis-flagged.
+      static const CmdMsg bad = { Cmd::STATUS, false, 0xFFFFFFFFu };
+      xQueueSend(cmdQ, &bad, 0);
+      Serial.println("MQTT: signed command failed verification");
+    }
+    return;
+  }
+
+  // Plain, unsigned command (no colon).
   char buf[16];
   if (len >= sizeof buf) len = sizeof buf - 1;
   memcpy(buf, payload, len);
   buf[len] = 0;
   for (unsigned i = 0; i < len; i++) if (buf[i] >= 'a' && buf[i] <= 'z') buf[i] -= 32;
-
-  Cmd c;
-  if      (strcmp(buf, "ARM") == 0 || strcmp(buf, "ARM_AWAY") == 0) c = Cmd::ARM;
-  else if (strcmp(buf, "DISARM") == 0) c = Cmd::DISARM;
-  else if (strcmp(buf, "STATUS") == 0) c = Cmd::STATUS;
-  else { Serial.printf("MQTT: unknown command '%s'\n", buf); return; }
-  xQueueSend(cmdQ, &c, 0);
+  if (!parseVerb(buf, m.cmd)) { Serial.printf("MQTT: unknown command '%s'\n", buf); return; }
+  m.authed = false; m.ctr = 0;
+  xQueueSend(cmdQ, &m, 0);
 }
 
 // Home Assistant discovery: the device shows up as an alarm control panel. The panel
@@ -714,6 +985,8 @@ void setup() {
   Serial.begin(115200);
 
   pinMode(PIN_PIR,       INPUT);
+  if (FUSION_MODE != FUSION_PIR_ONLY) pinMode(PIN_RADAR, INPUT);
+  fusion_init(fusion, FUSION_MODE, FUSION_WINDOW_MS);
   pinMode(PIN_DOOR,      INPUT_PULLUP);
   pinMode(PIN_ARM_BTN,   INPUT_PULLUP);
   pinMode(PIN_LED_ARMED, OUTPUT);
@@ -739,7 +1012,7 @@ void setup() {
   }
 
   eventQ      = xQueueCreate(16, sizeof(Event));
-  cmdQ        = xQueueCreate(4,  sizeof(Cmd));
+  cmdQ        = xQueueCreate(4,  sizeof(CmdMsg));
   statusMutex = xSemaphoreCreateMutex();
 
   uint64_t mac = ESP.getEfuseMac();
@@ -776,6 +1049,7 @@ void setup() {
   // Restore the armed state after a power cut, so cutting the supply cannot disarm the house.
   nvsOk = prefs.begin("alarm", false);
   persistedArmed = nvsOk && prefs.getBool("armed", false);
+  cmdCounter     = nvsOk ? prefs.getULong("cmdctr", 0) : 0;   // replay floor survives resets
 #if RESTORE_ARMED_ON_BOOT
   if (persistedArmed) {
     setState(SysState::ARMED, "restored_armed", "nvs", bootMs);
@@ -787,6 +1061,11 @@ void setup() {
   enableLoopWDT();   // the Arduino loop task now feeds the task watchdog on every pass
 #endif
 
+#if ENABLE_WIFI_GUARD
+  wifiGuardBegin();
+#endif
+  espnowBegin();
+
   xTaskCreatePinnedToCore(networkTask, "net", 8192, nullptr, 1, nullptr, 0);
 }
 
@@ -797,6 +1076,9 @@ void loop() {
   readInputs(now, pirEdge, doorOpened, buttonPressed);
   handleCommands(now);
   runStateMachine(now, pirEdge, doorOpened, buttonPressed);
+#if ENABLE_WIFI_GUARD
+  wifiGuardStep(now);
+#endif
   driveOutputs(now);
   updateDisplay(now);
   copyStatusForNetwork(now);

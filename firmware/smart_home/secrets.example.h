@@ -21,5 +21,23 @@
   "...\n" \
   "-----END CERTIFICATE-----\n"
 
-// Remote DISARM over MQTT. Only allowed with TLS and credentials (enforced at compile time).
+// ---- Authenticated commands (v2.2) -----------------------------------------
+// Shared key for HMAC-signed commands. Use a long random string. With AUTH_COMMANDS 1,
+// unsigned commands are rejected and a signed command may also disarm (replay- and
+// forgery-proof). Sign commands with tools/sign_command.py using the same key.
+#define SECRET_CMD_KEY       "change-me-to-a-long-random-string"
+// #define AUTH_COMMANDS      1
+
+// ---- ESP-NOW fallback alert channel (v2.2) ---------------------------------
+// Shared key and receiver MAC for signed ESP-NOW alerts when MQTT is unreachable.
+// #define ENABLE_ESPNOW      1
+#define SECRET_ALERT_KEY     "change-me-to-another-long-random-string"
+// #define SECRET_ESPNOW_PEER {0x24,0x6F,0x28,0x11,0x22,0x33}   // receiver MAC
+
+// ---- Sensor fusion (v2.2) --------------------------------------------------
+// Add an LD2410 mmWave radar on PIN_RADAR and require both sensors to agree.
+// #define FUSION_MODE        FUSION_AND
+
+// Remote DISARM without command signing. Only allowed with TLS and credentials, or with
+// AUTH_COMMANDS (enforced at compile time). Prefer AUTH_COMMANDS.
 // #define ALLOW_REMOTE_DISARM 1
