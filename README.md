@@ -108,8 +108,10 @@ None of the ESP32 strapping pins (GPIO 0, 2, 5, 12, 15) is used.
 
 | arduino-esp32 | Flash | RAM (globals) |
 |---|---|---|
-| 2.0.17 | 790,649 B (60.3 % of 1,310,720) | 46,204 B (14.1 % of 327,680) |
-| 3.3.12 | 965,281 B (73.6 % of 1,310,720) | 49,708 B (15.2 % of 327,680) |
+| 2.0.17 | 793,433 B (60.5 % of 1,310,720) | 46,372 B (14.2 % of 327,680) |
+| 3.3.12 | 968,221 B (73.9 % of 1,310,720) | 49,876 B (15.2 % of 327,680) |
+
+The v2.2 security features (HMAC command authentication, the deauth detector, sensor fusion and the signed-alert format) add roughly 3 KB of flash and 170 bytes of RAM over v2.1.
 
 ## Getting started
 
