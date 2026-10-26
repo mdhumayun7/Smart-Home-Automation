@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 2.2.0 - 2026-10-26
+
+Security and research release: command authentication, attack detection, a fallback alert
+channel, sensor fusion, and formal verification, with a documented threat model and evaluation.
+
+### Added
+- Authenticated remote commands: HMAC-SHA256 tag over a strictly increasing, NVS-persisted
+  counter. Forged commands (`cmd_badmac`) and replays (`cmd_replay`) are rejected; a valid
+  signed command may disarm. `tools/sign_command.py` signs commands; verified against RFC 4231
+  and FIPS 180-4 vectors and cross-checked between the signer and the firmware.
+- Wi-Fi deauthentication/disassociation flood detection (`wifi_deauth`) via passive
+  promiscuous-mode monitoring, and a `link_lost` security event when Wi-Fi drops while armed.
+- ESP-NOW fallback alert channel: signed, counter-protected alerts to a second ESP32
+  (`firmware/espnow_receiver`) when MQTT is unreachable.
+- Optional PIR + mmWave radar (LD2410) sensor fusion with PIR-only, OR and AND modes to trade
+  sensitivity against false alarms.
+- Formal verification: a TLA+ model of the state machine and command path (`formal/`), checked
+  by TLC in CI, proving no unauthenticated disarm, a monotonic replay counter, and that the
+  entry delay and alarm always resolve.
+- Documentation: `docs/THREAT_MODEL.md`, `docs/EVALUATION.md`, `docs/HARDENING.md`.
+- Evaluation tools: `tools/eval_commands.py` and `tools/measure.py` to verify the defences and
+  measure latency and recovery on real hardware.
+- CI now compiles the ESP-NOW receiver, builds the optional-feature configuration, and runs
+  the TLA+ model checker.
+
+### Changed
+- Remote DISARM authorization is decided at runtime: a validly signed command is trusted even
+  when unauthenticated remote disarm is off.
+- MQTT command parsing accepts both the plain form and the signed `<CMD>:<ctr>:<tag>` form.
+
 ## 2.1.0 - 2026-10-12
 
 ### Added

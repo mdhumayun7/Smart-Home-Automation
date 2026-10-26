@@ -1,12 +1,13 @@
 # Smart Home Surveillance System
 
 [![CI](https://github.com/mdhumayun7/Smart-Home-Automation/actions/workflows/ci.yml/badge.svg)](https://github.com/mdhumayun7/Smart-Home-Automation/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-2.1.0-blue)
+![Version](https://img.shields.io/badge/version-2.2.0-blue)
 ![Platform](https://img.shields.io/badge/platform-ESP32-blue)
 ![Framework](https://img.shields.io/badge/arduino--esp32-2.0.17%20%7C%203.3.12-informational)
+![Verification](https://img.shields.io/badge/formal%20spec-TLA%2B-8A2BE2)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-ESP32 intrusion alarm firmware with a PIR motion sensor, a door contact, a local siren and status display, MQTT alerts and Home Assistant integration.
+ESP32 intrusion alarm firmware with a PIR motion sensor, a door contact, a local siren and status display, MQTT alerts and Home Assistant integration, hardened against network and radio attacks and verified formally.
 
 Its main design rule is that the alarm never depends on the network. The detection logic and the siren run on one core and never wait for anything. Wi-Fi, NTP and MQTT run in a separate FreeRTOS task on the other core and exchange data with the alarm logic only through bounded queues.
 
@@ -25,6 +26,8 @@ Its main design rule is that the alarm never depends on the network. The detecti
 - [Configuration](#configuration)
 - [MQTT interface](#mqtt-interface)
 - [Home Assistant](#home-assistant)
+- [Security and attack resistance](#security-and-attack-resistance)
+- [Formal verification](#formal-verification)
 - [Reliability and safety](#reliability-and-safety)
 - [Testing and CI](#testing-and-ci)
 - [Project structure](#project-structure)
@@ -44,11 +47,17 @@ Its main design rule is that the alarm never depends on the network. The detecti
 - Task watchdog on the safety loop; the boot event reports the reset reason
 - Offline event queue (16 events) delivered in order after reconnecting; losses are counted, never silent
 
-**Connectivity and security**
+**Connectivity**
 - MQTT with Last Will, retained state, 30 s heartbeat and one JSON message per event with a sequence number
-- Remote `ARM` and `STATUS`; remote `DISARM` is refused unless TLS and a broker login are configured (enforced at compile time)
 - Credentials in a git-ignored `secrets.h`; optional TLS on port 8883
 - Home Assistant MQTT discovery as an alarm control panel
+
+**Security and attack resistance** (see [threat model](docs/THREAT_MODEL.md))
+- Authenticated commands: HMAC-SHA256 tag over a strictly increasing, NVS-persisted counter; forged and replayed commands are rejected
+- Wi-Fi deauthentication-flood detection and a `link_lost` alert when the link drops while armed
+- ESP-NOW fallback channel: signed alerts to a second ESP32 when MQTT is unreachable
+- PIR + mmWave radar fusion to cut false alarms
+- State machine and command path proved correct in TLA+
 
 ## Architecture
 
@@ -160,7 +169,9 @@ All topics are under `svnit/smarthome/<deviceId>/`, where the device id is deriv
  "pir":"idle","rssi":-55,"events":12,"alarms":1,"dropped":0,"queued":0,"up_s":60}
 ```
 
-Events: `boot` (source = reset reason), `restored_armed`, `exit_delay`, `armed`, `motion`, `door_open`, `door_closed`, `entry_delay`, `alarm`, `alarm_end`, `disarmed`, `cmd_rejected`, `cmd_ignored`.
+Events: `boot` (source = reset reason), `restored_armed`, `exit_delay`, `armed`, `motion`, `door_open`, `door_closed`, `entry_delay`, `alarm`, `alarm_end`, `disarmed`, `cmd_rejected`, `cmd_ignored`, and the v2.2 security events `cmd_badmac`, `cmd_replay`, `cmd_unauth`, `wifi_deauth`, `link_lost`.
+
+Signed commands (when authentication is enabled) take the form `<CMD>:<counter>:<hex-tag>`, for example `DISARM:1001:5f3c...`. Sign them with `tools/sign_command.py`. See the [hardening guide](docs/HARDENING.md).
 
 `ts` is UTC epoch seconds once NTP has synchronised (0 before), `up` is milliseconds since boot, and `seq` increases by one per event since boot, so a client can detect missing or duplicate messages.
 
@@ -182,7 +193,41 @@ With the MQTT integration enabled, the device publishes a retained discovery mes
 | `ENTRY_DELAY` | `pending` |
 | `ALARM` | `triggered` |
 
-Arming from Home Assistant works out of the box. Disarming from Home Assistant is rejected unless remote disarm has been enabled with TLS and a broker login.
+Arming from Home Assistant works out of the box. Disarming from Home Assistant is rejected unless command authentication, or remote disarm with TLS and a broker login, has been enabled.
+
+## Security and attack resistance
+
+A networked alarm is also a target. The [threat model](docs/THREAT_MODEL.md) sets out the
+adversaries and the full list of threats and mitigations; the highlights:
+
+| Attack | Defence |
+|---|---|
+| Forged `DISARM` command | HMAC-SHA256 tag over the command; a bad tag is rejected (`cmd_badmac`) |
+| Replay of a captured signed command | Strictly increasing counter, persisted in NVS (`cmd_replay`); survives reboots |
+| Deauthentication flood to drop the link | Passive flood detection (`wifi_deauth`); the alarm keeps working offline |
+| Knocking the device offline silently | `link_lost` event while armed; broker Last Will; ESP-NOW fallback alert |
+| Cutting mains power while armed | Armed state restored from NVS; a door open at power-up re-triggers |
+| Fake alerts to cause alarm fatigue | ESP-NOW alerts are HMAC-authenticated and counter-checked |
+| PIR false triggers | Optional PIR + mmWave radar fusion (AND mode) |
+
+The command and alert authentication is the portable HMAC-SHA256 in
+`firmware/smart_home/authmac.h`, unit-tested against RFC 4231 and FIPS 180-4 vectors and
+cross-checked between `tools/sign_command.py` and the firmware. Deployment steps (TLS, private
+broker, keys, ESP-NOW, flash encryption) are in the [hardening guide](docs/HARDENING.md), and
+the measured and to-be-measured results are in the [evaluation](docs/EVALUATION.md).
+
+## Formal verification
+
+The alarm state machine and the authenticated-command path are modelled in TLA+
+([`formal/AlarmFSM.tla`](formal/AlarmFSM.tla)) and model-checked by TLC over the whole state
+space (a CI job and `./formal/run_tlc.sh`). The proof establishes, for every reachable state:
+
+- an unauthenticated remote command never disarms the system;
+- the replay counter never decreases;
+- the siren is never active while disarmed;
+- the entry delay and the alarm always resolve (no stuck state).
+
+The spec is mutation-tested, so the properties are known not to be vacuous.
 
 ## Reliability and safety
 
@@ -204,7 +249,7 @@ See [SECURITY.md](SECURITY.md) for the threat model and the known gaps.
 ./tests/host/run_tests.sh
 ```
 
-The firmware source is compiled unchanged on a PC against stub implementations of the Arduino, FreeRTOS, Wi-Fi, MQTT, NVS and display interfaces, with `-Wall -Wextra -Werror`. Fourteen scenarios are each run at three starting values of the millisecond clock (0, 2^31 and just before the 32-bit wrap) and against the arduino-esp32 2.x and 3.x interfaces: 84 runs in total, plus a build check of the TLS configuration. Every MQTT payload is parsed as JSON.
+The firmware source is compiled unchanged on a PC against stub implementations of the Arduino, FreeRTOS, Wi-Fi, MQTT, NVS and display interfaces, with `-Wall -Wextra -Werror`. Nineteen scenarios are each run at three starting values of the millisecond clock (0, 2^31 and just before the 32-bit wrap) and against the arduino-esp32 2.x and 3.x interfaces: 114 runs, plus four build-configuration checks and two shared-header-sync checks. Every MQTT payload is parsed as JSON. The security logic (HMAC commands, replay counter, deauth detector, ESP-NOW alerts, sensor fusion) has its own scenarios, and the cryptography is checked against RFC 4231 / FIPS 180-4 vectors.
 
 | Area | Scenarios |
 |---|---|
@@ -214,8 +259,9 @@ The firmware source is compiled unchanged on a PC against stub implementations o
 | Fault tolerance | `display_fail`, `persist`, `restore`, `restore_door`, `diag` |
 | Display | `oled` |
 | Networking | `network` (retry timing, Last Will, retained state, discovery, ordering, failed publish, queue race, overflow, heartbeat) |
+| Security (v2.2) | `auth` (HMAC, replay, counter floor), `wifiguard` (deauth detector), `linklost`, `alert` (ESP-NOW message), `fusion` (PIR + radar) |
 
-GitHub Actions runs the host tests and compiles the firmware for the ESP32 with arduino-esp32 2.0.17 and 3.3.12, reporting flash and RAM usage on every push.
+GitHub Actions runs the host tests, compiles the firmware and the ESP-NOW receiver for the ESP32 with arduino-esp32 2.0.17 and 3.3.12 (reporting flash and RAM usage), builds the optional-feature configuration, and runs the TLA+ model checker on every push.
 
 What the tests do not cover: electrical behaviour, real Wi-Fi and broker timing, and true parallel execution on the two cores. These need the Wokwi simulator or real hardware.
 
@@ -224,12 +270,18 @@ What the tests do not cover: electrical behaviour, real Wi-Fi and broker timing,
 ```
 firmware/smart_home/
   smart_home.ino          firmware
-  secrets.example.h       template for credentials (copy to secrets.h)
+  authmac.h               portable SHA-256 / HMAC-SHA256 for signed commands and alerts
+  wifi_guard.h            deauth-flood detector logic
+  sensor_fusion.h         PIR + mmWave radar fusion logic
+  alertmsg.h              signed ESP-NOW alert format
+  secrets.example.h       template for credentials and keys (copy to secrets.h)
+firmware/espnow_receiver/ second-ESP32 ESP-NOW alert receiver sketch
+formal/                   TLA+ model of the state machine and TLC runner
+tools/                    command signer and hardware evaluation / measurement scripts
 wokwi/                    Wokwi circuit (diagram.json) and library list
 tests/host/               host test harness, stubs and run_tests.sh
-docs/images/              architecture, wiring, state machine and sequence diagrams (SVG and PNG)
-docs/media/               demo video and GIF
-.github/workflows/ci.yml  host tests and ESP32 builds
+docs/                     threat model, evaluation, hardening guide, diagrams, demo media
+.github/workflows/ci.yml  host tests, ESP32 builds and TLA+ verification
 ```
 
 ## Roadmap
@@ -237,7 +289,7 @@ docs/media/               demo video and GIF
 - Signed over-the-air updates, secure boot and flash encryption
 - Tamper switch and battery backup with low-battery events
 - ESP32-CAM node that captures an image on the `alarm` event
-- Automated Wokwi simulation test in CI
+- Hardware measurement campaign (see [evaluation](docs/EVALUATION.md))
 - MQTT client with acknowledged delivery (QoS 1) for events
 
 ## Author
