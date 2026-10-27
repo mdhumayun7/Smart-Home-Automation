@@ -1,0 +1,226 @@
+{
+  "baseline": {
+    "label": "baseline (no command authentication)",
+    "trials": 3000,
+    "rates": {
+      "0": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 0,
+        "attacker_disarmed": 0,
+        "legit_accepted": 500,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "10": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 500,
+        "attacker_disarmed": 0,
+        "legit_accepted": 0,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "100": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 500,
+        "attacker_disarmed": 0,
+        "legit_accepted": 0,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "1000": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 500,
+        "attacker_disarmed": 0,
+        "legit_accepted": 0,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "5000": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 500,
+        "attacker_disarmed": 0,
+        "legit_accepted": 0,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "20000": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 500,
+        "attacker_disarmed": 0,
+        "legit_accepted": 0,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      }
+    }
+  },
+  "hardened": {
+    "label": "hardened (AUTH_COMMANDS=1)",
+    "trials": 3000,
+    "rates": {
+      "0": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 0,
+        "attacker_disarmed": 0,
+        "legit_accepted": 500,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "10": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 0,
+        "attacker_disarmed": 0,
+        "legit_accepted": 500,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "100": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 0,
+        "attacker_disarmed": 0,
+        "legit_accepted": 500,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "1000": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 0,
+        "attacker_disarmed": 0,
+        "legit_accepted": 500,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "5000": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 0,
+        "attacker_disarmed": 0,
+        "legit_accepted": 500,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      },
+      "20000": {
+        "n": 500,
+        "reached_alarm": 500,
+        "violations": 0,
+        "violation_kinds": [],
+        "attacker_armed": 0,
+        "attacker_disarmed": 0,
+        "legit_accepted": 500,
+        "latency_min": 151,
+        "latency_median": 151.0,
+        "latency_max": 151,
+        "latency_stdev": 0.0,
+        "alarm_latency_median": 10000.0,
+        "event_drops_total": 0
+      }
+    }
+  },
+  "tests": {
+    "10": {
+      "U": 125000.0,
+      "z": 0.0,
+      "p": 1.0,
+      "verdict": "indistinguishable"
+    },
+    "100": {
+      "U": 125000.0,
+      "z": 0.0,
+      "p": 1.0,
+      "verdict": "indistinguishable"
+    },
+    "1000": {
+      "U": 125000.0,
+      "z": 0.0,
+      "p": 1.0,
+      "verdict": "indistinguishable"
+    },
+    "5000": {
+      "U": 125000.0,
+      "z": 0.0,
+      "p": 1.0,
+      "verdict": "indistinguishable"
+    },
+    "20000": {
+      "U": 125000.0,
+      "z": 0.0,
+      "p": 1.0,
+      "verdict": "indistinguishable"
+    }
+  }
+}
