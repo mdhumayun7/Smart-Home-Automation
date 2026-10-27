@@ -140,5 +140,8 @@ The project is positioned against recent work rather than older references:
   availability of the alarm itself, and verifies the state machine formally - a complementary,
   lighter-weight angle suited to a single always-on node.
 
-A full literature search should be completed before claiming novelty in any write-up; the
-references above are a starting point, not a survey.
+A full survey has since been completed: [RELATED_WORK.md](RELATED_WORK.md) positions this work
+against fourteen prior works, each verified against its publisher or preprint record, and states
+the gap precisely. The research framing built on it is in [RESEARCH.md](RESEARCH.md), and the
+complete technical record, including every result and every gap, is in
+[IMPLEMENTATION.md](IMPLEMENTATION.md).

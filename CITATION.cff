@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+title: >-
+  Smart Home Surveillance System: an attack-resilient, formally
+  verified ESP32 intrusion alarm
+message: >-
+  If you use this software or its experimental artifact in your
+  research, please cite it as below.
+type: software
+authors:
+  - family-names: Humayun
+    given-names: MD
+    affiliation: >-
+      Department of Computer Science and Engineering, Sardar
+      Vallabhbhai National Institute of Technology, Surat, India
+repository-code: https://github.com/mdhumayun7/Smart-Home-Automation
+abstract: >-
+  An ESP32 intrusion alarm used as the object of study for a single
+  research question: on a single-chip Wi-Fi SoC, where the attacked
+  radio driver shares the die, the RTOS scheduler and the interrupt
+  controller with the safety task, does pinning the safety task to its
+  own core actually isolate it? The firmware runs a five-state alarm
+  machine on a pinned core, isolated from Wi-Fi and MQTT by bounded
+  queues and a non-blocking status snapshot, and adds HMAC-SHA256
+  command authentication over an NVS-persisted monotonic counter,
+  passive 802.11 deauthentication detection, a signed ESP-NOW fallback
+  alert channel and optional PIR plus mmWave sensor fusion. The
+  repository is a reproducible artifact: two TLA+ specifications
+  checked exhaustively by TLC and mutation-tested, a seeded 6,000-trial
+  adversarial campaign, a 3,000,000-iteration sanitizer-backed fuzzing
+  campaign, and a specified measurement protocol for the one claim that
+  requires physical hardware, which remains open.
+keywords:
+  - embedded systems
+  - ESP32
+  - FreeRTOS
+  - real-time systems
+  - safety-critical systems
+  - IoT security
+  - formal verification
+  - TLA+
+  - model checking
+  - fuzzing
+  - MQTT
+  - home automation
+license: MIT
+version: 2.2.0
+date-released: '2026-10-26'

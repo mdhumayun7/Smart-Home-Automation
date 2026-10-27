@@ -259,6 +259,22 @@ Evidence produced here (all reproducible from fixed seeds):
 
 Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version runs in CI.
 
+### Documentation map
+
+| Document | What it covers |
+|---|---|
+| [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md) | **The complete technical record**: architecture, algorithms and mathematical formulations, every configuration parameter, the environment, experimental design, all results, version-by-version comparisons, debugging fixes, validation performed, and every limitation and gap |
+| [`docs/RESEARCH.md`](docs/RESEARCH.md) | Research question, hypotheses and claims |
+| [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md) | Verified survey of fourteen prior works and the positioning |
+| [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) | Assets, adversaries, twelve threats and their mitigations |
+| [`docs/EVALUATION.md`](docs/EVALUATION.md) | Evaluation method, results, and the hardware procedure still to run |
+| [`docs/HARDENING.md`](docs/HARDENING.md) | Turning the demo build into a deployable system |
+| [`paper/`](paper/) | Paper draft and a one-page research brief |
+
+**Status in one line:** the firmware, formal verification, simulation campaign, fuzzing and
+paper draft are complete; the physical hardware measurement is the one open step, and no
+latency number is claimed anywhere until it is run.
+
 ## Reliability and safety
 
 | Concern | How it is handled |

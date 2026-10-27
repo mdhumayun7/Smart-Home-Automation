@@ -1,7 +1,20 @@
 /*
- * Smart Home Surveillance System  -  firmware v2.1.0
+ * Smart Home Surveillance System  -  firmware v2.2.0
  * Target : ESP32 DevKit (Wokwi simulation or real hardware)
  * Author : MD Humayun
+ *
+ * New in v2.2  (security and verification release)
+ *   - Authenticated remote commands: HMAC-SHA256 tag over a strictly increasing,
+ *     NVS-persisted counter. Forged tags (cmd_badmac) and replays (cmd_replay) are
+ *     rejected, and a validly signed command may disarm. See authmac.h.
+ *   - Wi-Fi deauthentication / disassociation flood detection (wifi_deauth) by passive
+ *     promiscuous monitoring, plus a link_lost security event when Wi-Fi drops while
+ *     armed. The detector only observes; it never transmits. See wifi_guard.h.
+ *   - ESP-NOW fallback alert channel: signed, counter-protected alerts to a second
+ *     ESP32 when MQTT is unreachable. See alertmsg.h and firmware/espnow_receiver.
+ *   - Optional PIR + mmWave radar sensor fusion (PIR-only, OR, AND). See sensor_fusion.h.
+ *   - The state machine and command path are modelled in TLA+ and model-checked by TLC
+ *     in CI (formal/AlarmFSM.tla, formal/Isolation.tla).
  *
  * New in v2.1
  *   - Armed state is stored in NVS and restored after a power cut or reset.

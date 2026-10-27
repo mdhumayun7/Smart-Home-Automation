@@ -1,0 +1,20 @@
+# Python dependencies.
+#
+# None of these are needed to reproduce the core results. The adversarial campaign, the
+# fuzzer and the statistical analysis (experiments/analyse.py) use only the C++ toolchain
+# and the Python standard library, so `experiments/run.sh` produces summary.md and
+# summary.json on a bare Python install. The packages below are for figure generation and
+# for the hardware evaluation tools.
+#
+#   pip install -r requirements.txt
+
+# Figure generation: experiments/make_figures.py
+# (If absent, run.sh skips the figure and continues; it is a presentation step,
+#  not a correctness check.)
+matplotlib>=3.7
+
+# Hardware evaluation over MQTT: tools/eval_commands.py, tools/measure.py
+paho-mqtt>=2.0
+
+# Serial collection from the latency probe board: experiments/hardware/collect.py
+pyserial>=3.5
