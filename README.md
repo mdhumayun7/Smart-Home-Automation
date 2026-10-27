@@ -239,7 +239,8 @@ This repository doubles as the reproducible artifact for a study of a research q
 isolate it from attacks on the device's own radio and command interface?* The design, the gap
 in the 2025-26 literature, the claims and the evidence are written up in
 [`docs/RESEARCH.md`](docs/RESEARCH.md), with a paper draft in [`paper/`](paper/) and all
-experiments in [`experiments/`](experiments/).
+experiments in [`experiments/`](experiments/). A surveyed and verified positioning against
+fourteen prior works is in [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md).
 
 Evidence produced here (all reproducible from fixed seeds):
 

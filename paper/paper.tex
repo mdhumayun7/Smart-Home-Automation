@@ -97,20 +97,78 @@ physical latency invariance under on-chip radio stress---stated honestly as the 
 \end{enumerate}
 
 \section{Related Work}
-\textbf{Real-time operation under DoS.} Fischer \emph{et al.}~\cite{fischer2020} measure control-task
-jitter on Linux-class industrial devices under wired floods and find core pinning effective,
-with a separate co-processor best. Their devices physically separate the control core from the
-attacked network interface; single-chip Wi-Fi SoCs do not, which is the gap we address.
-\textbf{Wi-Fi deauthentication.} Carbajal and Akbarfam~\cite{carbajal2026} quantify
-network-layer deauthentication resilience across WPA/PMF/WPA3, measuring disconnection rate and
-time-to-disruption---whether the \emph{link} drops, not whether the device's \emph{application}
-still meets its deadline. \textbf{MQTT security on the ESP32.} Recent work measures the latency
-cost of MQTT-over-TLS on an ESP32-C3~\cite{mqtttls2026} and runs on-device ML intrusion
-detection on an ESP32~\cite{ondevice2026}; both are valuable but address transport cost and
-detection accuracy, not continuity of a safety function under attack. \textbf{FreeRTOS on
-ESP32} has been characterised under benign load but not under adversarial radio conditions. To
-our knowledge the specific question---does core pinning isolate the safety path on a
-single-chip Wi-Fi SoC when its own radio is attacked---is open.
+\textbf{Timing isolation under attack and interference.} This is the closest body of work, and its
+consistent finding is that spatial separation plus a resource regulator preserves real-time
+behaviour. Its consistent platform, however, is large. Fischer \emph{et al.}~\cite{fischer2020}
+measure control-task jitter on Linux-class industrial devices under \emph{wired} floods and find
+core pinning effective, with a separate co-processor best; the attacked interface there is a
+physically separate NIC. Meszl\'enyi \emph{et al.}~\cite{timingiso2025} hold DDS latency and jitter
+predictable under heavy interference using priority-based middleware scheduling, AF\_XDP kernel
+bypass and dedicated NIC hardware queues on x86 with a PREEMPT-RT kernel. Hoornaert
+\emph{et al.}~\cite{mcti2024} co-design CPU-time and memory-bandwidth isolation on a Cortex-A53
+MPSoC, switching the interconnect from fair to fixed-priority arbitration on overload, using a
+hypervisor and an FPGA-hosted memory scheduler. The mixed-criticality literature these sit in is
+surveyed by Burns and Davis~\cite{mcreview2026}, which treats criticality as a scheduling problem
+under benign timing assumptions. None of the mechanisms these works rely on---an MMU, a
+hypervisor, performance-counter regulation, separate NIC queues---exist on a 240\,MHz
+single-chip Wi-Fi SoC. What remains available there is core pinning and queue discipline alone,
+and whether that residual mechanism suffices is an open empirical question about a particular
+silicon and radio driver.
+
+\textbf{Radio-layer attacks on this device class.} The attack side is established and specifically
+demonstrated on this chip family. Carbajal and Jodeiri Akbarfam~\cite{carbajal2026} quantify
+deauthentication resilience across open, WPA2, PMF and WPA3 configurations, finding PMF effective
+under the conditions tested; the dependent variable is whether the \emph{link} drops. Kremser and
+Graffi~\cite{deauther2026} build deauthentication firmware for the ESP32-S3 itself---patching the
+compiled image because the ESP-IDF transmit path rejects such frames---showing the attack is cheap
+and portable against exactly this hardware. Cayre \emph{et al.}~\cite{espwn2023} reverse-engineer
+the ESP32 family's wireless ROM components and inject, alter and jam link-layer traffic from
+software, supporting our assumption that radio-layer stress is a realistic in-scope condition.
+Crucially, all of this measures the link or the attacker's reach, not whether the victim's
+\emph{application} still meets its deadline.
+
+\textbf{ESP32 application-stack security.} Work on this platform measures the latency cost of
+MQTT-over-TLS on an ESP32-C3~\cite{mqtttls2026} and runs on-device ML intrusion detection on an
+ESP32~\cite{ondevice2026}. Both are valuable, and both optimise transport cost or detection
+accuracy rather than treating a safety deadline as the dependent variable; an on-device detector is
+itself additional load on the contended chip.
+
+\textbf{Formal verification and fuzzing.} Krichen's survey of formal verification for
+IoT~\cite{krichen2023} covers model checking, abstract interpretation and deductive verification
+with Event-B, Maude and Simulink tooling, and does not record TLA+~\cite{lamport2002} use for this
+device class---still less a TLA+ model of a task-isolation argument. On the fuzzing
+side~\cite{fuzzsurvey2022}, the frontier is whole-firmware: Bley \emph{et al.}~\cite{pemu2025}
+wrap fuzz inputs in protocol-valid packets to reach deep network-stack code, and
+SysFuSS~\cite{sysfuss2026} adds selective symbolic execution when coverage stalls. Our fuzzing is
+deliberately narrower---the application-layer command parser in a host harness---and is evidence
+for one property with a precise oracle, not a contribution to fuzzing technique.
+
+\begin{table}[t]
+\centering\small
+\caption{Positioning. No prior work measures a safety deadline on a single-chip Wi-Fi SoC whose own
+radio driver is the attacked resource.}
+\label{tab:position}
+\begin{tabular}{@{}llcc@{}}
+\toprule
+Work & Platform & \shortstack{Attacked\\resource\\on-die} & \shortstack{Safety\\deadline\\measured} \\
+\midrule
+Fischer~\cite{fischer2020}      & Linux ind.\ board & no  & yes \\
+Meszl\'enyi~\cite{timingiso2025}& x86 PREEMPT-RT    & no  & yes \\
+Hoornaert~\cite{mcti2024}       & A53 + hypervisor  & n/a & yes \\
+Carbajal~\cite{carbajal2026}    & Wi-Fi testbed     & n/a & no  \\
+Kremser~\cite{deauther2026}     & ESP32-S3          & n/a & no  \\
+Cayre~\cite{espwn2023}          & ESP32 family      & yes & no  \\
+Azhar~\cite{mqtttls2026}        & ESP32-C3          & no  & no  \\
+Ieropoulos~\cite{ondevice2026}  & ESP32             & no  & no  \\
+\midrule
+\textbf{This work}              & \textbf{ESP32}    & \textbf{yes} & \textbf{yes}$^\dagger$ \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+{\footnotesize $^\dagger$Logical invariance established here; physical latency invariance is the
+specified open step (Section~\ref{sec:hw}).}
+\end{table}
 
 \section{System Design}\label{sec:design}
 \textbf{Dual-core structure.} The Arduino \texttt{loop} runs the safety function on the
@@ -247,6 +305,30 @@ Analysis of MQTT over TLS on ESP32-Based IoT Systems,'' \emph{J.\ Applied Inform
 Computing}, 2026.
 \bibitem{ondevice2026} V.\ Ieropoulos \emph{et al.}, ``Empowering IoT Security: On-Device
 Intrusion Detection in Resource Constrained Devices,'' arXiv:2605.13159, 2026.
+\bibitem{mcreview2026} A.\ Burns and R.\ I.\ Davis, ``Mixed Criticality Systems: A Review,''
+14th edn., Dept.\ of Computer Science, University of York, Feb.\ 2026.
+\bibitem{timingiso2025} L.\ Meszl\'enyi, J.\ Kahle, D.\ P\"ullen, S.\ Kowalewski,
+S.\ Katzenbeisser, and A.\ Kampmann, ``Towards Timing Isolation for Mixed-Criticality
+Communication in Software-Defined Vehicles,'' arXiv:2508.13652, 2025.
+\bibitem{mcti2024} D.\ Hoornaert, G.\ Ghaemi, A.\ Bastoni, R.\ Mancuso, M.\ Caccamo, and
+G.\ Corradi, ``Mcti: mixed-criticality task-based isolation,'' \emph{Real-Time Systems},
+vol.\ 60, no.\ 2, pp.\ 328--365, 2024.
+\bibitem{deauther2026} S.\ Kremser and K.\ Graffi, ``Evaluating the ESP32-S3 for Wi-Fi
+Penetration Testing Through the Development of Deauther32 and HackHeld32,'' \emph{Sensors},
+vol.\ 26, no.\ 11, art.\ 3287, 2026.
+\bibitem{espwn2023} R.\ Cayre, D.\ Cauquil, and A.\ Francillon, ``ESPwn32: Hacking with ESP32
+System-on-Chips,'' in \emph{Proc.\ 17th IEEE Workshop on Offensive Technologies (WOOT)}, 2023.
+\bibitem{krichen2023} M.\ Krichen, ``A Survey on Formal Verification and Validation Techniques
+for Internet of Things,'' \emph{Applied Sciences}, vol.\ 13, no.\ 14, art.\ 8122, 2023.
+\bibitem{lamport2002} L.\ Lamport, \emph{Specifying Systems: The TLA+ Language and Tools for
+Hardware and Software Engineers}. Addison-Wesley, 2002.
+\bibitem{fuzzsurvey2022} J.\ Yun \emph{et al.}, ``Fuzzing of Embedded Systems: A Survey,''
+\emph{ACM Computing Surveys}, 2022.
+\bibitem{pemu2025} M.\ Bley, T.\ Scharnowski, S.\ W\"orner, M.\ Schloegel, and T.\ Holz,
+``Protocol-Aware Firmware Rehosting for Effective Fuzzing of Embedded Network Stacks,'' ACM,
+2025, doi:10.1145/3719027.3765125.
+\bibitem{sysfuss2026} D.\ Tharindu, A.\ Jayasena, and P.\ Mishra, ``SysFuSS: System-Level
+Firmware Fuzzing with Selective Symbolic Execution,'' arXiv:2602.02243, 2026.
 \end{thebibliography}
 
 \end{document}
