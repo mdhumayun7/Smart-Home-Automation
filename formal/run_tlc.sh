@@ -12,5 +12,14 @@ if [ ! -f "$JAR" ]; then
     "https://github.com/tlaplus/tlaplus/releases/download/${TLA_VERSION}/tla2tools.jar"
 fi
 
-echo "Running TLC on AlarmFSM..."
-java -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -config AlarmFSM.cfg AlarmFSM.tla
+fail=0
+for m in AlarmFSM Isolation; do
+  echo
+  echo "=== TLC: $m ==="
+  if java -XX:+UseParallelGC -cp "$JAR" tlc2.TLC -config "$m.cfg" "$m.tla"; then
+    echo "PASS $m"
+  else
+    echo "FAIL $m"; fail=1
+  fi
+done
+exit $fail
