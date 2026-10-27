@@ -17,6 +17,11 @@ within a bounded time, *including while the device itself is under attack*.
 
 ## 2. Gap in the literature
 
+A fuller survey, covering fourteen works across timing isolation under attack, radio-layer attacks
+on the ESP32 family, ESP32 application-stack security, formal verification for IoT and embedded
+fuzzing, with each reference verified against its publisher record, is in
+[`RELATED_WORK.md`](RELATED_WORK.md). The summary table below gives the four closest.
+
 | Prior work | What it establishes | What it leaves open |
 |---|---|---|
 | Fischer et al., *Analysis of Industrial Device Architectures for Real-Time Operations under DoS* (2020) | On Linux-class industrial devices, pinning the control task to a separate core keeps 1 ms cycle jitter near zero under **wired** SYN/ARP floods; a separate Cortex-M4 co-processor is the only architecture acceptable for hard real-time | Does not cover single-chip Wi-Fi SoCs, where the attacked radio driver shares the chip; does not use **radio-layer** attacks |
