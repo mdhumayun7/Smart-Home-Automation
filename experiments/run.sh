@@ -19,7 +19,9 @@ echo "== running campaign ($TRIALS trials per build) =="
 
 echo "== analysing =="
 python3 analyse.py > /dev/null
-python3 make_figures.py
+# The figure needs matplotlib; it is a presentation step, not a correctness check, so a
+# missing plotting library must not fail the pipeline (e.g. on a minimal CI runner).
+python3 make_figures.py || echo "(figure skipped: matplotlib not available)"
 
 echo "== fuzzing command parser ($FUZZ_ITERS iters) =="
 g++ -O2 -g -std=c++17 -Wall -Wextra -Wno-unused-parameter -fsanitize=address,undefined \
