@@ -17,3 +17,16 @@ Thumbs.db
 # PlatformIO / Arduino CLI
 .pio/
 .arduino/
+tla2tools.jar
+
+# Experiment binaries and large raw outputs
+experiments/campaign_baseline
+experiments/campaign_hardened
+experiments/fuzz_cmd
+experiments/hardware/latency_probe/*.bin
+experiments/results/*.err
+paper/*.aux
+paper/*.log
+paper/*.out
+experiments/campaign
+experiments/results/*.jsonl

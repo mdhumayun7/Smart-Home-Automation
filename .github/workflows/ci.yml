@@ -107,3 +107,29 @@ jobs:
           java-version: "17"
       - name: Model-check the alarm state machine with TLC
         run: ./formal/run_tlc.sh
+
+  experiments:
+    name: Adversarial campaign and fuzzing (smoke)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run a reduced campaign and fuzz run
+        env:
+          TRIALS: "300"
+          FUZZ_ITERS: "200000"
+        run: ./experiments/run.sh
+      - name: Fail if any invariant was violated or any fuzz input was accepted
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          s = json.load(open("experiments/results/summary.json"))
+          bad = 0
+          for b in ("baseline", "hardened"):
+              for r in s[b]["rates"].values():
+                  bad += r["violations"] + r["attacker_disarmed"]
+          fuzz = json.load(open("experiments/results/fuzz.json"))
+          if fuzz["accepted"] or fuzz["counter_advanced"]:
+              bad += 1
+          print("violations+disarms+fuzz_accept =", bad)
+          sys.exit(1 if bad else 0)
+          PY

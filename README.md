@@ -28,6 +28,7 @@ Its main design rule is that the alarm never depends on the network. The detecti
 - [Home Assistant](#home-assistant)
 - [Security and attack resistance](#security-and-attack-resistance)
 - [Formal verification](#formal-verification)
+- [Research](#research)
 - [Reliability and safety](#reliability-and-safety)
 - [Testing and CI](#testing-and-ci)
 - [Project structure](#project-structure)
@@ -230,6 +231,32 @@ space (a CI job and `./formal/run_tlc.sh`). The proof establishes, for every rea
 - the entry delay and the alarm always resolve (no stuck state).
 
 The spec is mutation-tested, so the properties are known not to be vacuous.
+
+## Research
+
+This repository doubles as the reproducible artifact for a study of a research question:
+*on a single-chip Wi-Fi SoC, does pinning the safety function to the application core actually
+isolate it from attacks on the device's own radio and command interface?* The design, the gap
+in the 2025-26 literature, the claims and the evidence are written up in
+[`docs/RESEARCH.md`](docs/RESEARCH.md), with a paper draft in [`paper/`](paper/) and all
+experiments in [`experiments/`](experiments/).
+
+Evidence produced here (all reproducible from fixed seeds):
+
+- **Formal.** Two TLA+ models, checked exhaustively by TLC and mutation-tested: the state
+  machine/command path (25 states) and safety/network isolation under a maximally adversarial,
+  unfair network task (660 states).
+- **Adversarial campaign.** 6,000 seeded trials injecting forged, replayed and malformed
+  commands at up to 20,000 msg/s. No attacker ever disarmed the device and no safety invariant
+  was violated; with authentication a legitimate command always took effect, while the
+  unhardened baseline was attacker-armed in every flooded trial.
+- **Fuzzing.** 3,000,000 iterations of the command parser under AddressSanitizer/UBSan with no
+  memory error and no accepted input.
+- **Open step.** The one claim that needs silicon -- physical sensor-to-siren latency under
+  on-chip radio stress -- has its measurement apparatus and protocol in
+  [`experiments/hardware/`](experiments/hardware/) and is stated as future work, not asserted.
+
+Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version runs in CI.
 
 ## Reliability and safety
 
