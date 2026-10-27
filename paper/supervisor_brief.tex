@@ -1,0 +1,100 @@
+% One-page research brief for a supervisor meeting.
+% Compiles with a stock LaTeX install: pdflatex supervisor_brief.tex
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=0.62in]{geometry}
+\usepackage{times}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\titlespacing*{\section}{0pt}{0.5em}{0.2em}
+\titleformat{\section}{\normalfont\normalsize\bfseries}{}{0em}{}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.32em}
+\pagestyle{empty}
+
+\begin{document}
+
+{\LARGE\bfseries Research brief: attack-resilient embedded safety}\\[0.3em]
+{\large Does core pinning isolate the safety function on a single-chip Wi-Fi SoC?}
+
+\vspace{0.4em}
+\textbf{MD Humayun} \quad M.Tech CSE (Information Security and Privacy), Adm.\ No.\ P25IS016\\
+Supervisor: Dr.\ M.\ A.\ Zaveri \quad $\cdot$ \quad
+\texttt{github.com/mdhumayun7/Smart-Home-Automation}
+
+\section{The question}
+Consumer intrusion alarms are built almost entirely on single-chip Wi-Fi SoCs of the ESP32 class,
+where the Wi-Fi driver, the TCP/IP stack, the MQTT client and the safety application all run on the
+same die, under one RTOS scheduler, sharing one interrupt controller. The standard advice is to pin
+the safety task to its own core---but that advice comes from a literature studying much larger
+machines, in which the attacked network interface is \emph{physically separate} from the protected
+core. Does it still hold when the attacked resource is the chip's own radio driver?
+
+\section{The gap, from the current literature}
+Fourteen prior works were surveyed and individually verified against publisher records
+(\texttt{docs/RELATED\_WORK.md}). The gap is narrow and real:
+
+\begin{itemize}[leftmargin=1.2em,itemsep=0.15em,topsep=0.2em]
+\item \textbf{Timing isolation under attack} is established, but only on platforms that can
+separate the attacked interface from the protected core: Linux-class industrial boards
+(Fischer, 2020), x86 with PREEMPT-RT and dedicated NIC queues (Meszl\'enyi, 2025), Cortex-A53 with
+a hypervisor and an FPGA memory scheduler (Hoornaert, \emph{Real-Time Systems}, 2024). None of
+these mechanisms---MMU, hypervisor, counter-based regulation, hardware queues---exist on a
+240\,MHz MCU.
+\item \textbf{Radio-layer attacks on this chip family} are cheap and demonstrated (Kremser and
+Graffi, \emph{Sensors}, 2026; Cayre \emph{et al.}, WOOT'23), and deauthentication resilience has
+been quantified (Carbajal, 2026)---but the dependent variable is always whether the \emph{link}
+drops, never whether the device's \emph{application} still meets its deadline.
+\item \textbf{ESP32 security work} measures MQTT-over-TLS cost or on-device detection accuracy.
+No one treats a safety deadline as the dependent variable.
+\end{itemize}
+
+No published work measures a safety deadline on a device whose own radio driver is the attacked
+resource. That is the contribution on offer.
+
+\section{What is already established}
+All of the following is committed, seeded and reproducible by a single script; CI re-runs a reduced
+version of every one of them on each push.
+
+\begin{tabular}{@{}lll@{}}
+\toprule
+Evidence & Scale & Result \\
+\midrule
+TLA+ model checking (TLC) & 2 models, 25 + 660 states & All properties hold; both mutation-tested \\
+Adversarial campaign & 6{,}000 seeded trials & 0 attacker disarms, 0 invariant violations \\
+Fuzzing (ASan + UBSan) & 3{,}000{,}000 iterations & 0 memory errors, 0 accepted inputs \\
+\bottomrule
+\end{tabular}
+
+The second TLA+ model is the methodological point worth discussing: the network task is given
+\emph{no fairness assumption}---free to stall unboundedly, flood, fail to publish or crash---and
+the safety step is proved to remain enabled regardless. That is a formal statement of the isolation
+claim, independent of any particular workload.
+
+\section{What is open, and why it cannot be simulated}
+Physical sensor-to-siren latency under on-chip radio stress. Simulation establishes \emph{logical}
+isolation---no code path makes the safety function depend on the network---but not \emph{timing}
+isolation, which is a property of the silicon, the interrupt controller and the closed-source radio
+driver. The apparatus is specified and built (\texttt{experiments/hardware/}): a second ESP32 as an
+independent measuring instrument, a logic probe, and collection and analysis scripts using the same
+non-parametric test.
+
+\textbf{Resources needed:} two ESP32 DevKit boards, a logic probe, and an authorised isolated or
+shielded RF environment. The attack condition would be run only on our own equipment with
+institutional permission; this is stated in the paper's ethics section, and no attack tooling is
+published in the repository.
+
+\section{Proposed next steps}
+\begin{enumerate}[leftmargin=1.4em,itemsep=0.15em,topsep=0.2em]
+\item Approve the hardware measurement campaign and the isolated-RF arrangement.
+\item Run conditions A--C (idle, legitimate load, command stress) first; these need no RF isolation
+and alone support a workshop submission.
+\item Add condition D (radio-layer stress) once approved. This is the headline result.
+\item Target venue, for discussion: an IEEE/ACM workshop on IoT or embedded security, or
+\emph{Sensors}/\emph{Applied Sciences}, where comparable device-class work appears.
+\end{enumerate}
+\textbf{If condition D is not approved:} the paper still stands on the formal isolation result plus
+conditions A--C, with D as future work. No claimed number depends on it.
+
+\end{document}
