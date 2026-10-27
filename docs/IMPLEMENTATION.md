@@ -1151,7 +1151,33 @@ Everything in this section was run while writing this document, on the environme
 | Paper compilation | `pdflatex paper.tex` ×2 | **PASS** — 4 pages, 0 overfull boxes |
 | Brief compilation | `pdflatex supervisor_brief.tex` | **PASS** — 1 page, 0 overfull boxes |
 | Committed results vs documented claims | manual cross-check against `summary.json` / `fuzz.json` | **CONSISTENT** — 6,000 trials, 2,500/2,500 baseline attacker-armed, 0 hardened, fuzz `accepted: 0` |
+| **Full pipeline re-run** | 6,000 campaign trials + 3,000,000 fuzz iterations, from the committed seeds | **EXACT REPRODUCTION** — see below |
 | CI pipeline | GitHub Actions | **PASS** — all 5 jobs on the most recent run |
+
+**Exact reproduction check.** The entire campaign and fuzzing pipeline was re-run from scratch
+from the committed seeds, and the regenerated outputs were diffed against the committed ones:
+
+| Output | Result |
+|---|---|
+| `experiments/results/summary.json` | **byte-for-byte identical** |
+| `experiments/results/summary.md` | **byte-for-byte identical** |
+| `experiments/results/fuzz.json` | **byte-for-byte identical** |
+
+`git status experiments/results/` reported no modifications after the re-run, which is the
+strongest available evidence that the committed results are reproducible rather than
+hand-maintained. Fuzzer output, verbatim and unchanged:
+
+```json
+{"iterations":3000000,"well_formed_shapes":1500000,"accepted":0,"final_state":"ARMED","counter_advanced":false}
+```
+
+**Note on how this was run.** A first attempt to run the whole pipeline in one go was stopped by
+the execution environment's background time limit after completing all 3,000 baseline trials and
+2,338 of the 3,000 hardened trials. That partial run already matched the committed aggregates at
+every attack rate. The run was then completed in two parts, which is why the runtime caveat in
+[Section 9.4](#94-reproduce-the-full-experimental-pipeline) exists. The interruption damaged
+nothing: the stop occurred before the analysis step, so no committed file was overwritten
+mid-write.
 
 TLC output, verbatim:
 
