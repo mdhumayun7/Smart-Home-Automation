@@ -25,6 +25,7 @@ experiments/campaign_hardened
 experiments/fuzz_cmd
 experiments/ablation_auth
 experiments/ablation_unauth
+experiments/ablation_tls
 experiments/sensitivity
 experiments/hardware/latency_probe/*.bin
 experiments/results/*.err

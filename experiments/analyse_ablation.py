@@ -20,12 +20,14 @@ from collections import defaultdict
 HERE = os.path.dirname(os.path.abspath(__file__))
 RES = os.path.join(HERE, "results")
 
-MODES = ["none", "ratelimit", "token", "hmac"]
+MODES = ["none", "ratelimit", "token", "transport", "transport_leaked", "hmac"]
 MODE_LABEL = {
     "none": "No command defence",
     "ratelimit": "Token-bucket rate limit (5/s)",
     "token": "Static shared token",
     "hmac": "HMAC-SHA256 + counter",
+    "transport": "TLS + broker credentials",
+    "transport_leaked": "TLS, credentials leaked",
 }
 
 

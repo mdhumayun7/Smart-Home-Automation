@@ -94,7 +94,27 @@ simulation results meaningful at all.
 | Raw data | `experiments/results/ablation.jsonl` (committed) |
 | Aggregates | `experiments/results/ablation_summary.md`, `.json` |
 | Reproduce | `cd experiments && ./run_ablation.sh` |
-| **Limitations** | The three alternatives are **harness models of edge defences**, not firmware features — a broker rule or gateway, which is where a developer would put them. They are not implementations of any specific product. Transport security with broker credentials is **not** among the baselines and should be added before publication |
+| **Limitations** | The alternatives are **harness models of edge defences**, not firmware features — a broker rule, a gateway, or broker-level admission control, which is where a developer would put them. They are not implementations of any specific product |
+
+**Transport-security modes: what is and is not modelled.** This distinction matters more than
+any other in this document, so it is stated explicitly.
+
+| Aspect | Status |
+|---|---|
+| **Access control** — who may publish to the command topic | **Modelled faithfully.** This is exactly what TLS plus broker credentials decides in this architecture, and it is representable as an admission predicate |
+| **TLS cryptography, handshake, session resumption** | **Not modelled.** `tests/host/stubs/WiFiClientSecure.h` is a no-op shim that records the CA pointer and does nothing else |
+| **Runtime latency, throughput, CPU cost of TLS** | **Not measured, and not measurable here.** The harness has no TLS and no network. Any such figure would be fabricated, so none is reported |
+| **Static build cost of TLS** | **Measured** by the real compiler in CI. See E7 |
+
+No result in this project comes from an actual TLS-enabled MQTT deployment. A reader wanting
+real transport-security performance figures will not find them here, and should not infer them
+from the ablation.
+
+**Why `transport_leaked` is built with `ALLOW_REMOTE_DISARM=1`.** Not an arbitrary choice: the
+firmware's own compile-time guard permits that combination only when `MQTT_USE_TLS=1` and
+`MQTT_HAS_LOGIN=1`. The design therefore treats transport security as a substitute for
+application-layer authentication when deciding whether remote disarm may be enabled. The mode
+exists to test whether that substitution survives the threat model.
 
 Two harness defects were found and fixed while building this experiment, both of which had
 produced misleading output:
@@ -154,6 +174,16 @@ parameter rather than confirming a design.
 | Source | `arduino/compile-sketches` output in CI, both core versions |
 | Raw result | arduino-esp32 2.0.17: 793,433 B flash (60.5%), 46,372 B RAM (14.2%). 3.3.12: 968,221 B flash (73.9%), 49,876 B RAM (15.2%). v2.2 security features add ≈3 KB flash, ≈170 B RAM over v2.1 |
 | **Limitations** | Static size only. **No CPU-time, latency or energy cost has been measured**, and all three are open |
+
+### E7 — Build cost of transport security
+
+| Field | Value |
+|---|---|
+| **Category** | **1. Physical measurement**, in the narrow sense that a real compiler measured it — of the binary, not the running device |
+| Objective | Quantify the static cost of enabling TLS, the one transport-security figure that can be obtained honestly without a deployment |
+| Method | CI compiles the firmware with `MQTT_USE_TLS=1` against arduino-esp32 3.3.12, using the placeholder CA certificate from `secrets.example.h`, and reports flash and RAM against the non-TLS build of the same commit |
+| Reproduce | Push, or run the same `arduino-cli` invocation locally with a `secrets.h` present |
+| **Limitations** | Static size only. It says nothing about handshake time, per-record CPU cost, memory high-water mark during a handshake, or energy. Those need a deployment |
 
 ---
 

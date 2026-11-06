@@ -18,6 +18,37 @@
 //              payload; no counter, no MAC
 //   hmac       the real firmware path: HMAC-SHA256 over   (AUTH_COMMANDS=1)
 //              a monotonic, NVS-persisted counter
+//   transport  TLS + broker credentials, credentials NOT   (AUTH_COMMANDS=0)
+//              leaked: the adversary cannot authenticate
+//              to the broker, so nothing reaches the device
+//   transport_ TLS + broker credentials, credentials LEAKED (AUTH_COMMANDS=0,
+//   leaked     (phished, extracted from firmware, shared     MQTT_USE_TLS=1,
+//              broker, or a second compromised client).      MQTT_HAS_LOGIN=1,
+//              The adversary authenticates and publishes     ALLOW_REMOTE_DISARM=1)
+//              freely; the device has no application-layer
+//              check.
+//
+// WHAT THE TWO TRANSPORT MODES DO AND DO NOT MODEL
+// ------------------------------------------------
+// They model the ACCESS-CONTROL property of transport security: who is able to publish to the
+// command topic. That is faithful, because it is exactly what TLS plus broker credentials
+// decides in this architecture.
+//
+// They do NOT model TLS cryptography, the handshake, or any performance cost. The host harness
+// has no TLS: tests/host/stubs/WiFiClientSecure.h is a no-op shim that records the CA pointer
+// and nothing else. Any latency, throughput or CPU figure produced here for TLS would be
+// fabricated, so none is produced. The static build cost of the TLS configuration IS measured,
+// by the compiler, in CI -- see docs/EXPERIMENTS.md (E7).
+//
+// The transport_leaked mode is built with ALLOW_REMOTE_DISARM=1 because the firmware's own
+// compile-time guard permits exactly that when MQTT_USE_TLS=1 and MQTT_HAS_LOGIN=1:
+//
+//   #if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && (!MQTT_USE_TLS || !MQTT_HAS_LOGIN)
+//   #  error ...
+//
+// In other words the design treats transport security as a substitute for application-layer
+// authentication when deciding whether remote disarm may be enabled. This mode tests whether
+// that substitution survives the threat model.
 //
 // The three alternatives are modelled in the harness, in front of an unauthenticated firmware
 // build, because that is exactly where a developer would put them: a broker-side rate limit or
@@ -74,9 +105,14 @@ static std::string signWith(const char* key, const char* verb, uint32_t ctr) {
 }
 
 // ---------------------------------------------------------------- defences
-enum class Mode { None, RateLimit, Token, Hmac };
+enum class Mode { None, RateLimit, Token, Hmac, Transport, TransportLeaked };
 
 static Mode g_mode = Mode::None;
+
+// Whether the party currently publishing holds valid broker credentials. The harness sets this
+// around each publish: true for the legitimate operator, false for the adversary -- except in
+// TransportLeaked, where the adversary holds them too and the flag is irrelevant.
+static bool g_hasBrokerCreds = false;
 
 // The shared token a "token auth" design would embed in every command. The attacker does not
 // know it at the start of the trial, but it travels in plaintext, so capturing one legitimate
@@ -131,6 +167,14 @@ static bool defenceAllows(std::string& payload, uint32_t now) {
       payload = payload.substr(0, p);        // strip the token, forward the bare verb
       return true;
     }
+    case Mode::Transport:
+      // Broker-level admission. Only a client holding valid credentials can publish at all.
+      // g_hasBrokerCreds is false for the adversary and true for the legitimate operator.
+      return g_hasBrokerCreds;
+    case Mode::TransportLeaked:
+      // Credentials have leaked, so the adversary authenticates like anyone else. The broker
+      // admits every publisher and the device performs no application-layer check.
+      return true;
   }
   return true;
 }
@@ -147,6 +191,7 @@ struct Attacker {
   std::vector<std::string> captured;   // messages seen on the wire, available for replay
 
   void inject(uint32_t now) {
+    g_hasBrokerCreds = false;          // the adversary holds no broker credentials
     std::uniform_int_distribution<int> pick(0, 3);
     switch (pick(rng)) {
       case 0: {   // forged: correctly shaped, signed with a key the attacker does not have
@@ -197,6 +242,11 @@ static std::string legitCommand(const char* verb, uint32_t ctr) {
     case Mode::None:
     case Mode::RateLimit: return std::string(verb);
     case Mode::Token:     return std::string(verb) + TOKEN_SEP + SHARED_TOKEN;
+    case Mode::Transport:
+    case Mode::TransportLeaked:
+      // Transport security carries no application-layer credential: the device receives a
+      // bare verb, exactly as in the undefended case. The protection is entirely at the broker.
+      return std::string(verb);
     case Mode::Hmac:      return signWith(SECRET_CMD_KEY, verb, ctr);
   }
   return verb;
@@ -259,7 +309,9 @@ static Trial runTrial(uint64_t seed, uint32_t attackRate) {
   uint32_t legitCtr = 50000 + (uint32_t)(rng() % 1000);
   std::string legitArm = legitCommand("ARM", legitCtr);
   size_t before = g_events.size();
+  g_hasBrokerCreds = true;             // the legitimate operator is authenticated
   deliverGuarded(legitArm, g_now);
+  g_hasBrokerCreds = false;
   atk.captured.push_back(legitArm);
   stepWithAttack(50);
   for (size_t i = before; i < g_events.size(); i++)
@@ -365,6 +417,8 @@ int main(int argc, char** argv) {
   else if (!strcmp(modeName, "ratelimit")) g_mode = Mode::RateLimit;
   else if (!strcmp(modeName, "token")) g_mode = Mode::Token;
   else if (!strcmp(modeName, "hmac")) g_mode = Mode::Hmac;
+  else if (!strcmp(modeName, "transport")) g_mode = Mode::Transport;
+  else if (!strcmp(modeName, "transport_leaked")) g_mode = Mode::TransportLeaked;
   else { fprintf(stderr, "unknown --mode %s\n", modeName); return 2; }
 
 #if AUTH_COMMANDS
@@ -375,6 +429,21 @@ int main(int argc, char** argv) {
 #else
   if (g_mode == Mode::Hmac) {
     fprintf(stderr, "--mode hmac needs a build with -DAUTH_COMMANDS=1\n");
+    return 2;
+  }
+#endif
+#if ALLOW_REMOTE_DISARM
+  // Only the leaked-credential mode is meaningful in a build that permits remote disarm
+  // without application-layer authentication, which the firmware allows only under
+  // MQTT_USE_TLS with broker credentials.
+  if (g_mode != Mode::TransportLeaked) {
+    fprintf(stderr, "build has ALLOW_REMOTE_DISARM=1; only --mode transport_leaked applies\n");
+    return 2;
+  }
+#else
+  if (g_mode == Mode::TransportLeaked) {
+    fprintf(stderr, "--mode transport_leaked needs a build with -DMQTT_USE_TLS=1 "
+                    "-DSECRET_MQTT_USER=... -DALLOW_REMOTE_DISARM=1\n");
     return 2;
   }
 #endif

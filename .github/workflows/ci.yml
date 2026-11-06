@@ -96,6 +96,55 @@ jobs:
             - --build-property
             - compiler.cpp.extra_flags=-DENABLE_ESPNOW=1 -DFUSION_MODE=FUSION_AND -DAUTH_COMMANDS=1
 
+      # Measure the static cost of transport security. This is the only TLS figure this
+      # project reports: the host harness has no TLS implementation, so no runtime latency
+      # or throughput cost can be measured there. Flash and RAM here are measured by the
+      # real compiler and describe the binary, not the running device.
+      - name: Measure the build cost of TLS (MQTT_USE_TLS=1)
+        if: matrix.core == '3.3.12'
+        run: cp firmware/smart_home/secrets.example.h firmware/smart_home/secrets.h
+      - name: Compile with TLS enabled
+        if: matrix.core == '3.3.12'
+        uses: arduino/compile-sketches@v1
+        with:
+          fqbn: esp32:esp32:esp32
+          sketch-paths: |
+            - firmware/smart_home
+          cli-compile-flags: |
+            - --build-property
+            - compiler.cpp.extra_flags=-DMQTT_USE_TLS=1
+          enable-warnings-report: true
+          sketches-report-path: tls-report
+      - name: Report TLS flash and RAM delta
+        if: matrix.core == '3.3.12'
+        run: |
+          rm -f firmware/smart_home/secrets.h
+          python3 - <<'PY'
+          import glob, json, os
+          def walk(node):
+              if isinstance(node, dict):
+                  if "name" in node and "current" in node and "maximum" in node:
+                      yield node
+                  for v in node.values():
+                      yield from walk(v)
+              elif isinstance(node, list):
+                  for v in node:
+                      yield from walk(v)
+          seen = set()
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write("### Build cost with MQTT_USE_TLS=1 (arduino-esp32 3.3.12)\n")
+              for f in glob.glob("tls-report/*.json"):
+                  for s in walk(json.load(open(f))):
+                      cur, mx = s["current"].get("absolute"), s["maximum"]
+                      if s["name"] in seen or not isinstance(cur, int):
+                          continue
+                      seen.add(s["name"])
+                      line = f"{s['name']}: {cur} of {mx} bytes ({100 * cur / mx:.1f} %)"
+                      print(f"::notice title=TLS build::{line}")
+                      out.write(f"- {line}\n")
+              out.write("\nStatic size only. No runtime TLS cost is measured anywhere in this project.\n")
+          PY
+
   formal-verification:
     name: Formal verification (TLA+)
     runs-on: ubuntu-24.04
