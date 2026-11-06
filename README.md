@@ -234,6 +234,118 @@ The spec is mutation-tested, so the properties are known not to be vacuous.
 
 ## Research
 
+### Abstract
+
+Consumer intrusion alarms are built almost entirely on single-chip Wi-Fi SoCs, where the Wi-Fi
+driver, the TCP/IP stack, the MQTT client and the safety application all execute on one die,
+under one RTOS scheduler, sharing one interrupt controller. The standard engineering mitigation
+is to pin the safety task to its own core. That advice comes from a literature studying
+Linux-class and hypervisor-capable platforms, in which the attacked network interface is
+physically separate from the protected core. This work asks whether it still holds when the
+attacked resource is the chip's own radio driver. We specify the isolation argument itself in
+TLA+ and check it exhaustively with TLC under a network task given no fairness assumption; we
+harden the device with HMAC-SHA256 command authentication over a reboot-persistent replay
+counter, passive deauthentication detection and a signed out-of-band fallback channel; and we
+evaluate it with a 6,000-trial seeded adversarial campaign and 3,000,000 sanitizer-backed fuzz
+iterations. These establish *logical* isolation. *Timing* isolation is a property of the silicon
+and the closed-source radio driver, cannot be simulated, and is specified here as the open step:
+no latency figure is claimed anywhere in this work.
+
+### Problem statement and motivation
+
+A domestic alarm is a safety-critical system that people buy for £30 and never think about
+again. If its siren can be delayed or suppressed by an attacker standing outside the house with
+a £5 board, the device fails at the only job it has. Deauthentication attacks against this
+hardware class are cheap, portable and already demonstrated in the literature on this exact chip
+family. What has not been established is whether the resulting radio-stack load reaches the
+safety function.
+
+### Research gap
+
+Verified against fourteen prior works in [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md):
+
+- **Timing isolation under attack** is established, but only on platforms that can separate the
+  attacked interface from the protected core — Linux-class industrial boards, x86 with PREEMPT-RT
+  and dedicated NIC queues, Cortex-A53 with a hypervisor and an FPGA memory scheduler. None of
+  those mechanisms exist on a 240 MHz MCU.
+- **Deauthentication resilience** has been quantified, but the dependent variable is always
+  whether the *link* drops, never whether the device's *application* meets its deadline.
+- **ESP32 security work** measures transport cost or detection accuracy, not safety continuity.
+
+No published work measures a safety deadline on a device whose own radio driver is the attacked
+resource.
+
+### Objectives and contributions
+
+1. An open, hardened dual-core alarm firmware with authenticated commands, replay protection,
+   passive deauth detection, a signed out-of-band fallback and optional sensor fusion.
+2. Two TLA+ specifications checked exhaustively by TLC, the second formalising the
+   safety/network **isolation argument** under an unfair, maximally adversarial network task.
+   Both mutation-tested, so the verified properties are demonstrably non-vacuous.
+3. A seeded, reproducible adversarial campaign and a sanitizer-backed fuzzing campaign.
+4. A measurement protocol and instrumentation for the one claim that requires silicon, stated
+   openly as the open step rather than estimated.
+
+### Methodology
+
+![Research methodology](docs/images/methodology.png)
+
+*Four independent evidence routes. Three are complete and together establish logical isolation;
+the fourth is specified and unrun.* Full figure index: [`docs/FIGURES.md`](docs/FIGURES.md).
+
+### Evaluation metrics
+
+| Metric | Definition | Where |
+|---|---|---|
+| Safety latency | Trigger to siren assertion, ms | Campaign; hardware protocol |
+| Attacker state change | Trials in which an unauthenticated command armed or disarmed | Campaign |
+| Command availability | Trials in which the legitimate command took effect | Campaign |
+| Invariant violations | Trials violating any safety invariant | Campaign |
+| Accepted fuzz inputs | Inputs changing state or advancing the counter without a valid tag | Fuzzer |
+| State-space coverage | Distinct states explored exhaustively | TLC |
+
+### Results and baseline comparison
+
+| Metric | Baseline (no auth) | Hardened (`AUTH_COMMANDS=1`) |
+|---|---|---|
+| Attacker armed the system, flooded trials | 2,500 / 2,500 | **0 / 2,500** |
+| Legitimate command took effect, all trials | 500 / 3,000 | **3,000 / 3,000** |
+| Attacker-caused disarms | 0 | 0 |
+| Safety-invariant violations | 0 | 0 |
+| Safety latency, median | 151 ms | 151 ms |
+
+Fuzzing: 3,000,000 iterations, 0 memory errors, 0 accepted inputs. Formal: AlarmFSM 25 distinct
+states, Isolation 660 distinct states at depth 26, all properties hold, both mutation-tested.
+Build cost of the v2.2 security features: ≈3 KB flash, ≈170 B RAM.
+
+**Read the results honestly.** The security outcome follows deductively from the construction;
+the campaign validates that the implementation matches the design. The informative result is the
+availability one, which does not follow from the cryptography. Because the harness advances a
+logical clock, latency variance is identically zero, so no hypothesis test is reported on these
+data — the analysis is pre-registered for the hardware measurements instead.
+
+### Limitations and future work
+
+No hardware measurement has been performed; every result is formal or simulated. Claims are
+scoped to the dual-core Xtensa ESP32 under arduino-esp32 2.0.17 and 3.3.12 and are not
+generalised to single-chip Wi-Fi SoCs as a class. There is no ablation, no parameter sensitivity
+study, no energy measurement and no deployment data. Flash encryption, secure boot and signed OTA
+are not implemented. A full, adversarial account is in
+[`docs/PEER_REVIEW.md`](docs/PEER_REVIEW.md).
+
+### Data and code availability
+
+All data are generated deterministically from fixed seeds by scripts in this repository.
+Aggregate results are committed; per-trial records regenerate identically via
+`experiments/run.sh`, verified byte-identical. No third-party or human-subject data are used.
+Everything is MIT-licensed.
+
+### Citation
+
+See [`CITATION.cff`](CITATION.cff), or use GitHub's "Cite this repository" button.
+
+---
+
 This repository doubles as the reproducible artifact for a study of a research question:
 *on a single-chip Wi-Fi SoC, does pinning the safety function to the application core actually
 isolate it from attacks on the device's own radio and command interface?* The design, the gap
@@ -268,7 +380,12 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/RELATED_WORK.md`](docs/RELATED_WORK.md) | Verified survey of fourteen prior works and the positioning |
 | [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) | Assets, adversaries, twelve threats and their mitigations |
 | [`docs/EVALUATION.md`](docs/EVALUATION.md) | Evaluation method, results, and the hardware procedure still to run |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Traceability matrix, component and deployment architecture, the full state-machine transition table, the event lifecycle and its delivery guarantee, and the command execution model |
 | [`docs/HARDENING.md`](docs/HARDENING.md) | Turning the demo build into a deployable system |
+| [`docs/FIGURES.md`](docs/FIGURES.md) | Figure index, academic captions and the conventions every figure follows |
+| [`docs/PEER_REVIEW.md`](docs/PEER_REVIEW.md) | Adversarial internal review, threats to validity, desk-reject risks and the action plan |
+| [`docs/JOURNAL_TARGETS.md`](docs/JOURNAL_TARGETS.md) | Six candidate journals verified against publisher sources, with the Scopus-vs-JCR quartile distinction spelled out |
+| [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | Publication ethics, submission inventory, cover letter, highlights and the final QA checklist |
 | [`paper/`](paper/) | Paper draft and a one-page research brief |
 
 **Status in one line:** the firmware, formal verification, simulation campaign, fuzzing and

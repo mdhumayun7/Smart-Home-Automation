@@ -212,6 +212,15 @@ exceeds capacity, and that no produced event is lost unaccounted-for. Each prope
 mutation-tested: injecting the corresponding defect (e.g.\ a synchronous network call in the
 safety loop) makes TLC report the expected violation, so the properties have teeth.
 
+\textbf{Abstraction boundary.} We state plainly what these models do \emph{not} cover, because
+it is exactly where the research question lives. The network task is abstracted to a small set
+of discrete actions (go-busy, stall, crash, deliver, publish-fail); it is not a source of
+\emph{timing interference}. TLC therefore establishes that, within this abstraction, no
+control- or data-flow dependency can block the safety step. It says nothing about contention
+for shared silicon---bus, cache, interrupt controller---which is a property of the
+implementation and not of the model. Model checking here bounds the \emph{logical} design
+space; it does not substitute for measurement.
+
 \section{Simulation and Fuzzing}\label{sec:sim}
 \textbf{Adversarial campaign.} We compile the unchanged firmware against host models of the
 hardware, network, NVS and radio, and drive it through seeded trials. In each trial a
@@ -230,7 +239,22 @@ and no safety invariant was violated. Because the simulated clock is advanced by
 the safety latency has zero variance here (a deterministic 151\,ms, the confirmation window plus
 loop period); this establishes the \emph{logical} invariance---no code path makes the safety
 response depend on network input---and is why the \emph{timing} invariance is deferred to
-hardware (Section~\ref{sec:hw}).
+hardware (Section~\ref{sec:hw}). For the same reason we report no hypothesis test on these
+data: with zero variance any test is trivially satisfied and carries no information. The
+analysis that \emph{will} be applied to the hardware latencies---a two-sided Mann-Whitney $U$
+test with tie correction, implemented in the committed artifact---is fixed in advance here, so
+it is pre-registered rather than chosen after seeing the measurements.
+
+\textbf{What the campaign does and does not show.} The security outcome---that forged commands
+cannot arm or disarm an authenticated build---follows deductively from the construction, and
+6{,}000 trials do not make it more true; the campaign's role there is to validate that the
+\emph{implementation} matches the design. The informative result is the availability one, which
+does not follow from the cryptography: under flood the baseline loses the legitimate command in
+every trial while the hardened build retains it in all 3{,}000, because rejection happens on the
+network core before the bounded queue, so a flood cannot displace a genuine command. The
+baseline is also a weak adversary by construction (no authentication at all); comparison against
+stronger alternatives---transport security with broker credentials, link-layer protected
+management frames, or rate limiting---is left to future work.
 
 \begin{table}[t]
 \centering
@@ -263,7 +287,13 @@ with the firmware built under AddressSanitizer and UndefinedBehaviorSanitizer, f
 bytes, malformed and overlong fields, non-decimal and overflowing counters, embedded NULs, and
 bit-flip mutations of a near-miss signed message. After every input we check memory safety and
 the invariant that no input lacking a valid tag changes state or advances the counter. Across
-3{,}000{,}000 iterations the fuzzer found no memory error and no accepted input.
+3{,}000{,}000 iterations the fuzzer found no memory error and no accepted input. We read this as
+evidence of \emph{memory safety and parser robustness}: with a 128-bit tag, zero forgeries is
+the expected outcome and is not independent evidence that authentication is sound. One episode
+is worth recording as a methodological caution. An early run reported an accepted input; the
+mutation had flipped a hex digit's case, which decodes to identical tag bytes, so the ``finding''
+was the genuine command and acceptance was correct. The corpus now signs its mutation seed with
+a deliberately wrong key so no mutation can yield a valid command by accident.
 
 \section{The Open Step: Hardware Latency Invariance}\label{sec:hw}
 The campaign establishes logical invariance; it cannot establish \emph{timing} invariance,
@@ -292,7 +322,42 @@ the device's own radio and command interface. We answer the logical half of that
 exhaustive model checking and a 6{,}000-trial reproducible campaign, add the command
 authentication, attack detection and fallback a deployable alarm needs, and specify the one
 hardware measurement that settles the timing half. The artifact is public so the result can be
-reproduced and the hardware step completed.
+reproduced and the hardware step completed. All claims are scoped to the platform actually
+tested---the dual-core Xtensa ESP32 under arduino-esp32 2.0.17 and 3.3.12---and we do not
+generalise to single-chip Wi-Fi SoCs as a class. The single-core variants of the same family are
+the more interesting open case, since they cannot pin at all.
+
+\section*{Declarations}
+\noindent\textbf{Funding.} This research received no external funding.
+
+\noindent\textbf{Conflicts of interest.} The author declares no conflict of interest.
+
+\noindent\textbf{Author contributions.} MD Humayun: conceptualisation, methodology, software,
+formal analysis, investigation, data curation, writing (original draft, review and editing),
+visualisation.
+
+\noindent\textbf{Data availability.} All data reported in this paper are generated
+deterministically from fixed seeds by the scripts in the public repository; the aggregate
+results files are committed, and the full per-trial records regenerate identically by running
+\texttt{experiments/run.sh}. No third-party or human-subject data were used.
+
+\noindent\textbf{Code availability.} Firmware, formal specifications, experiment harnesses,
+analysis scripts and figure sources are public at
+\texttt{github.com/mdhumayun7/}\linebreak[0]\texttt{Smart-Home-Automation} under the MIT
+licence. Continuous
+integration re-runs the formal verification and a reduced adversarial campaign on every commit.
+
+\noindent\textbf{Ethics.} No human or animal subjects were involved. No third-party network,
+device or system was attacked or tested. The repository deliberately publishes no
+attack-generation procedure or tooling, and the radio-layer condition described in
+Section~\ref{sec:hw} is specified for execution only on equipment owned by the experimenter, in
+an isolated environment, with institutional permission.
+
+\noindent\textbf{Generative AI disclosure.} An AI assistant was used for drafting assistance,
+documentation and code review. All research claims, experimental designs, results and
+conclusions are the author's own; every result reported here was produced by the committed
+scripts and verified by the author, and every reference was checked against its publisher or
+preprint record.
 
 \begin{thebibliography}{9}
 \small
