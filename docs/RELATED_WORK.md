@@ -15,11 +15,47 @@ table says, in one line, why that work does not already answer it.
 
 ---
 
+## 0. The closest competing work, and what it does to this project's claim
+
+**Read this section before any other.** A search for competing rather than supporting work
+(`LITERATURE_LOG.md`, queries S2 and S3) found a research line that measured, on this chip
+family, a large part of what this project originally claimed was unmeasured.
+
+| Ref | Work | What it establishes |
+| --- | --- | --- |
+| [B20] | I. Behnke, L. Pirl, L. Thamsen, R. Danicki, A. Polze, O. Kao, *Interrupting Real-Time IoT Tasks: How Bad Can It Be to Connect Your Critical Embedded System to the Internet?*, IEEE IPCCC, 6-8 Nov 2020 | Measured a periodic critical task's **lateness on an ESP32** (dual-core, FreeRTOS, closed-source Wi-Fi driver) under IP load of 10-1,000 pps plus 120,000 pps bursts, **with the network server on the other core**. The task lost **2.15-3.8%** of its cycles with packets to a listened port and **3.17-6.67%** to an unused port; lateness grows roughly linearly with rate once the MCU saturates. Concludes command-and-control over IP is unsuitable for hard real-time |
+| [B22] | I. Behnke, P. Wiesner, R. Danicki, L. Thamsen, *A Priority-Aware Multiqueue NIC Design for Real-Time IoT Devices*, ACM SAC '22, doi:10.1145/3477314.3507165 | A **hardware** mitigation: per-flow NIC queues with interrupt moderation. 93% fewer interrupts, 80% less added runtime at 5,000 pkt/s. **The NIC was simulated in SimPy and never built**, and applicability to ESP32-class silicon is not established |
+| [B23] | I. Behnke, C. Blumschein, R. Danicki, P. Wiesner, L. Thamsen, O. Kao, *Towards a Real-Time IoT: Approaches for Incoming Packet Processing in Cyber-Physical Systems*, *Journal of Systems Architecture* 140:102891, 2023, doi:10.1016/j.sysarc.2023.102891 | A **software** mitigation: early priority-based demultiplexing in the driver, 7.5x faster per-packet handling. Prototyped on a **Xilinx Zynq-7000**, measured on a single core |
+
+### What this kills
+
+The original framing — "no prior work measures real-time degradation on an ESP32 under on-chip
+network load" — **is false**, and has been removed from every document. Any framing in which the
+expected outcome is "nothing happens" is also unsupportable: [B20] measured degradation *with*
+cross-core separation already in place.
+
+### What survives, checked against the papers rather than assumed
+
+| # | Distinction | Evidence |
+| --- | --- | --- |
+| 1 | **Core pinning is never evaluated as a mitigation** | [B23] states the ESP32's second core separates "the observed processes from the test system, not as a mitigation", and does not discuss CPU affinity as a strategy. The evaluated mitigations are a simulated NIC [B22] and a Zynq driver patch [B23] — neither deployable on a stock ESP32 today |
+| 2 | **All load is IP-layer** | Every experiment in the line uses UDP or MODBUS/TCP. 802.11 deauthentication and disassociation are **management frames**, handled in the MAC and driver *below* the IP stack and processed whether or not a socket is listening. A different interference path, unmeasured |
+| 3 | **No adversarial model, no formal methods** | [B20] states it does not model deliberate attacks; [B23] calls its floods volumetric stress, "not a security evaluation". Neither uses formal verification |
+
+### The revised claim
+
+Not "first to measure", but: **an evaluation of core pinning plus bounded-queue discipline as a
+software-only, deployable mitigation, under radio-layer adversarial load, with the isolation
+argument formally verified.** The hypothesis is correspondingly sharper — [B20] gives a prior
+effect size of 2-4% cycle loss at the IP layer, so the question is whether radio-layer load
+inflates a sensor-to-siren deadline beyond its margin and whether queue discipline bounds it.
+
+---
+
 ## 1. Real-time operation and timing isolation under attack or interference
 
-This is the closest body of work. The consistent finding is that separation helps; the consistent
-platform is large (Linux-class, hypervisor-capable, or multi-core application processors with an
-MMU).
+Beyond [B20]-[B23], the consistent finding is that separation helps; the consistent platform is
+large (Linux-class, hypervisor-capable, or multi-core application processors with an MMU).
 
 | Ref | Work | Platform | Finding | Why the question stays open |
 | --- | --- | --- | --- | --- |
@@ -92,20 +128,69 @@ rejects everything that is not a correctly signed, fresh command) with a precise
 
 ## What the literature leaves open
 
-Combining the five positions above:
+Combining the positions above, with §0 taking precedence:
 
-1. Timing isolation under attack is studied on platforms that can separate the attacked interface
+1. The phenomenon **has** been measured on an ESP32 under IP-layer load, with cross-core
+   separation, and degradation was found ([B20]). What has **not** been evaluated is core
+   pinning plus queue discipline *as a mitigation* ([B23] confirms it is not), nor any
+   **radio-layer** load, nor any **adversarial** model.
+2. Mitigations in that line need either a NIC that does not exist ([B22]) or a driver patch on
+   a far larger platform ([B23]). Neither is available to a developer shipping a stock ESP32.
+3. Timing isolation elsewhere is studied on platforms that can separate the attacked interface
    from the protected core ([F20], [M25], [H24]). The single-chip Wi-Fi SoC cannot.
-2. Deauthentication resilience is quantified at the link layer ([C26]) on devices for which the
+4. Deauthentication resilience is quantified at the link layer ([C26]) on devices for which the
    attack is cheap and demonstrated ([K26], [CCF23]). Application-level deadline survival is not
    measured.
-3. ESP32 security work targets transport cost and detection accuracy ([A26], [I26]), not safety
-   continuity.
-4. Formal verification for IoT does not record TLA+ isolation arguments for this device class
+5. ESP32 security work targets transport cost and detection accuracy ([A26], [I26]), not safety
+   continuity. On-device deauth detection already exists, so **this project claims no novelty**
+   for its detector.
+6. Formal verification for IoT does not record TLA+ isolation arguments for this device class
    ([Kr23]).
 
-The open question is therefore narrow, concrete and testable: **does core pinning on an ESP32-class
-SoC preserve the sensor-to-siren deadline while the chip's own radio driver is under stress?**
+The open question is therefore narrower than first stated, and still concrete and testable:
+**does core pinning plus bounded-queue discipline — the only mitigation actually available on a
+stock ESP32 — hold the sensor-to-siren deadline while the chip's own radio driver is under
+adversarial load?**
+
+---
+
+## Novelty matrix
+
+Each row is a candidate contribution, rated against the closest prior work. "Engineering" means
+competent integration of known parts; "scientific" means it produces a result not already known.
+
+| # | Candidate contribution | Closest prior work | Status | Honest rating |
+| --- | --- | --- | --- | --- |
+| 1 | Measuring safety-deadline degradation under on-chip load | **[B20] did this** for periodic-task lateness at IP layer | Superseded | **Not novel.** Removed as a claim |
+| 2 | Evaluating **core pinning + bounded queues as a mitigation** | [B22] simulated NIC; [B23] Zynq driver patch; neither evaluates pinning | Open | **Scientific, if measured.** Currently unverified — needs H1/H2 |
+| 3 | **Radio-layer** (802.11 management frame) load as the stressor | All of [B20]-[B23] use IP-layer load | Open | **Scientific, if measured.** Unverified |
+| 4 | TLA+ model of the **isolation argument** under an unfair network task, mutation-tested | No formal methods anywhere in [B20]-[B23]; [Kr23] records no TLA+ for this class | **Done** | **Scientific, modest.** Verified (E1). Bounded by its abstraction, which excludes timing |
+| 5 | **Command-path design ablation**: rate limit vs static token vs MAC+counter under one adversary | Not found in this space | **Done** | **Scientific, modest.** Verified (E3). Shows availability and integrity are separable and that a token design passes the availability test while failing integrity |
+| 6 | **Detector parameter sensitivity**, finding the shipped threshold wrong | Not found | **Done** | **Empirical finding, narrow.** Verified (E5) against a *synthetic* arrival model. Real-network rate is future work (H5) |
+| 7 | Reproducible artifact: byte-identical regeneration, CI-verified formal checks | Rare in this space but not a scientific result | **Done** | **Engineering.** Valuable for review, not a contribution in itself |
+| 8 | HMAC-SHA256 with a persisted counter; deauth detection; ESP-NOW fallback; sensor fusion | Standard constructions; on-device deauth detection already published | **Done** | **Engineering.** No novelty claimed |
+
+**Strongest defensible primary contribution today:** #5, with #4 supporting it. Both are
+verified and neither needs hardware.
+
+**Strongest potential primary contribution:** #2 and #3 together — but both are **unverified**
+and remain so until H1 and H2 are run. The manuscript must not lead with them.
+
+**Minimum additional work to make the paper scientifically strong:** run H1 (conditions A-C).
+That alone converts #2 from a proposal into a measurement.
+
+### Improvement options considered, ranked
+
+| Option | Scientific value | Effort | Resources | Risk | Decision |
+| --- | --- | --- | --- | --- | --- |
+| Hardware conditions A-C (H1) | **High** — converts the primary claim | Medium | 2 boards, logic probe | Low | **Recommended. Blocked on hardware** |
+| Command-path ablation (#5) | Medium-high — answers the fair-baseline objection | Medium | None | Low | **Implemented (E3)** |
+| Detector sensitivity (#6) | Medium — found a real defect | Low | None | Low | **Implemented (E5), firmware changed** |
+| Radio-layer condition D (H2) | **Highest** — the headline | Medium | Isolated RF, permission | Medium (ethics/approval) | Deferred, honestly, to future work |
+| Add TLS-plus-credentials baseline to E3 | Medium | Medium | None | Low | **Not done.** Recorded as the next ablation arm |
+| Second platform, ESP32-C3 (H7) | Medium — supports device-class claims | Medium | 1 board | Low | Deferred |
+| More TLA+ properties | Low — diminishing returns | Low | None | Low | Rejected: would add volume, not insight |
+| On-device ML anomaly detection | Low here — different problem, and [I26] exists | High | None | High | **Rejected.** Would be adding a feature to inflate the contribution count |
 
 This project supplies the full apparatus to answer it, and answers the part that can be answered
 without silicon:

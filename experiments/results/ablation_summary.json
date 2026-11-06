@@ -1,0 +1,1680 @@
+{
+ "ablation": {
+  "hmac": {
+   "attacker_disarmed": 0,
+   "attacker_replay_armed": 0,
+   "flooded_trials": 250,
+   "intrusion_test_valid": 300,
+   "legit_accepted_flooded": 250,
+   "reached_alarm": 300,
+   "replay_test_valid": 300,
+   "safety_latency_median_ms": 151.0,
+   "safety_latency_stdev_ms": 0.0,
+   "trials": 300,
+   "violations": 0
+  },
+  "none": {
+   "attacker_disarmed": 0,
+   "attacker_replay_armed": 250,
+   "flooded_trials": 250,
+   "intrusion_test_valid": 300,
+   "legit_accepted_flooded": 0,
+   "reached_alarm": 300,
+   "replay_test_valid": 300,
+   "safety_latency_median_ms": 151.0,
+   "safety_latency_stdev_ms": 0.0,
+   "trials": 300,
+   "violations": 0
+  },
+  "ratelimit": {
+   "attacker_disarmed": 0,
+   "attacker_replay_armed": 246,
+   "flooded_trials": 250,
+   "intrusion_test_valid": 300,
+   "legit_accepted_flooded": 0,
+   "reached_alarm": 300,
+   "replay_test_valid": 300,
+   "safety_latency_median_ms": 151.0,
+   "safety_latency_stdev_ms": 0.0,
+   "trials": 300,
+   "violations": 0
+  },
+  "token": {
+   "attacker_disarmed": 0,
+   "attacker_replay_armed": 250,
+   "flooded_trials": 250,
+   "intrusion_test_valid": 300,
+   "legit_accepted_flooded": 250,
+   "reached_alarm": 300,
+   "replay_test_valid": 300,
+   "safety_latency_median_ms": 151.0,
+   "safety_latency_stdev_ms": 0.0,
+   "trials": 300,
+   "violations": 0
+  }
+ },
+ "sensitivity_attack": {
+  "12|1000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 117,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|1000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 573,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|1000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 18788,
+   "missed": 121,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|1000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 24,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|2000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 118,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|2000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 597,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|2000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 2673,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|2000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 24,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|5000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 117,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|5000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 577,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|5000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 2348,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|5000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 24,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|500|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 120,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "12|500|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 672,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "12|500|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 29523,
+   "missed": 492,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "12|500|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 23,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "20|1000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 196,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|1000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 978,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|1000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 0,
+   "missed": 500,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|1000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 39,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|2000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 198,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|2000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 1004,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|2000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 26137,
+   "missed": 279,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|2000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 39,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|5000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 202,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|5000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 958,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|5000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 3852,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|5000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 40,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|500|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 200,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "20|500|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 15332,
+   "missed": 47,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "20|500|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 0,
+   "missed": 500,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "20|500|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 40,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "3|1000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 26,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|1000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 134,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|1000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 522,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|1000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 6,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|2000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 28,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|2000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 132,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|2000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 482,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|2000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 6,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|5000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 26,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|5000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 128,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|5000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 530,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|5000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 6,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|500|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 27,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "3|500|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 137,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "3|500|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 535,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "3|500|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 6,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "5|1000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 46,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|1000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 216,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|1000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 960,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|1000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 10,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|2000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 49,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|2000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 234,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|2000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 948,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|2000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 10,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|5000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 47,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|5000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 240,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|5000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 905,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|5000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 10,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|500|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 48,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "5|500|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 239,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "5|500|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 1733,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "5|500|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 10,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "8|1000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 77,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|1000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 405,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|1000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 2326,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|1000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 16,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|2000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 76,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|2000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 383,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|2000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 1520,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|2000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 16,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|5000|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 76,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|5000|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 375,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|5000|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 1457,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|5000|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 16,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|500|100.0": {
+   "attack_fps": 100.0,
+   "kind": "attack",
+   "median_detect_ms": 77,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 500
+  },
+  "8|500|20.0": {
+   "attack_fps": 20.0,
+   "kind": "attack",
+   "median_detect_ms": 375,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 500
+  },
+  "8|500|5.0": {
+   "attack_fps": 5.0,
+   "kind": "attack",
+   "median_detect_ms": 17607,
+   "missed": 52,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 500
+  },
+  "8|500|500.0": {
+   "attack_fps": 500.0,
+   "kind": "attack",
+   "median_detect_ms": 15,
+   "missed": 0,
+   "runs": 500,
+   "threshold": 8,
+   "window_ms": 500
+  }
+ },
+ "sensitivity_benign": {
+  "12|1000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|1000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|1000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|1000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|1000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 1000
+  },
+  "12|2000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|2000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|2000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|2000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|2000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 5,
+   "fp_rate": 0.0025,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 2000
+  },
+  "12|5000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|5000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|5000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|5000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|5000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 1890,
+   "fp_rate": 0.945,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 5000
+  },
+  "12|500|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "12|500|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "12|500|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "12|500|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "12|500|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 12,
+   "window_ms": 500
+  },
+  "20|1000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|1000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|1000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|1000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|1000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 1000
+  },
+  "20|2000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|2000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|2000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|2000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|2000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 2000
+  },
+  "20|5000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|5000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|5000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|5000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|5000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 1,
+   "fp_rate": 0.0005,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 5000
+  },
+  "20|500|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "20|500|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "20|500|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "20|500|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "20|500|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 20,
+   "window_ms": 500
+  },
+  "3|1000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|1000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 16,
+   "fp_rate": 0.008,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|1000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 1999,
+   "fp_rate": 0.9995,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|1000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 420,
+   "fp_rate": 0.21,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|1000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 1000
+  },
+  "3|2000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 2,
+   "fp_rate": 0.001,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|2000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 74,
+   "fp_rate": 0.037,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|2000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|2000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 1221,
+   "fp_rate": 0.6105,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|2000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 2000
+  },
+  "3|5000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 9,
+   "fp_rate": 0.0045,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|5000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 384,
+   "fp_rate": 0.192,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|5000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|5000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 1967,
+   "fp_rate": 0.9835,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|5000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 5000
+  },
+  "3|500|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "3|500|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 3,
+   "fp_rate": 0.0015,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "3|500|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 1795,
+   "fp_rate": 0.8975,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "3|500|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 134,
+   "fp_rate": 0.067,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "3|500|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 3,
+   "window_ms": 500
+  },
+  "5|1000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|1000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|1000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 134,
+   "fp_rate": 0.067,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|1000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|1000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 1000
+  },
+  "5|2000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|2000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|2000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 1044,
+   "fp_rate": 0.522,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|2000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 2,
+   "fp_rate": 0.001,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|2000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 2000
+  },
+  "5|5000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|5000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 1,
+   "fp_rate": 0.0005,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|5000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|5000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 151,
+   "fp_rate": 0.0755,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|5000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 5000
+  },
+  "5|500|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "5|500|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "5|500|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 10,
+   "fp_rate": 0.005,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "5|500|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "5|500|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 1120,
+   "fp_rate": 0.56,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 5,
+   "window_ms": 500
+  },
+  "8|1000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|1000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|1000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|1000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|1000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 71,
+   "fp_rate": 0.0355,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 1000
+  },
+  "8|2000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|2000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|2000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 3,
+   "fp_rate": 0.0015,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|2000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|2000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 1597,
+   "fp_rate": 0.7985,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 2000
+  },
+  "8|5000|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|5000|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|5000|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 380,
+   "fp_rate": 0.19,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|5000|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|5000|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 2000,
+   "fp_rate": 1.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 5000
+  },
+  "8|500|0.5": {
+   "benign_fpm": 0.5,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 500
+  },
+  "8|500|2.0": {
+   "benign_fpm": 2.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 500
+  },
+  "8|500|20.0": {
+   "benign_fpm": 20.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 500
+  },
+  "8|500|6.0": {
+   "benign_fpm": 6.0,
+   "fired": 0,
+   "fp_rate": 0.0,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 500
+  },
+  "8|500|60.0": {
+   "benign_fpm": 60.0,
+   "fired": 1,
+   "fp_rate": 0.0005,
+   "kind": "benign",
+   "runs": 2000,
+   "threshold": 8,
+   "window_ms": 500
+  }
+ }
+}

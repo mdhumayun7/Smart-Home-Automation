@@ -154,7 +154,14 @@ const char*    MQTT_PASS    = SECRET_MQTT_PASS;
 #  define ENABLE_WIFI_GUARD 1
 #endif
 constexpr uint32_t DEAUTH_WINDOW_MS   = 2000;   // observation window
-constexpr uint32_t DEAUTH_THRESHOLD   = 8;      // frames in the window that signal a flood
+// 12, not 8. The parameter sweep in experiments/sensitivity.cpp measured the false-positive
+// rate against a Poisson model of benign management-frame traffic: at 60 frames/min, which is
+// a busy multi-AP environment with frequent roaming, a threshold of 8 fired spuriously in
+// 79.9% of ten-minute runs. Raising it to 12 cuts that to 0.25% and still detected every
+// swept attack rate (median 597 ms at 20 frames/s, 2.7 s at 5 frames/s, zero missed).
+// A detector that cries wolf trains the owner to ignore it, so the 214 ms of extra detection
+// latency is worth paying. See docs/EXPERIMENTS.md for the full trade-off surface.
+constexpr uint32_t DEAUTH_THRESHOLD   = 12;     // frames in the window that signal a flood
 constexpr uint32_t DEAUTH_COOLDOWN_MS = 10000;  // at most one report per 10 s
 
 // ---- ESP-NOW fallback alert channel -----------------------------------------
