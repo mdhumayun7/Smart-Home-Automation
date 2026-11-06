@@ -616,9 +616,26 @@ static void persistCounter(uint32_t v) {
   prefs.putULong("cmdctr", v);
 }
 
+// Drain at most CMD_DRAIN_PER_PASS commands per loop pass.
+//
+// This bound is deliberate and was added after a response-time analysis of the safety loop
+// (see docs/TIMING_ANALYSIS.md). The drain was previously an unbounded `while`, which gave the
+// safety loop no static bound on its own execution time: the network core can enqueue while
+// core 1 dequeues, and in the default build (AUTH_COMMANDS=0) enqueueing costs only a parse,
+// with no HMAC to throttle it. The loop would still terminate in practice, but only by a
+// probabilistic argument about relative costs -- not acceptable in the one code path whose
+// timing the whole design exists to protect.
+//
+// The bound equals the queue capacity, so a full queue still drains in a single pass; anything
+// arriving during the pass simply waits for the next one, which costs at most one loop period.
+// This mirrors the bound the network task already applied to the event queue.
+static constexpr int CMD_DRAIN_PER_PASS = 4;   // == cmdQ capacity
+
 static void handleCommands(uint32_t now) {
   CmdMsg m;
-  while (xQueueReceive(cmdQ, &m, 0) == pdTRUE) {
+  for (int drained = 0;
+       drained < CMD_DRAIN_PER_PASS && xQueueReceive(cmdQ, &m, 0) == pdTRUE;
+       drained++) {
     // Marker from the network task for a command whose MAC did not verify.
     if (!m.authed && m.ctr == 0xFFFFFFFFu) { emitEvent("cmd_badmac", "remote"); continue; }
 

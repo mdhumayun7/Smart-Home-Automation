@@ -30,8 +30,9 @@
 \usepackage{enumitem}
 \graphicspath{{../docs/images/}{./}}
 
-\title{\textbf{Does Core Pinning Isolate the Safety Function on a Single-Chip
-Wi-Fi SoC? A Formally Verified Mitigation and Its Evaluation}}
+\title{\textbf{Isolating the Safety Function on a Single-Chip Wi-Fi SoC:\\
+Formal Verification, Response-Time Analysis, and a Reproducible\\
+Measurement Protocol}}
 
 \author{MD Humayun\\
 \small Department of Computer Science and Engineering\\
@@ -66,7 +67,14 @@ A parameter sweep of the deauthentication detector revealed that our own initial
 spuriously in 79.9\% of benign ten-minute runs, and we revised the firmware accordingly. We are
 explicit that these results establish \emph{logical} isolation only. Physical timing invariance
 is a property of the silicon and the closed-source radio driver; we specify the measurement
-protocol and instrumentation in full, and report no latency figure we have not measured.
+protocol and instrumentation in full, and report no latency figure we have not measured. In its place we contribute two things that
+reduce the gap: a response-time decomposition proving that the blocking term is identically zero
+by construction and that the loop's own work is constant-time, leaving a single composite
+hardware quantity to be measured; and a complete, public validation framework---instrument
+firmware, wiring, conditions, scripts, pre-registered statistics and falsification
+criteria---with which any laboratory holding two inexpensive boards can perform and report the
+measurement. The decomposition also exposed a latent defect in the safety path that no other
+method we applied could detect.
 \end{abstract}
 
 \noindent\textbf{Keywords:} embedded systems security; real-time task isolation; formal
@@ -150,10 +158,22 @@ scripts and figure sources are public. Results regenerate byte-identically from 
 and continuous integration re-runs the formal verification and a reduced adversarial campaign on
 every commit.
 
-\item \textbf{A measurement protocol for the one claim that requires silicon.} Physical
-sensor-to-siren latency under radio-layer load cannot be established in simulation. We specify
-the apparatus, instrumentation and experimental conditions in full (Section~\ref{sec:hw}), and
-report no measured latency because we have not measured one.
+\item \textbf{A response-time decomposition that bounds three of four interference
+terms by construction.} We decompose the safety loop's worst-case response time into its own
+computation, blocking, interrupt interference and memory contention, and show that the blocking
+term is identically zero because the safety loop acquires its only shared resource with a zero
+timeout, that the loop's own work is constant-time, and that the residual is a single composite
+hardware quantity. This reduces the open question from four unknowns to one, and identifies
+exactly what a measurement must isolate (Section~\ref{sec:timing}). The analysis also exposed a
+latent defect invisible to every other method we applied: an unbounded drain loop in the safety
+path, now fixed.
+
+\item \textbf{A complete, independently executable validation framework for the one claim that
+requires silicon.} Physical sensor-to-siren latency under radio-layer load cannot be established
+in simulation. We provide the instrument firmware, wiring, conditions, collection and analysis
+scripts, pre-registered statistics, and falsification criteria, so that any laboratory with two
+inexpensive boards can perform and report the measurement (Section~\ref{sec:hw}). We report no
+measured latency, because we have not measured one.
 \end{enumerate}
 
 \subsection{Scope and honesty of claims}
@@ -412,6 +432,99 @@ device over ESP-NOW, which operates without an access point. Optional sensor fus
 agreement between a passive infrared sensor and a millimetre-wave radar within a window $W_{f}$,
 reducing single-sensor false alarms. Armed state and the command counter persist in non-volatile
 storage, so a power interruption while armed does not silently disarm the system.
+
+\section{Response-Time Analysis}\label{sec:timing}
+
+Measurement tells us whether interference occurs; it does not tell us which mechanism produced
+it, nor what a different design would do. A static decomposition answers the complementary
+question: of the interference a safety task on this architecture can suffer, how much does this
+design remove by construction, and how much is irreducibly a property of the silicon?
+
+\subsection{Decomposition}
+
+A confirmed detection requires the sensor line asserted for $T_{\mathrm{conf}}$, after which the
+next loop pass advances the state machine and drives the output. Writing $R$ for the worst-case
+response time of one loop pass,
+\begin{equation}
+L \;\le\; T_{\mathrm{conf}} + 2R,
+\label{eq:Lbound}
+\end{equation}
+since at most one pass observes the confirmed edge and at most one further pass drives the
+output. The quantity to bound is therefore $R$, which decomposes as
+\begin{equation}
+R \;=\; C_{\mathrm{own}} \;+\; B \;+\; I_{\mathrm{isr}} \;+\; I_{\mathrm{mem}},
+\label{eq:decomp}
+\end{equation}
+where $C_{\mathrm{own}}$ is the loop's uncontended computation, $B$ is blocking on resources
+shared with the network task, $I_{\mathrm{isr}}$ is preemption by interrupt handlers executing on
+the safety core, and $I_{\mathrm{mem}}$ is stall cycles from contention for the shared bus,
+cache and flash.
+
+\subsection{Three terms settled by construction}
+
+\textbf{$B = 0$.} The only resource the safety loop shares with the network task is the status
+snapshot. The safety loop acquires it with a timeout of zero, so the call cannot block: it either
+succeeds immediately or returns, deferring the update to the next pass. The network task, by
+contrast, waits up to 10\,ms. Therefore $B = 0$ unconditionally, independently of what the
+network task does, including holding the mutex indefinitely. Priority inversion can delay the
+network side and cannot delay the safety side. This is precisely the property
+\textsc{SafetyCanAlwaysStep} verified in Section~\ref{sec:formal}. The cost is that a status
+snapshot may be skipped, which is acceptable because the snapshot feeds notification, which is
+best-effort, while the siren is driven from state the safety loop owns outright.
+
+\textbf{$C_{\mathrm{own}}$ is constant-time.} Every stage of the loop performs $O(1)$ work.
+Neither queue can block, both being accessed with a zero timeout; the command drain is bounded by
+the queue capacity; the display stage, which dominates $C_{\mathrm{own}}$ because it performs an
+I\textsuperscript{2}C transaction, is rate-limited to once per 250\,ms. The deauthentication
+detector could in principle emit one event per observed frame; it does not, because the cooldown
+in~\eqref{eq:deauth} admits at most one report per 10\,s. Without that cooldown a radio flood
+would become an event flood and the bound would fail, so the cooldown is a timing mechanism as
+much as a usability one.
+
+\textbf{The residual.} $I_{\mathrm{isr}}$ and $I_{\mathrm{mem}}$ cannot be bounded from source.
+The Wi-Fi driver is closed-source; Mudraje et al.~\cite{esp32c3re2025} required substantial
+reverse engineering to model its resource consumption for worst-case \emph{energy} analysis and
+did not address timing. Interrupt core affinity is set by the vendor SDK and not guaranteed, and
+the memory subsystem's contention behaviour is not published. Hence
+\begin{equation}
+R \;=\; \underbrace{C_{\mathrm{own}}}_{O(1)} \;+\; \underbrace{0}_{B} \;+\;
+\underbrace{I_{\mathrm{isr}} + I_{\mathrm{mem}}}_{\text{hardware, unmeasured}} .
+\label{eq:residual}
+\end{equation}
+
+Three of four terms are settled. The residual is a single composite hardware quantity, and the
+experiment of Section~\ref{sec:hw} measures exactly it: the difference between the unloaded and
+loaded latency distributions isolates $I_{\mathrm{isr}} + I_{\mathrm{mem}}$, because every other
+term is held constant by construction. Without this decomposition a measured shift could be
+attributed to any of four causes; with it, only one remains. This is what makes the pending
+measurement interpretable rather than merely suggestive.
+
+\subsection{A falsifiable prediction}
+
+We state a prediction before measurement so that it cannot be adjusted afterwards. Given $B = 0$,
+constant-time $C_{\mathrm{own}}$, and the single-digit-percent cycle loss Behnke
+et al.~\cite{behnke2020} measured for IP-layer load, we predict a median latency shift under
+10\,ms against a $T_{\mathrm{conf}}$ of 150\,ms, that is under 7\% of the confirmation window,
+with no missed detections. The prediction is refuted by a median shift above 10\,ms, by a heavy
+upper tail indicating occasional interrupt storms even where the median holds, or by any missed
+detection.
+
+\subsection{A defect the analysis exposed}
+
+Establishing that every stage is constant-time required checking each one. One was not. The
+command queue was drained with an unbounded loop, so the safety loop had no static bound on its
+own execution time: the network core can enqueue while the safety core dequeues, and termination
+rested on the drain rate exceeding the fill rate. That argument is probabilistic, and weak in the
+default build, where enqueueing costs only a parse with no tag verification to throttle it. The
+asymmetry was also inverted, since the network task already bounded its own event drain while the
+safety task did not. We bounded the drain to the queue capacity, so a full queue still clears in
+one pass and later arrivals wait at most one loop period.
+
+We record this because of what it says about method. The defect was invisible to every other
+technique applied here: the test suite passed, the fuzzer found nothing, the adversarial campaign
+reported no violation, and the TLA+ models have no notion of execution time and so could not have
+caught it. It was found by asking what bounds each stage, and finding that one stage had no
+answer.
 
 \section{Formal Verification}\label{sec:formal}
 
@@ -705,12 +818,22 @@ behaviour. The corpus now signs its mutation seed with a deliberately incorrect 
 mutation can produce a valid command by accident. Had this not been chased down it would have
 become a false claim.
 
-\section{The Open Experiment: Physical Timing Invariance}\label{sec:hw}
+\section{Independent Hardware Validation Framework}\label{sec:hw}
 
 The results above establish H1. They cannot establish H2, because the simulated clock does not
 model contention for the bus, the cache or the interrupt controller, and that contention is
-precisely the phenomenon in question. We therefore specify the measurement rather than
-approximate it.
+precisely the phenomenon in question.
+
+We did not have access to the required hardware. Rather than leave H2 as an unqualified gap, we
+treat the validation apparatus itself as a deliverable: firmware for the measuring instrument,
+wiring, experimental conditions, collection and analysis scripts, pre-registered statistics and
+explicit falsification criteria, all public, so that any laboratory with two inexpensive boards
+can perform the measurement and report it. The decomposition of Section~\ref{sec:timing} is what
+makes the result interpretable when they do, since it establishes that a measured shift can be
+attributed to $I_{\mathrm{isr}} + I_{\mathrm{mem}}$ and to nothing else.
+
+We state plainly that this is a framework and not a result. No physical measurement appears in
+this paper.
 
 \subsection{Apparatus}
 
@@ -873,8 +996,11 @@ granted no fairness, with 7{,}200 seeded adversarial trials and with three milli
 sanitizer-backed fuzzing iterations. We show through ablation that availability and integrity are
 separable properties and that a plausible defence can satisfy the first while failing the second
 completely. We show through sensitivity analysis that our own initial detector threshold was
-wrong by a wide margin, and we corrected it. We specify in full the one measurement that settles
-the timing half, and we report no number for it, because we have not made it.
+wrong by a wide margin, and we corrected it. For the timing half we contribute an analysis
+and an apparatus rather than a number: a decomposition that removes three of four interference
+terms by construction and names the one that remains, and a public framework with which an
+independent laboratory can measure it. We report no latency figure, because we have not
+measured one.
 
 All claims are scoped to the platform tested: the dual-core Xtensa ESP32 under arduino-esp32
 2.0.17 and 3.3.12. The artifact is public so that the results can be reproduced and the open

@@ -133,3 +133,45 @@ jobs:
           print("violations+disarms+fuzz_accept =", bad)
           sys.exit(1 if bad else 0)
           PY
+
+  ablation:
+    name: Ablation and sensitivity (smoke)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run a reduced ablation and sensitivity sweep
+        env:
+          TRIALS: "60"
+          SENS_RUNS: "200"
+        run: ./experiments/run_ablation.sh
+      - name: Check the ablation still discriminates between the designs
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          s = json.load(open("experiments/results/ablation_summary.json"))["ablation"]
+          problems = []
+
+          # The hardened design must never be defeated by replay and must never lose
+          # the legitimate command, at any attack rate.
+          h = s["hmac"]
+          if h["attacker_replay_armed"]:
+              problems.append(f"hmac defeated by replay in {h['attacker_replay_armed']} trials")
+          if h["legit_accepted_flooded"] != h["flooded_trials"]:
+              problems.append("hmac lost a legitimate command under flood")
+
+          # Every design must keep the safety function working: that is the isolation claim.
+          for name, d in s.items():
+              if d["violations"]:
+                  problems.append(f"{name}: {d['violations']} invariant violations")
+              if d["reached_alarm"] != d["intrusion_test_valid"]:
+                  problems.append(f"{name}: alarm did not fire in every valid intrusion trial")
+
+          # The ablation is only informative if it still separates the designs. If a weaker
+          # design stops being defeated by replay, the experiment has silently stopped testing
+          # what it claims to test.
+          if not s["token"]["attacker_replay_armed"]:
+              problems.append("token design no longer defeated by replay: ablation lost its discriminator")
+
+          print("\n".join(problems) if problems else "ablation OK")
+          sys.exit(1 if problems else 0)
+          PY

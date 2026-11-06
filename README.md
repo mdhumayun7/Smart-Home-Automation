@@ -389,12 +389,17 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/LITERATURE_LOG.md`](docs/LITERATURE_LOG.md) | Dated search log: databases, search strings, screening decisions, and the competing work that narrowed this project's claim |
 | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Every result classified by evidence category, with seeds, runs, environment and reproduction commands, plus the seven experiments not yet run |
 | [`docs/Q2_GATE.md`](docs/Q2_GATE.md) | Fifteen-question reviewer gate, figure justification, and the IEEE ESL compliance checklist |
+| [`REPRODUCTION.md`](REPRODUCTION.md) | **Start here to reproduce anything.** Three evidence levels, software reproduction in about an hour, and a complete independent hardware-validation guide with bill of materials, wiring, conditions, scripts, troubleshooting and falsification criteria |
+| [`docs/TIMING_ANALYSIS.md`](docs/TIMING_ANALYSIS.md) | Response-time decomposition of the safety loop: which interference terms the design eliminates by construction, which are irreducibly hardware, and the defect this analysis exposed |
+| [`docs/PUBLICATION_READINESS.md`](docs/PUBLICATION_READINESS.md) | Final readiness verdict, re-scored reviewer gate, venue evidence, and likely reviewer objections with answers |
 | [`docs/MANUSCRIPT_REVIEW.md`](docs/MANUSCRIPT_REVIEW.md) | Section-by-section verification report, fact-verification record, and the two hardware-scenario pathways with a validation checklist |
 | [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (17 pages). `paper/paper.tex` is the short letters-format version |
 
-**Status in one line:** the firmware, formal verification, simulation campaign, fuzzing and
-paper draft are complete; the physical hardware measurement is the one open step, and no
-latency number is claimed anywhere until it is run.
+**Status in one line:** firmware, formal verification, response-time analysis, simulation
+campaign, ablation, sensitivity sweep, fuzzing and the full-length manuscript are complete and
+reproducible. The physical timing measurement has **not been performed by anyone**; a complete
+framework for an independent laboratory to perform it is in [`REPRODUCTION.md`](REPRODUCTION.md),
+and no latency figure is claimed anywhere.
 
 ## Reliability and safety
 
