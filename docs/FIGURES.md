@@ -179,6 +179,30 @@ most 1100 units wide, which is about 8 pt at a 90 mm single-column width.
 > 1250 attempts. Model-based broker admission; see `docs/SECURITY_ANALYSIS.md` §3a for what is
 > and is not modelled.
 
+### Figure 14 — Compile-guard decision flow
+
+`docs/images/guard_decision.svg` (source: `docs/figures/make_diagrams.py`)
+
+> **Fig. 14.** The compile guard for unauthenticated remote disarm, before and after. Both
+> branches of the original guard reach the same outcome, a build in which any admitted
+> `DISARM` is acted on: a signed build reaches it legitimately, while an unsigned one reaches
+> it through a transport test that cannot establish publisher authority, because the broker
+> terminates TLS and re-originates every message and `MQTT_HAS_LOGIN` describes only this
+> device's own build. The repair deletes the unsound branch rather than adding a mechanism.
+> Transcribed from the preprocessor conditions and from `handleCommands`.
+
+### Figure 15 — Per-client ACL architecture and trust boundaries
+
+`docs/images/acl_architecture.svg` (source: `docs/figures/make_diagrams.py`)
+
+> **Fig. 15.** Per-client topic permissions as modelled by the access-control arms, and which
+> compromise each control contains. Some identity must hold write on the command topic or the
+> alarm cannot be commanded, so which identity the adversary steals decides the outcome: a
+> stolen device credential is contained, a stolen controller credential is not, and a single
+> shared credential collapses the configuration to the no-ACL case. The MAC fails under the one
+> compromise the ACL survives, because the command key resides in the same flash image as the
+> device's broker credentials. Model-based; see `docs/SECURITY_ANALYSIS.md` §3a.
+
 ---
 
 ## Figures that do not exist yet
@@ -191,6 +215,7 @@ Honest gaps, to be produced only once the data exists:
 | Latency CDF, hardened vs baseline under radio stress | Hardware condition D |
 | Measured TLS handshake latency and encryption overhead | Hardware; the host harness has no TLS implementation, so no runtime TLS cost can be measured there |
 | ACL behaviour against a real broker | A running Mosquitto instance with per-client ACLs. Needs a container, no hardware |
+| Security-performance trade-off plot | **Will not be produced from current data.** A trade-off figure needs a measured cost axis, and no runtime cost of any security feature has been measured: the host harness advances a logical clock and has no TLS implementation. The only measured cost is static flash and RAM from the compiler, which is not a runtime trade-off. Plotting one would require inventing the cost axis |
 
 No placeholder or illustrative version of any of these has been produced, because a figure
 showing invented data is a fabrication regardless of how it is labelled.

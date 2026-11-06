@@ -878,7 +878,8 @@ to the topic patterns it may publish and subscribe to. We stress that none of th
 deliberately weakened configuration: for the alarm to function, \emph{some} identity must hold
 write permission on the command topic and the device must hold read permission on it, so which
 identity the adversary steals is what decides whether the ACL contains the compromise.
-Table~\ref{tab:credential} and Fig.~\ref{fig:credential} report the outcome.
+Fig.~\ref{fig:aclarch} shows the permissions modelled, and Table~\ref{tab:credential} with
+Fig.~\ref{fig:credential} report the outcome.
 
 \begin{table*}[t]
 \centering\small
@@ -902,6 +903,17 @@ HMAC + counter      & controller credential and command key & yes & 50/300  & \t
 \bottomrule
 \end{tabular}
 \end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.96\textwidth]{acl_architecture.pdf}
+\caption{Per-client topic permissions as modelled, and which compromise each control contains.
+Some identity must hold write on the command topic or the alarm cannot be commanded, so which
+identity the adversary steals decides the outcome. The MAC fails under the one compromise the
+ACL survives, because the command key resides in the same flash image as the device's broker
+credentials.}
+\label{fig:aclarch}
+\end{figure*}
 
 \begin{figure*}[t]
 \centering
@@ -1122,6 +1134,18 @@ order. A rate limiter inverts this: it decides by arrival order, which an attack
 
 \begin{figure*}[t]
 \centering
+\includegraphics[width=0.95\textwidth]{guard_decision.pdf}
+\caption{The compile guard before and after. Both branches of the original guard reach the
+same outcome: a build in which any admitted \texttt{DISARM} is acted on. A signed build reaches
+it legitimately; an unsigned one reaches it through a transport test that cannot establish
+publisher authority. The repair removes the unsound branch rather than adding a mechanism, and
+the research baseline reaches the same outcome only through an explicit acknowledgement macro.
+Transcribed from the preprocessor conditions and from \texttt{handleCommands}.}
+\label{fig:guard}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
 \includegraphics[width=\textwidth]{security_paths.pdf}
 \caption{Where broker credentials decide admission and where the command key decides authority.
 Under \texttt{AUTH\_COMMANDS} an adversary holding leaked broker credentials but not the command
@@ -1159,7 +1183,8 @@ is in an adversary's possession --- at which point the adversary simply \emph{is
 client. Transport security and application-layer authorization are orthogonal, and no quantity
 of the former supplies the latter.
 
-The minimal correct repair is to delete the unsound branch rather than to add a mechanism.
+Fig.~\ref{fig:guard} sets the two guards side by side. The minimal correct repair is to delete
+the unsound branch rather than to add a mechanism.
 Unauthenticated remote disarm now requires an explicit acknowledgement macro named for what the
 builder is accepting, which the research baseline defines so the original behaviour remains
 reproducible. We separately refuse to compile a signed-command build that still uses the

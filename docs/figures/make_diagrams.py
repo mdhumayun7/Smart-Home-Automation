@@ -20,6 +20,7 @@ Design rules enforced here, because journals and reviewers check them:
 """
 
 import os
+import textwrap
 import subprocess
 import sys
 
@@ -680,6 +681,151 @@ def security_paths():
         "connection refused — alarm fires, 300/300", True, h=56)
     return f
 
+# ------------------------------------------ 7. compile guard decision flow --
+def guard_decision():
+    """The guard's decision flow, before and after, with the unsound edge marked.
+
+    Transcribed from the #if conditions in firmware/smart_home/smart_home.ino and the
+    dispatch in handleCommands. No relationship is drawn that is not in the source.
+    """
+    OK, BAD = "#2E7D32", "#C0392B"
+    OKF, BADF = "#E9F7EF", "#FDECEC"
+    f = Fig(1180, 700, "Compile-time guard for unauthenticated remote disarm")
+    f.text(590, 36, "The compile guard, before and after", size="title", bold=True)
+    f.lines(590, 60, [
+        "A build condition is a security argument. This one asserted that transport security "
+        "plus a broker login implies publisher authority.",
+    ], size="small")
+
+    def diamond(cx, cy, w, h, label, rows, fill=LIGHT, stroke=LINE):
+        f.p.append(f'<path d="M{cx} {cy-h/2} L{cx+w/2} {cy} L{cx} {cy+h/2} L{cx-w/2} {cy} z" '
+                   f'fill="{fill}" stroke="{stroke}" stroke-width="1.6"/>')
+        f.text(cx, cy - 4, label, size="small", bold=True)
+        f.lines(cx, cy + 14, rows, size="small")
+
+    # ---------------- before
+    f.box(36, 100, 554, 560, fill=BADF, dash="7 5", rx=14)
+    f.text(56, 126, "Before: the guard this work removed", size="head", anchor="start",
+           bold=True)
+    f.box(150, 150, 320, 46, fill="#FFFFFF")
+    f.text(310, 178, "ALLOW_REMOTE_DISARM = 1", size="small", bold=True, mono=True)
+    f.arrow([(310, 196), (310, 222)])
+    diamond(310, 258, 300, 72, "AUTH_COMMANDS = 1 ?", [])
+    f.arrow([(460, 258), (548, 258), (548, 440)], stroke=OK)
+    f.text(505, 250, "yes", size="small", fill=OK)
+    f.arrow([(310, 294), (310, 322)], stroke=BAD)
+    f.text(322, 312, "no", size="small", anchor="start", fill=BAD)
+    diamond(310, 372, 330, 86, "MQTT_USE_TLS = 1", ["and MQTT_HAS_LOGIN = 1 ?"], fill="#FFFFFF",
+            stroke=BAD)
+    f.arrow([(310, 415), (310, 446)], stroke=BAD)
+    # Both branches land in the same outcome box: that is the defect. A signed build reaches it
+    # legitimately, an unsigned one reaches it through the unsound transport test.
+    f.box(96, 446, 428, 60, fill=BADF, stroke=BAD)
+    f.text(310, 470, "compiles: any admitted DISARM is acted on", size="small", bold=True,
+           fill=BAD)
+    f.text(310, 490, "the m.authed test is short-circuited", size="small", fill=BAD)
+    f.box(96, 526, 428, 110, fill="#FFFFFF", stroke=BAD, dash="4 3")
+    f.text(310, 550, "Why the predicate cannot support the conclusion",
+           size="small", bold=True, fill=BAD)
+    f.lines(310, 572, [
+        "The broker terminates TLS and re-originates every message,",
+        "so an arriving command carries no evidence of its publisher.",
+        "MQTT_HAS_LOGIN describes this device's own build, not any",
+        "publisher's authority. One leaked credential is sufficient.",
+    ], size="small")
+
+    # ---------------- after
+    f.box(626, 100, 518, 560, fill=SAFETY, dash="7 5", rx=14)
+    f.text(646, 126, "After", size="head", anchor="start", bold=True)
+    f.box(725, 150, 320, 46, fill="#FFFFFF")
+    f.text(885, 178, "ALLOW_REMOTE_DISARM = 1", size="small", bold=True, mono=True)
+    f.arrow([(885, 196), (885, 222)])
+    diamond(885, 258, 300, 72, "AUTH_COMMANDS = 1 ?", [])
+    f.arrow([(1035, 258), (1105, 258), (1105, 420)], stroke=OK)
+    f.text(1068, 250, "yes", size="small", fill=OK)
+    f.arrow([(885, 294), (885, 322)])
+    f.text(897, 312, "no", size="small", anchor="start", fill=MUTED)
+    diamond(885, 374, 350, 90, "ACKNOWLEDGE_", ["UNAUTHENTICATED_DISARM", "defined ?"],
+            fill="#FFFFFF")
+    f.arrow([(885, 419), (885, 446)], stroke=BAD)
+    f.box(680, 446, 410, 52, fill=BADF, stroke=BAD)
+    f.text(885, 468, "no: #error, the build is refused", size="small", bold=True, fill=BAD)
+    f.text(885, 487, "transport security is no longer accepted as authority",
+           size="small", fill=BAD)
+    f.arrow([(1060, 374), (1105, 374), (1105, 420)])
+    f.text(1115, 400, "yes", size="small", anchor="start", fill=MUTED)
+    f.box(680, 528, 410, 52, fill=OKF, stroke=OK)
+    f.text(885, 550, "compiles: signed DISARM, or acknowledged risk",
+           size="small", bold=True, fill=OK)
+    f.text(885, 569, "the research baseline takes the second path", size="small")
+    f.arrow([(1105, 420), (1105, 554), (1094, 554)], stroke=OK)
+    return f
+
+
+# ------------------------------------------- 8. broker ACL trust boundaries --
+def acl_architecture():
+    """Topic permissions per identity, and which compromise each control contains.
+
+    The permissions shown are the configuration the ablation's ACL arms model; see
+    docs/SECURITY_ANALYSIS.md section 3a for what is and is not modelled.
+    """
+    OK, BAD = "#2E7D32", "#C0392B"
+    f = Fig(1200, 660, "Per-client topic permissions and trust boundaries")
+    f.text(600, 36, "Broker access control and where each compromise stops",
+           size="title", bold=True)
+    f.lines(600, 60, [
+        "Some identity must hold write on the command topic, or the alarm cannot be commanded. "
+        "Which identity the adversary steals is what decides the outcome.",
+    ], size="small")
+
+    # topic permission table
+    f.box(40, 100, 1120, 214, fill=MID, dash="7 5", rx=14)
+    f.text(60, 126, "PER-CLIENT ACL, as modelled", size="head", anchor="start", bold=True)
+    cols = [(330, "cmd topic: publish"), (610, "cmd topic: subscribe"), (900, "stat topic: publish")]
+    for x, t in cols:
+        f.text(x, 158, t, size="small", bold=True, fill=MUTED)
+    f.text(150, 158, "identity", size="small", bold=True, fill=MUTED)
+    rows = [(192, "controller", True, False, False), (240, "device", False, True, True)]
+    for y, name, pub, sub, stat in rows:
+        f.box(60, y - 20, 180, 40, fill="#FFFFFF")
+        f.text(150, y + 5, name, size="small", bold=True)
+        for (x, _), val in zip(cols, (pub, sub, stat)):
+            f.box(x - 60, y - 20, 120, 40, fill="#E9F7EF" if val else LIGHT)
+            f.text(x, y + 5, "allow" if val else "deny", size="small", bold=val,
+                   fill=OK if val else MUTED)
+    f.text(600, 292, "Only the controller may publish commands. The device may only read them.",
+           size="small", fill=MUTED)
+
+    # outcomes
+    f.text(600, 352, "Which compromise each control contains", size="head", bold=True)
+    cards = [
+        (60, "Device credential\nstolen", "ACL holds", "the device identity has no write on "
+         "the command topic, so the broker refuses the publish", OK),
+        (400, "Controller credential\nstolen", "ACL fails", "that identity is the one the ACL "
+         "must authorise to publish commands", BAD),
+        (740, "One shared credential\nstolen", "ACL fails", "it must carry write on the command "
+         "topic, so the configuration collapses to no ACL", BAD),
+    ]
+    for x, title, verdict, why, col in cards:
+        f.box(x, 380, 320, 150, fill="#FFFFFF", stroke=col)
+        a, b = title.split("\n")
+        f.text(x + 160, 408, a, size="body", bold=True)
+        f.text(x + 160, 428, b, size="body", bold=True)
+        f.text(x + 160, 456, verdict, size="small", bold=True, fill=col)
+        f.lines(x + 160, 480, textwrap.wrap(why, 40)[:3], size="small")
+
+    f.box(60, 554, 1000, 76, fill=SHARED, dash="4 3")
+    f.text(560, 580, "A MAC fails under the one compromise the ACL survives",
+           size="body", bold=True)
+    f.lines(560, 602, [
+        "The command key lives in the same flash image as the device's broker credentials, so a "
+        "flash dump yields both.",
+        "With an ACL as well, that adversary holds a key it can sign with and a credential the "
+        "broker will not let it publish commands under.",
+    ], size="small")
+    return f
+
+
 # ---------------------------------------------------------------- driver -----
 FIGS = {
     "command_flow": command_flow,
@@ -688,6 +834,8 @@ FIGS = {
     "methodology": methodology,
     "experimental_setup": experimental_setup,
     "security_paths": security_paths,
+    "guard_decision": guard_decision,
+    "acl_architecture": acl_architecture,
 }
 
 
