@@ -19,14 +19,14 @@ operator; its nuisance arming is measured separately in the replay column. A
 single-command boolean was found to measure token-bucket phase rather than
 availability, and is not reported: see `docs/SECURITY_ANALYSIS.md` section 9.
 
-| Design | Trials | Operator commands admitted under flood | Defeated by capture-and-replay | Attacker disarmed | Alarm fired | Invariant violations |
+| Design | Trials | Operator commands admitted under flood | Defeated by capture-and-replay (attacked trials) | Attacker disarmed | Alarm fired | Invariant violations |
 |---|---|---|---|---|---|---|
-| No command defence | 300 | 1250/1250 | 250/300 | 0 | 300/300 | 0 |
-| Token-bucket rate limit (5/s) | 300 | 737/1250 | 250/300 | 0 | 300/300 | 0 |
-| Static shared token | 300 | 1250/1250 | 250/300 | 0 | 300/300 | 0 |
-| TLS + broker credentials | 300 | 1250/1250 | 0/300 | 0 | 300/300 | 0 |
-| TLS, credentials leaked | 300 | 1250/1250 | 250/300 | 246 | 50/300 | 250 |
-| HMAC-SHA256 + counter | 300 | 1250/1250 | 0/300 | 0 | 300/300 | 0 |
+| No command defence | 300 | 1250/1250 | 250/250 | 0 | 300/300 | 0 |
+| Token-bucket rate limit (5/s) | 300 | 737/1250 | 250/250 | 0 | 300/300 | 0 |
+| Static shared token | 300 | 1250/1250 | 250/250 | 0 | 300/300 | 0 |
+| TLS + broker credentials | 300 | 1250/1250 | 0/250 | 0 | 300/300 | 0 |
+| TLS, credentials leaked | 300 | 1250/1250 | 250/250 | 246 | 50/300 | 250 |
+| HMAC-SHA256 + counter | 300 | 1250/1250 | 0/250 | 0 | 300/300 | 0 |
 
 Safety latency was identical across all six designs (median 151 ms, standard deviation 0.0 ms), which is
 expected: the harness advances a logical clock, so there is no contention to

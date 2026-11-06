@@ -84,7 +84,9 @@ def ablation(rows):
         # Availability is only attributable in a trial that began DISARMED; see avail_test_valid
         # in ablation.cpp. Trials are excluded rather than counted as failures.
         flooded = [r for r in rs if r["attack_rate"] > 0 and r.get("avail_test_valid", True)]
-        replay_valid = [r for r in rs if r.get("replay_test_valid")]
+        # Only a trial in which the adversary was actually active can test replay: in a quiet
+        # trial it publishes nothing, so counting those in the denominator understates the rate.
+        replay_valid = [r for r in rs if r.get("replay_test_valid") and r["attack_rate"] > 0]
         intr_valid = [r for r in rs if r.get("intrusion_test_valid")]
         lat = [r["safety_latency_ms"] for r in intr_valid if r.get("reached_alarm")]
         summary[m] = {
@@ -146,7 +148,7 @@ def main():
         L.append("single-command boolean was found to measure token-bucket phase rather than")
         L.append("availability, and is not reported: see `docs/SECURITY_ANALYSIS.md` section 9.\n")
         L.append("| Design | Trials | Operator commands admitted under flood |"
-                 " Defeated by capture-and-replay |"
+                 " Defeated by capture-and-replay (attacked trials) |"
                  " Attacker disarmed | Alarm fired | Invariant violations |")
         L.append("|---|---|---|---|---|---|---|")
         for m in MODES:

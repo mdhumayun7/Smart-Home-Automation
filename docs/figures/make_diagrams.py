@@ -33,6 +33,7 @@ LINE = "#2F3A45"      # connectors and borders
 # light (#F4F6F8 ~ 96 %), mid (#DCE3EA ~ 88 %), dark (#B8C4D0 ~ 76 %).
 LIGHT, MID, DARK = "#F4F6F8", "#DCE3EA", "#B8C4D0"
 SAFETY, NETWORK = "#E9F7EF", "#E8F1FB"   # domain tints, both near-white in grey
+EXTERNAL, SHARED = "#F2F4F7", "#F1EAFB"  # outside the device; internal shared state
 
 # House palette, shared with the hand-authored diagrams (architecture.svg and
 # state_machine.svg) so every figure in the paper reads as one set. Each pair is
@@ -588,6 +589,97 @@ def experimental_setup():
     return f
 
 
+# ------------------------------------------- 6. transport vs application auth -
+def security_paths():
+    """Where broker credentials decide admission and where the command key decides authority.
+
+    Every relationship drawn is taken from the implementation: broker admission is modelled by
+    deliverGuarded/admit in experiments/ablation.cpp; the device-side checks are handleCommands
+    in firmware/smart_home/smart_home.ino. The counts are measured, from
+    experiments/results/ablation.jsonl (300 trials per arm).
+    """
+    OK, BAD = "#2E7D32", "#C0392B"
+    OKF, BADF = "#E9F7EF", "#FDECEC"
+    f = Fig(1280, 820, "Transport-layer admission against application-layer authorization")
+    f.text(640, 36, "Transport security does not supply command authorization",
+           size="title", bold=True)
+    f.lines(640, 60, [
+        "The broker terminates TLS and re-originates every message, so an arriving command "
+        "carries no evidence of who published it.",
+        "Broker credentials decide admission. Only the command key decides authority.",
+    ], size="small")
+
+    XP, WP = 56, 250          # publisher
+    XB, WB = 346, 150         # broker
+    XC, WC = 536, 250         # device-side check
+    XO, WO = 836, 388         # outcome
+
+    def header(y):
+        for x, w, t in ((XP, WP, "Publisher"), (XB, WB, "Broker"),
+                        (XC, WC, "Device check"), (XO, WO, "Outcome")):
+            f.text(x + w / 2, y, t, size="small", bold=True, fill=MUTED)
+
+    def row(y, who, sub, admit, check, chk_ok, outcome, out_ok, h=62):
+        col = OK if out_ok else BAD
+        f.box(XP, y, WP, h, fill="#FFFFFF")
+        f.text(XP + WP / 2, y + 26, who, size="body", bold=True)
+        f.text(XP + WP / 2, y + 46, sub, size="small", fill=MUTED)
+
+        f.arrow([(XP + WP, y + h / 2), (XB - 6, y + h / 2)], stroke=col)
+        f.box(XB, y, WB, h, fill=OKF if admit else BADF,
+              stroke=LINE if admit else BAD)
+        f.text(XB + WB / 2, y + h / 2 + 5, "admits" if admit else "refuses",
+               size="small", bold=True, fill=INK if admit else BAD)
+
+        if not admit:
+            f.text(XC + WC / 2, y + h / 2 + 5, "never reached", size="small", fill=MUTED)
+            f.box(XO, y, WO, h, fill=OKF, stroke=OK)
+            f.text(XO + WO / 2, y + h / 2 + 5, outcome, size="small", bold=True, fill=OK)
+            return
+        f.arrow([(XB + WB, y + h / 2), (XC - 6, y + h / 2)], stroke=col)
+        f.box(XC, y, WC, h, fill=OKF if chk_ok else BADF,
+              stroke=LINE if chk_ok else BAD)
+        f.lines(XC + WC / 2, y + 24, check, size="small",
+                fill=INK if chk_ok else BAD)
+        f.arrow([(XC + WC, y + h / 2), (XO - 6, y + h / 2)], stroke=col)
+        f.box(XO, y, WO, h, fill=OKF if out_ok else BADF, stroke=OK if out_ok else BAD)
+        f.text(XO + WO / 2, y + h / 2 + 5, outcome, size="small", bold=True, fill=col)
+
+    # ---------------- panel 1: the default build
+    f.box(36, 110, 1208, 268, fill=SAFETY, dash="7 5", rx=14)
+    f.text(56, 136, "AUTH_COMMANDS = 1    —  application-layer authentication required",
+           size="head", anchor="start", bold=True)
+    f.text(56, 158, "A command is acted on only if its HMAC-SHA256 tag verifies under "
+                    "SECRET_CMD_KEY and its counter exceeds the value in NVS.",
+           size="small", anchor="start", fill=MUTED)
+    header(186)
+    row(196, "Operator", "holds credentials and key", True,
+        ["tag verifies,", "counter advances"], True, "DISARM executes", True)
+    row(276, "Adversary", "leaked credentials, no key", True,
+        ["tag fails:", "cmd_badmac"], False, "rejected — alarm fires, 300/300 trials", True)
+
+    # ---------------- panel 2: the unsound guard
+    f.box(36, 400, 1208, 268, fill="#FDF3F2", dash="7 5", rx=14)
+    f.text(56, 426, "ALLOW_REMOTE_DISARM = 1 without AUTH_COMMANDS   "
+                    "—  the guard this work removed",
+           size="head", anchor="start", bold=True)
+    f.text(56, 448, "The guard accepted TLS plus a broker login as sufficient. "
+                    "The HMAC test is short-circuited, so any admitted DISARM is acted on.",
+           size="small", anchor="start", fill=MUTED)
+    header(476)
+    row(486, "Operator", "holds credentials, no key", True,
+        ["no check:", "ALLOW_REMOTE_DISARM"], False, "DISARM executes", True)
+    row(566, "Adversary", "leaked credentials, no key", True,
+        ["no check:", "ALLOW_REMOTE_DISARM"], False,
+        "DISARM executes — alarm fires in only 50/300", False)
+
+    # ---------------- the control, shared by both builds
+    f.box(36, 690, 1208, 100, fill=MID, dash="7 5", rx=14)
+    f.text(56, 714, "Control, identical in both builds", size="head", anchor="start", bold=True)
+    row(722, "Adversary", "no credentials", False, [], True,
+        "connection refused — alarm fires, 300/300", True, h=56)
+    return f
+
 # ---------------------------------------------------------------- driver -----
 FIGS = {
     "command_flow": command_flow,
@@ -595,6 +687,7 @@ FIGS = {
     "deployment": deployment,
     "methodology": methodology,
     "experimental_setup": experimental_setup,
+    "security_paths": security_paths,
 }
 
 

@@ -133,6 +133,37 @@ most 1100 units wide, which is about 8 pt at a 90 mm single-column width.
 > validated for colour-vision deficiency (CVD ΔE 24.7) with distinct markers and line styles so
 > the figure remains readable in greyscale.
 
+### Figure 11 — Transport-layer admission against application-layer authorization
+
+`docs/images/security_paths.svg` (source: `docs/figures/make_diagrams.py`)
+
+> **Fig. 11.** Where broker credentials decide admission and where the command key decides
+> authority. The broker terminates TLS and re-originates every message, so an arriving command
+> carries no evidence of its publisher. In the default build a command is acted on only if its
+> HMAC-SHA256 tag verifies under `SECRET_CMD_KEY` and its counter exceeds the value in NVS, so
+> an adversary holding leaked broker credentials but not the key is rejected (`cmd_badmac`) and
+> the alarm still fires in all 300 trials. With `ALLOW_REMOTE_DISARM` set and
+> `AUTH_COMMANDS` unset — the configuration whose compile guard this work removed — the tag
+> check is short-circuited and the same adversary disarms the system, leaving the alarm to fire
+> in only 50 of 300 trials. The control arm, identical in both builds, shows an adversary
+> without credentials refused at the broker. Every relationship drawn is taken from
+> `handleCommands` in the firmware and from `deliverGuarded` in the ablation harness; the counts
+> are measured, from `experiments/results/ablation.jsonl`.
+
+### Figure 12 — Command-path ablation results
+
+`experiments/results/ablation_results.pdf` (source: `experiments/make_ablation_figures.py`)
+
+> **Fig. 12.** Six command-path designs against the same adversary, on identical seeds, 300
+> trials each. (a) The safety function holds in every design except the leaked-credential arm,
+> where the alarm fires in 16.7 % of trials (95 % Wilson CI [12.9 %, 21.3 %]); bars show the
+> point estimate and whiskers the Wilson interval. (b) Only the token-bucket rate limit harms
+> operator availability, admitting 59.0 % of operator attempts under flood; the effect is not
+> monotonic in attack rate, for the reason given in `docs/SECURITY_ANALYSIS.md` §9. (c)
+> Capture-and-replay defeats every design except TLS with credentials held and the MAC with a
+> monotonic counter. No design satisfies all three properties except the latter. Host-simulation
+> results; see `docs/EXPERIMENTS.md` for the evidence taxonomy.
+
 ---
 
 ## Figures that do not exist yet
@@ -143,8 +174,7 @@ Honest gaps, to be produced only once the data exists:
 |---|---|
 | Latency distribution per experimental condition | Hardware conditions A-C |
 | Latency CDF, hardened vs baseline under radio stress | Hardware condition D |
-| Ablation across the four security mechanisms | Ablation study (`PEER_REVIEW.md` §C5) |
-| Parameter sensitivity surface | Sensitivity study (`PEER_REVIEW.md` §C4) |
+| Measured TLS handshake latency and encryption overhead | Hardware; the host harness has no TLS implementation, so no runtime TLS cost can be measured there |
 
 No placeholder or illustrative version of any of these has been produced, because a figure
 showing invented data is a fabrication regardless of how it is labelled.
