@@ -386,6 +386,9 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/PEER_REVIEW.md`](docs/PEER_REVIEW.md) | Adversarial internal review, threats to validity, desk-reject risks and the action plan |
 | [`docs/JOURNAL_TARGETS.md`](docs/JOURNAL_TARGETS.md) | Six candidate journals verified against publisher sources, with the Scopus-vs-JCR quartile distinction spelled out |
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | Publication ethics, submission inventory, cover letter, highlights and the final QA checklist |
+| [`docs/LITERATURE_LOG.md`](docs/LITERATURE_LOG.md) | Dated search log: databases, search strings, screening decisions, and the competing work that narrowed this project's claim |
+| [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Every result classified by evidence category, with seeds, runs, environment and reproduction commands, plus the seven experiments not yet run |
+| [`docs/Q2_GATE.md`](docs/Q2_GATE.md) | Fifteen-question reviewer gate, figure justification, and the IEEE ESL compliance checklist |
 | [`paper/`](paper/) | Paper draft and a one-page research brief |
 
 **Status in one line:** the firmware, formal verification, simulation campaign, fuzzing and

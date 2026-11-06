@@ -1,0 +1,112 @@
+# Q2 reviewer gate, figure justification and journal compliance
+
+Parts E, F and G of the publication directives. Assessed 6 November 2026 at commit `a3ac427`.
+
+**Headline verdict: the manuscript is NOT ready for submission.** One central claim remains
+unverified for want of hardware. Sections 1 and 3 say exactly which, and what would unblock it.
+
+---
+
+## 1. Q2 reviewer gate
+
+Fifteen questions, each with evidence, a status and a corrective action. A polished manuscript
+does not turn a Fail into a Pass.
+
+| # | Question | Status | Evidence | Corrective action |
+|---|---|---|---|---|
+| 1 | Is the problem important to the target readership? | **Pass** | Consumer alarms ship on this exact chip class; deauthentication tooling for it is published and cheap (Kremser 2026, Cayre 2023). Embedded-security readers care | — |
+| 2 | Is the research gap current through 6 Nov 2026? | **Partial** | The original gap was **falsified** by Behnke 2020, found in this search. A narrower gap survives and was checked against the papers themselves: pinning-as-mitigation unevaluated, radio-layer load unused, no adversarial or formal treatment | Keep the narrowed claim. Re-run the search before submission |
+| 3 | Is the primary contribution clear, specific and non-trivial? | **Partial** | Verified contributions are the ablation (E3) and the formal isolation model (E4 in the novelty matrix). Both are modest. The *intended* primary contribution needs hardware | Lead with the ablation until H1 is run |
+| 4 | Is the contribution distinguishable from the closest prior work? | **Pass** | Novelty matrix in `RELATED_WORK.md`, each distinction verified against the source paper, not assumed | — |
+| 5 | Are the assumptions realistic and stated? | **Pass** | Threat model enumerates 12 threats; E5's synthetic arrival model is labelled as an assumption wherever its numbers appear; formal abstraction boundary stated in the paper | — |
+| 6 | Is the methodology technically correct and detailed enough? | **Pass** | `ARCHITECTURE.md` traces every element to source; `EXPERIMENTS.md` records seeds, runs, environment and reproduction commands per experiment | — |
+| 7 | Are the baselines relevant and fairly configured? | **Partial** | E3 now compares four designs instead of one straw man. **Transport security with broker credentials is still missing** | Add a TLS-plus-credentials arm to E3 |
+| 8 | Are experiments sufficient to support every central claim? | **FAIL** | Logical isolation: yes (E1, E2). **Timing isolation: no experiment exists** | **Run H1 (conditions A-C)** |
+| 9 | Are physical measurements required for any headline claim? | **Blocked** | Yes — the headline claim is physical by nature, and category 1 of the evidence taxonomy is empty | Two ESP32 boards and a logic probe |
+| 10 | Are results statistically and scientifically interpreted correctly? | **Pass** | The vacuous Mann-Whitney result was removed from the results and re-stated as a pre-registered analysis for hardware. Zero variance is explained, not hidden | — |
+| 11 | Are negative results, failure modes and limitations discussed? | **Pass** | E5 found a defect in a shipped parameter and the firmware changed; two harness bugs in E3 are documented; `PEER_REVIEW.md` is adversarial throughout | — |
+| 12 | Can an independent researcher reproduce the work? | **Pass** | Seeded throughout; E2/E4 verified to regenerate byte-identically; CI re-runs formal and adversarial checks on every push | — |
+| 13 | Are diagrams necessary, accurate, readable and compliant? | **Pass** | Section 2 justifies each figure; two stale diagrams were found and corrected; greyscale-safe conventions documented | — |
+| 14 | Are citations accurate and current? | **Partial** | 18 references verified against publisher, preprint or repository records. Two fields remain unverified (Yun author list; Bley venue) | Resolve both, or cite conservatively |
+| 15 | Does the paper comply with the target journal's scope and rules? | **Partial** | IEEE ESL scope fits; formatting does not yet (Section 3) | Reformat to IEEEtran; cut to the page limit |
+
+**Score: 8 Pass, 5 Partial, 1 Fail, 1 Blocked.** The Fail and the Blocked are the same issue.
+
+---
+
+## 2. Figure justification
+
+Part E requires each figure to earn its place. Figures are retained only if they answer all of:
+does it support a specific claim, is a figure better than prose or a table here, and is it
+non-duplicative?
+
+| Fig | Claim it supports | Why a figure | First cited | Verdict |
+|---|---|---|---|---|
+| 1 Architecture | The safety and network domains are separated by specific mechanisms | Spatial relationships and three concurrent paths; prose would need a paragraph per edge | §Design | **Keep** |
+| 2 State machine | The alarm's behaviour is a small, enumerable FSM amenable to model checking | Standard UML notation; the transition table alone does not show reachability structure | §Design | **Keep** |
+| 3 Event sequence | Events are bounded, counted and best-effort | Shows ordering and the overflow/retry path over time | §Design | **Keep in repo**, cut from a 4-page paper |
+| 4 Circuit wiring | Reproducibility of the physical build | Needed by anyone rebuilding the device | §Implementation | **Repo only.** Not a journal figure |
+| 5 Command flow | Verification happens on core 0, so a flood costs the safety core nothing — the core mechanism of the paper | This is the paper's central mechanism, and the core split is inherently spatial | §Design | **Keep** |
+| 6 Command sequence | The counter is committed before acting; there is no ack protocol | Temporal ordering with a trust boundary; a table cannot show "before" | §Design | **Keep in repo**, cut if space is tight |
+| 7 Deployment | What is required vs optional vs unbuilt | Distinguishes three states of completeness at a glance | §Implementation | **Repo only** |
+| 8 Methodology | Three evidence routes are complete, one is not | Makes the open step unmissable, which is an honesty requirement | §Introduction | **Keep** |
+| 9 Experimental setup | What the simulation can and cannot show | Separates the harness from the unbuilt rig | §Evaluation | **Keep** |
+| 10 Campaign results | Hardened is flat across five orders of magnitude of attack rate | A plot shows the flatness; a table does not | §Evaluation | **Keep** |
+
+**Not created, deliberately:** latency distributions, CDFs, ablation bar charts and sensitivity
+surfaces. The first two need hardware. The ablation and sensitivity results are small enough to
+read as tables, and a chart of four rows would be decoration. **No figure shows data that does
+not exist.**
+
+For a 4-page IEEE ESL submission the figure budget is roughly three: Figures 5, 8 and 10, with
+the rest referenced in the repository.
+
+---
+
+## 3. IEEE Embedded Systems Letters compliance checklist
+
+Target chosen on scope fit, not quartile (`JOURNAL_TARGETS.md` §3.1). Verified against the
+official author instructions on the IEEE CEDA site, 6 November 2026.
+
+| Requirement | Status | Action |
+|---|---|---|
+| Scope: early-stage embedded systems research | **Met** | The one venue whose stated remit matches work with a specified-but-unrun experiment |
+| Article type: research paper | **Met** | — |
+| **Length: 4 pages including everything**; US$125/page over; 8-page hard limit | **NOT met — currently 5 pages** | Declarations move to the submission system (≈0.5 page); cut Figures 3, 6, 7 references and tighten §Design |
+| Format: IEEEtran two-column | **Not done** | `\documentclass[journal]{IEEEtran}` |
+| Open access optional, US$2,800; traditional free | **Met** | Choose traditional; no APC |
+| Student discount on OA | **Not applicable** | Students are excluded from the OA discount; irrelevant on the free route |
+| Submission via IEEE Author Portal | **Not done** | Account needed |
+| Figures legible at single-column width | **Met** | Vector PDF, minimum 8 pt effective type |
+| Ethics / AI-use disclosure | **Met** | In the manuscript; confirm IEEE's exact current wording |
+| Data and code availability | **Met** | Public MIT repository, CI-verified |
+| Quartile verified | **Not verified** | SCImago and Scopus Sources unreachable here; check Scopus Sources directly |
+
+---
+
+## 4. What is blocked, and exactly what unblocks it
+
+| Blocked item | Needs | Who |
+|---|---|---|
+| Gate Q8/Q9, experiment H1 | 2× ESP32 DevKit, logic probe, USB cables | You. No permission or RF isolation needed |
+| Experiment H2 (condition D) | Authorised isolated or shielded RF environment, institutional permission | You and Dr. Zaveri |
+| Gate Q15, quartile claim | Scopus Sources lookup | You, ten minutes |
+| Gate Q14, two citation fields | IEEE Xplore / ACM DL access | You, via institution |
+| Gate Q7, TLS baseline arm | None — implementable in the existing harness | Can be added on request |
+| Venue decision and MDPI acceptability | Supervisor judgement | Dr. Zaveri |
+
+---
+
+## 5. Honest statement of readiness
+
+The repository is a complete, reproducible research artifact. The formal verification, the
+adversarial campaign, the ablation, the fuzzing and the sensitivity sweep are all real, all
+seeded, all re-runnable, and all reported with their limitations.
+
+**The manuscript is not submission-ready**, for one reason: it asks whether core pinning holds a
+safety deadline under radio-layer load, and that question has not been answered by any
+experiment in this repository. Simulation establishes logical isolation only, and the
+literature search found prior measurement suggesting the physical answer may well be "not
+entirely".
+
+Running conditions A-C would change this assessment more than any further writing.

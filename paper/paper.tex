@@ -37,8 +37,11 @@ Consumer intrusion alarms are built almost entirely on single-chip Wi-Fi systems
 which the radio stack, the network stack and the application share one die and one scheduler.
 The real-time-security literature shows that on Linux-class industrial devices, pinning the
 control task to a separate core keeps its timing stable under wired network floods; whether
-that result transfers to a single-chip Wi-Fi SoC, where the attacked radio driver runs on the
-same silicon, is untested. We study an ESP32 intrusion alarm whose safety loop (sensing, state
+that result transfers to a single-chip Wi-Fi SoC is only partly known: Behnke \emph{et al.}
+measured 2--4\,\% critical-task cycle loss on an ESP32 under IP-layer load even with the network
+server on the other core, but did not evaluate pinning as a \emph{mitigation}, used no
+adversarial model, and never exercised the 802.11 management path that lies below the IP stack.
+We study an ESP32 intrusion alarm whose safety loop (sensing, state
 machine, siren) is pinned to the application core and whose network task runs on the other
 core behind bounded, non-blocking queues. We contribute: (i) a dual-core firmware with
 authenticated commands (HMAC-SHA256 over an NVS-persisted monotonic counter), passive
@@ -89,7 +92,15 @@ out-of-band fallback alert over ESP-NOW, and optional PIR+mmWave sensor fusion
 command path, one of the safety/network isolation, each mutation-tested to show the properties
 are not vacuous (Section~\ref{sec:formal}).
 \item A seeded, reproducible adversarial campaign (6{,}000 trials) and a sanitizer-backed fuzzing
-campaign of the command parser, with a non-parametric test of latency invariance
+campaign of the command parser (Section~\ref{sec:sim}).
+\item An ablation over four command-path designs under one adversary---no defence, a
+token-bucket rate limit, a static shared token, and the signed-counter path---showing that
+availability and integrity are separable: a rate limit cannot distinguish a legitimate command
+from a flood and so drops both while leaving integrity untouched, and a static token restores
+availability but is defeated by capture-and-replay (Section~\ref{sec:sim}).
+\item A parameter sweep of the deauthentication detector which found the originally chosen
+threshold to be wrong: at a threshold of 8 it fired spuriously in 79.9\,\% of benign
+ten-minute runs at 60 management frames per minute. The default is now 12, at 0.25\,\%
 (Section~\ref{sec:sim}).
 \item A measurement protocol and instrumentation for the one claim that requires silicon---the
 physical latency invariance under on-chip radio stress---stated honestly as the open step
@@ -97,7 +108,23 @@ physical latency invariance under on-chip radio stress---stated honestly as the 
 \end{enumerate}
 
 \section{Related Work}
-\textbf{Timing isolation under attack and interference.} This is the closest body of work, and its
+\textbf{The closest work, and what it settles.} Behnke \emph{et al.}~\cite{behnke2020} measured
+a periodic critical task's lateness on an \emph{ESP32} under IP load up to 120{,}000\,pps bursts
+with the network server on the other core, and found the task lost 2.15--3.8\,\% of its cycles
+(3.17--6.67\,\% for packets to an unused port), with lateness growing roughly linearly once the
+MCU saturates. The question of whether on-chip network activity reaches a critical task is
+therefore answered: it does, even with cross-core separation. Their follow-up work proposes
+mitigations, but neither is available to a developer shipping stock hardware: a priority-aware
+multiqueue NIC~\cite{behnke2022} that was simulated and never built, and driver-level early
+demultiplexing~\cite{behnke2023} prototyped on a Zynq-7000. Critically, \cite{behnke2023} states
+that the ESP32's second core is used to separate observed processes from the test harness,
+\emph{not} as a mitigation; core pinning is nowhere evaluated as a defence. All of this work
+uses IP-layer load, and none models an adversary. Three gaps therefore remain, and they define
+this paper: pinning plus queue discipline has never been evaluated as a mitigation; 802.11
+management frames are handled below the IP stack and have never been used as the stressor; and
+no adversarial or formal treatment exists.
+
+\textbf{Timing isolation under attack and interference elsewhere.} The
 consistent finding is that spatial separation plus a resource regulator preserves real-time
 behaviour. Its consistent platform, however, is large. Fischer \emph{et al.}~\cite{fischer2020}
 measure control-task jitter on Linux-class industrial devices under \emph{wired} floods and find
@@ -144,30 +171,36 @@ deliberately narrower---the application-layer command parser in a host harness--
 for one property with a precise oracle, not a contribution to fuzzing technique.
 
 \begin{table}[t]
-\centering\small
-\caption{Positioning. No prior work measures a safety deadline on a single-chip Wi-Fi SoC whose own
-radio driver is the attacked resource.}
+\centering\footnotesize
+\caption{Positioning. Behnke \emph{et al.} already measured deadline degradation on this chip
+family, so the open question is not measurement but whether the only mitigation available on
+stock hardware works, under load that reaches the radio rather than the IP stack.}
 \label{tab:position}
-\begin{tabular}{@{}llcc@{}}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llccc@{}}
 \toprule
-Work & Platform & \shortstack{Attacked\\resource\\on-die} & \shortstack{Safety\\deadline\\measured} \\
+Work & Platform & \shortstack{Dead-\\line} & \shortstack{Radio\\load}
+     & \shortstack{Pinning as\\mitigation} \\
 \midrule
-Fischer~\cite{fischer2020}      & Linux ind.\ board & no  & yes \\
-Meszl\'enyi~\cite{timingiso2025}& x86 PREEMPT-RT    & no  & yes \\
-Hoornaert~\cite{mcti2024}       & A53 + hypervisor  & n/a & yes \\
-Carbajal~\cite{carbajal2026}    & Wi-Fi testbed     & n/a & no  \\
-Kremser~\cite{deauther2026}     & ESP32-S3          & n/a & no  \\
-Cayre~\cite{espwn2023}          & ESP32 family      & yes & no  \\
-Azhar~\cite{mqtttls2026}        & ESP32-C3          & no  & no  \\
-Ieropoulos~\cite{ondevice2026}  & ESP32             & no  & no  \\
+Behnke~\cite{behnke2020}        & ESP32          & yes & no  & no  \\
+Behnke~\cite{behnke2022}        & sim.\ NIC      & yes & no  & no  \\
+Behnke~\cite{behnke2023}        & Zynq-7000      & yes & no  & no  \\
+Fischer~\cite{fischer2020}      & Linux board    & yes & no  & no  \\
+Meszl\'enyi~\cite{timingiso2025}& x86 RT         & yes & no  & no  \\
+Hoornaert~\cite{mcti2024}       & A53 + hyperv.  & yes & no  & no  \\
+Carbajal~\cite{carbajal2026}    & Wi-Fi testbed  & no  & yes & no  \\
+Kremser~\cite{deauther2026}     & ESP32-S3       & no  & yes & no  \\
+Cayre~\cite{espwn2023}          & ESP32 family   & no  & yes & no  \\
 \midrule
-\textbf{This work}              & \textbf{ESP32}    & \textbf{yes} & \textbf{yes}$^\dagger$ \\
+\textbf{This work}              & \textbf{ESP32} & \textbf{pend.}$^\dagger$
+                                & \textbf{yes}   & \textbf{yes} \\
 \bottomrule
 \end{tabular}
 
 \vspace{0.3em}
-{\footnotesize $^\dagger$Logical invariance established here; physical latency invariance is the
-specified open step (Section~\ref{sec:hw}).}
+{\footnotesize $^\dagger$Logical isolation is established here by model checking and simulation.
+The physical deadline measurement is specified but \emph{not yet run} (Section~\ref{sec:hw}),
+and no latency figure is claimed anywhere in this paper.}
 \end{table}
 
 \section{System Design}\label{sec:design}
@@ -295,6 +328,48 @@ mutation had flipped a hex digit's case, which decodes to identical tag bytes, s
 was the genuine command and acceptance was correct. The corpus now signs its mutation seed with
 a deliberately wrong key so no mutation can yield a valid command by accident.
 
+\textbf{Ablation over command-path designs.} To avoid resting on a baseline that is trivially
+defeated, we ran the same adversary against four designs: no defence, a token-bucket rate limit
+(5\,commands/s), a static shared token in the payload, and the signed-counter path. The rate
+limit and the token are modelled as edge filters, which is where a developer would place them.
+300 trials each, same seeds. Table~\ref{tab:ablation} gives the result, and it separates two
+properties that are easily conflated. A rate limiter cannot distinguish a legitimate command
+from a flood, so it drops both and leaves integrity entirely untouched. A static token
+\emph{does} restore availability, because the edge filters the flood cheaply---but it travels in
+plaintext, so one captured command defeats it. Only the monotonic counter stops replay; a MAC
+alone would behave like the token row. The alarm fired in every trial of every design, which is
+the isolation property doing its job: the safety function does not depend on the command path.
+
+\begin{table}[t]
+\centering\small
+\caption{Command-path ablation, 300 trials per design, identical adversary and seeds.
+``Survives flood'' counts flooded trials in which a legitimate command took effect;
+``replayed'' counts trials in which the attacker obtained an accepted command using only
+captured or forged material.}
+\label{tab:ablation}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Design & \shortstack{Survives\\flood} & \shortstack{Defeated by\\replay} & \shortstack{Alarm\\fired} \\
+\midrule
+No defence              & 0/250   & 250/300 & 300/300 \\
+Rate limit (5/s)        & 0/250   & 246/300 & 300/300 \\
+Static shared token     & 250/250 & 250/300 & 300/300 \\
+\textbf{HMAC + counter} & \textbf{250/250} & \textbf{0/300} & \textbf{300/300} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Detector parameter sensitivity, and a defect it found.} The deauthentication detector's
+threshold and window had a stated rationale but no measurement. Sweeping them against a Poisson
+model of benign management-frame arrivals (2{,}000 runs of ten simulated minutes per grid cell)
+showed the original threshold of 8 was wrong: at 60 frames/min, an ordinary busy multi-AP
+environment, it fired spuriously in 79.9\,\% of runs. A threshold of 12 gives 0.25\,\% while
+still detecting every swept attack rate with no misses, at a cost of about 214\,ms of detection
+latency at 20\,frames/s. We changed the default on that evidence. We stress that the benign
+arrival model is an \emph{assumption}: no capture of real management traffic was available, so
+this characterises the detector's logic rather than any real network, and a measured rate
+remains future work.
+
 \section{The Open Step: Hardware Latency Invariance}\label{sec:hw}
 The campaign establishes logical invariance; it cannot establish \emph{timing} invariance,
 because the simulated clock does not model CPU or interrupt contention. That is precisely the
@@ -394,6 +469,17 @@ Hardware and Software Engineers}. Addison-Wesley, 2002.
 2025, doi:10.1145/3719027.3765125.
 \bibitem{sysfuss2026} D.\ Tharindu, A.\ Jayasena, and P.\ Mishra, ``SysFuSS: System-Level
 Firmware Fuzzing with Selective Symbolic Execution,'' arXiv:2602.02243, 2026.
+\bibitem{behnke2020} I.\ Behnke, L.\ Pirl, L.\ Thamsen, R.\ Danicki, A.\ Polze, and O.\ Kao,
+``Interrupting Real-Time IoT Tasks: How Bad Can It Be to Connect Your Critical Embedded System
+to the Internet?,'' in \emph{Proc.\ IEEE 39th Int.\ Performance Computing and Communications
+Conf.\ (IPCCC)}, 2020.
+\bibitem{behnke2022} I.\ Behnke, P.\ Wiesner, R.\ Danicki, and L.\ Thamsen, ``A Priority-Aware
+Multiqueue NIC Design for Real-Time IoT Devices,'' in \emph{Proc.\ 37th ACM/SIGAPP Symp.\ on
+Applied Computing (SAC)}, 2022, doi:10.1145/3477314.3507165.
+\bibitem{behnke2023} I.\ Behnke, C.\ Blumschein, R.\ Danicki, P.\ Wiesner, L.\ Thamsen, and
+O.\ Kao, ``Towards a Real-Time IoT: Approaches for Incoming Packet Processing in Cyber-Physical
+Systems,'' \emph{Journal of Systems Architecture}, vol.\ 140, art.\ 102891, 2023,
+doi:10.1016/j.sysarc.2023.102891.
 \end{thebibliography}
 
 \end{document}
