@@ -25,7 +25,19 @@ These are stated here so a reader can interpret any figure without a per-figure 
 | **Solid arrow** | Control or data flows this way |
 | **Dashed arrow** (`4 3`) | Reporting or rejection path, not a control path |
 | **Dotted arrow** | Observation only; no data path |
-| Fill lightness | The only visual encoding besides line style. No distinction is carried by hue alone, so every figure survives greyscale printing and the common forms of colour-vision deficiency |
+| Fill lightness | Every fill stays near-white, so no distinction depends on hue alone and all figures survive greyscale printing and the common forms of colour-vision deficiency |
+
+Colour, where used, is a **secondary** cue reinforcing a label, and the same palette means the
+same thing in every figure:
+
+| Colour | Domain |
+|---|---|
+| Blue | Sensing, or a participant outside the device |
+| Amber | Core 0, the network domain |
+| Green | Core 1, the safety domain |
+| Purple | Internal shared resource: queues and non-volatile storage |
+| Red | Local outputs, or a rejection path |
+| Slate | Cloud, broker and user-side components |
 
 Typography is one font stack at four sizes throughout. The smallest type is 11 px in a figure at
 most 1100 units wide, which is about 8 pt at a 90 mm single-column width.
@@ -75,9 +87,15 @@ most 1100 units wide, which is about 8 pt at a 90 mm single-column width.
 ### Figure 6 — Command sequence
 `docs/images/command_sequence.{svg,pdf,png}`
 
-> **Fig. 6.** Sequence diagram for an authenticated remote disarm. Dashed arrows are reporting
-> rather than control: the system implements no command-acknowledgement protocol, and the
-> operator infers the outcome from the retained state topic and the event stream.
+> **Fig. 6.** UML sequence for an authenticated remote disarm, in nine numbered steps.
+> Participants are coloured by the domain they belong to and the trust boundary is marked:
+> parsing and HMAC verification complete on core 0, so a forged or malformed command is rejected
+> before the bounded queue and never reaches the safety core. The replay counter is committed to
+> flash at step 5, before the command is acted on, so an interruption can at worst burn a counter
+> value rather than leave the command replayable. Dashed arrows are reporting rather than
+> control: the system implements no command-acknowledgement protocol, and steps 7 to 9 are
+> best-effort at MQTT QoS 0, so the operator infers the outcome from the retained state topic and
+> the event stream.
 
 ### Figure 7 — Deployment architecture
 `docs/images/deployment.{svg,pdf,png}`

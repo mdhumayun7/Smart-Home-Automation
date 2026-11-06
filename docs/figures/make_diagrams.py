@@ -34,6 +34,18 @@ LINE = "#2F3A45"      # connectors and borders
 LIGHT, MID, DARK = "#F4F6F8", "#DCE3EA", "#B8C4D0"
 SAFETY, NETWORK = "#E9F7EF", "#E8F1FB"   # domain tints, both near-white in grey
 
+# House palette, shared with the hand-authored diagrams (architecture.svg and
+# state_machine.svg) so every figure in the paper reads as one set. Each pair is
+# (fill, stroke); all fills stay near-white so greyscale printing survives.
+PAL = {
+    "external":  ("#F2F4F7", "#475467"),   # operator, broker: outside the device
+    "sensing":   ("#E8F1FB", "#2B6CB0"),
+    "network":   ("#FFF4E0", "#B26A00"),   # core 0
+    "safety":    ("#E9F7EF", "#2E7D32"),   # core 1
+    "shared":    ("#F1EAFB", "#6B46C1"),   # queues and NVS: internal shared resources
+    "output":    ("#FDECEC", "#C0392B"),
+}
+
 SZ = {"title": 18, "head": 15, "body": 12.5, "small": 11}
 
 
@@ -79,6 +91,16 @@ class Fig:
 
     def label(self, x, y, rows, anchor="middle"):
         self.lines(x, y, rows, size="small", anchor=anchor)
+
+    def vline(self, x, y0, y1, stroke=MUTED, dash="5 5", sw=1.2):
+        d = f' stroke-dasharray="{dash}"' if dash else ""
+        self.p.append(f'<path d="M{x} {y0} L{x} {y1}" stroke="{stroke}" '
+                      f'stroke-width="{sw}" fill="none"{d}/>')
+
+    def actbar(self, x, y0, y1, stroke, w=11):
+        """UML activation bar: the participant is executing over this interval."""
+        self.p.append(f'<rect x="{x - w / 2}" y="{y0}" width="{w}" height="{y1 - y0}" '
+                      f'fill="#FFFFFF" stroke="{stroke}" stroke-width="1.5"/>')
 
     def render(self):
         defs = (
@@ -185,49 +207,144 @@ def command_flow():
 
 # ------------------------------------------------- 2. command sequence -------
 def command_sequence():
-    """UML sequence diagram for an authenticated DISARM."""
-    f = Fig(1060, 700, "Sequence diagram: authenticated remote DISARM")
-    f.text(530, 34, "Sequence: authenticated remote DISARM", size="title", bold=True)
+    """UML sequence diagram for an authenticated remote DISARM.
 
-    actors = [("Operator", 90), ("MQTT broker", 270), ("networkTask\n(core 0)", 470),
-              ("cmdQ", 650), ("safety loop\n(core 1)", 830), ("NVS", 990)]
-    for lab, x in actors:
-        rows = lab.split("\n")
-        f.box(x - 78, 62, 156, 34 + 18 * (len(rows) - 1), fill=MID, rx=8)
-        for i, r in enumerate(rows):
-            f.text(x, 84 + i * 18, r, size="body", bold=(i == 0))
-        # lifeline
-        f.p.append(f'<path d="M{x} {100 + 18 * (len(rows) - 1)} L{x} 630" '
-                   f'stroke="{MUTED}" stroke-width="1.2" stroke-dasharray="5 5"/>')
+    Styled to match the hand-authored diagrams: title and subtitle, participants
+    coloured by the domain they belong to, UML activation bars, a trust boundary,
+    the rejection paths, and a legend.
+    """
+    W, H = 1500, 1250
+    f = Fig(W, H, "Command execution sequence: authenticated remote DISARM")
+    f.text(W / 2, 40, "Smart Home Surveillance System v2 - Command Execution Sequence",
+           size="title", bold=True)
+    f.text(W / 2, 64, "Authenticated remote DISARM: HMAC-SHA256 over a reboot-persistent "
+                      "counter, verified on core 0", size="body", fill=MUTED)
 
-    def msg(y, x0, x1, text, note=None, dash=None):
+    BOT = 975
+    NOTE_W = 220          # clears the narrowest lifeline gap (safety->NVS = 250)
+    parts = [
+        ("Operator",     "external", 110,  ["MQTT client"]),
+        ("MQTT broker",  "external", 350,  ["untrusted"]),
+        ("networkTask",  "network",  610,  ["core 0"]),
+        ("cmdQ",         "shared",   880,  ["depth 4"]),
+        ("safety loop",  "safety",   1120, ["core 1"]),
+        ("NVS",          "shared",   1370, ["flash"]),
+    ]
+    xs = {n: x for n, _, x, _ in parts}
+    col = {n: PAL[k] for n, k, _, _ in parts}
+
+    # trust boundary between the broker and the device
+    f.vline(480, 108, BOT + 30, stroke="#C0392B", dash="9 6", sw=2)
+    f.text(480, 100, "TRUST BOUNDARY", size="small", bold=True, fill="#C0392B")
+    f.text(470, BOT + 46, "untrusted", size="small", fill="#C0392B", anchor="end")
+    f.text(490, BOT + 46, "device", size="small", fill="#C0392B", anchor="start")
+
+    for name, kind, x, sub in parts:
+        fill, stroke = PAL[kind]
+        f.box(x - 98, 112, 196, 48, fill=fill, stroke=stroke, rx=10, sw=2)
+        f.text(x, 134, name, size="head", bold=True)
+        f.text(x, 152, sub[0], size="small", fill=MUTED)
+        f.vline(x, 160, BOT + 20)
+
+    # activation bars
+    f.actbar(xs["Operator"], 205, 228, col["Operator"][1])
+    f.actbar(xs["MQTT broker"], 208, 300, col["MQTT broker"][1])
+    f.actbar(xs["networkTask"], 283, 515, col["networkTask"][1])
+    f.actbar(xs["cmdQ"], 498, 575, col["cmdQ"][1])
+    f.actbar(xs["safety loop"], 556, 876, col["safety loop"][1])
+    f.actbar(xs["NVS"], 682, 756, col["NVS"][1])
+    f.actbar(xs["networkTask"], 856, 916, col["networkTask"][1])
+    f.actbar(xs["MQTT broker"], 896, 956, col["MQTT broker"][1])
+    f.actbar(xs["Operator"], 936, 958, col["Operator"][1])
+
+    def step(n, y, a, b, text, note=None, dash=None):
+        """One message. The badge sits at the arrow's origin and the label is
+        aligned away from it, so a number can never land on top of its own text."""
+        x0, x1 = xs[a], xs[b]
+        right = x1 > x0
         f.arrow([(x0, y), (x1, y)], dash=dash)
-        mid = (x0 + x1) / 2
-        f.text(mid, y - 9, text, size="small", fill=INK)
+        bx = x0 + (16 if right else -16)
+        f.p.append(f'<circle cx="{bx}" cy="{y - 15}" r="10" fill="{INK}"/>')
+        f.text(bx, y - 11, str(n), size="small", fill="#FFFFFF", bold=True)
+        tx = x0 + (32 if right else -32)
+        anchor = "start" if right else "end"
+        f.text(tx, y - 11, text, size="body", fill=INK, anchor=anchor)
         if note:
-            f.text(mid, y + 15, note, size="small", fill=MUTED)
+            f.text(tx, y + 17, note, size="small", fill=MUTED, anchor=anchor)
 
-    msg(165, 90, 270, "publish DISARM:1001:<tag>", "tag = HMAC-SHA256(K, \"DISARM:1001\")[0:16]")
-    msg(220, 270, 470, "deliver on command topic")
-    f.box(392, 250, 156, 54, fill=LIGHT, rx=8)
-    f.text(470, 272, "verifySigned()", size="small", bold=True)
-    f.text(470, 290, "ct_equal, constant time", size="small", fill=MUTED)
-    msg(340, 470, 650, "enqueue {DISARM, authed, 1001}")
-    msg(385, 650, 830, "dequeue, timeout 0")
-    f.box(752, 405, 156, 40, fill=LIGHT, rx=8)
-    f.text(830, 430, "1001 > cmdCounter ?", size="small", bold=True)
-    msg(480, 830, 990, "persistCounter(1001)", "before acting, so a crash cannot replay")
-    msg(530, 990, 830, "ack", dash="4 3")
-    f.box(752, 548, 156, 40, fill=LIGHT, rx=8)
-    f.text(830, 573, "disarm(): state := DISARMED", size="small", bold=True)
-    msg(620, 830, 470, "event: disarmed", dash="4 3")
+    def selfnote(x, y, h, title, rows, kind, dash=None):
+        """A processing note, kept inside the gap to the next lifeline."""
+        fill, stroke = PAL[kind]
+        f.box(x + 20, y, NOTE_W, h, fill=fill, stroke=stroke, rx=8, dash=dash)
+        cx = x + 20 + NOTE_W / 2
+        f.text(cx, y + 21, title, size="small", bold=True)
+        f.lines(cx, y + 39, rows, size="small")
 
-    f.text(530, 668,
-           "Dashed arrows are reporting, not control. The operator receives no direct "
-           "acknowledgement:", size="small", fill=MUTED)
-    f.text(530, 686,
-           "the outcome is inferred from the retained state topic and the event stream.",
-           size="small", fill=MUTED)
+    step(1, 215, "Operator", "MQTT broker", "publish  DISARM:1001:<tag>",
+         'tag = HMAC-SHA256(K, msg)[0:16]')
+    step(2, 300, "MQTT broker", "networkTask", "deliver on  .../cmd")
+
+    selfnote(xs["networkTask"], 318, 76, "parse and verify   (core 0)",
+             ["parse <VERB>:<ctr>:<hex-tag>",
+              "recompute tag, compare ct_equal"], "network")
+
+    selfnote(xs["networkTask"], 410, 76, "rejected here, never enqueued",
+             ["bad tag -> cmd_badmac", "unsigned -> cmd_unauth",
+              "malformed -> dropped silently"], "output", dash="5 4")
+
+    step(3, 515, "networkTask", "cmdQ", "enqueue  {DISARM, authed, 1001}",
+         "a flood cannot displace it")
+    step(4, 575, "cmdQ", "safety loop", "xQueueReceive(cmdQ, &m, 0)",
+         "zero timeout: never waits")
+
+    selfnote(xs["safety loop"], 600, 58, "freshness:  1001 > cmdCounter ?",
+             ["else cmd_replay, no state change"], "safety")
+
+    step(5, 695, "safety loop", "NVS", "persistCounter(1001)",
+         "committed BEFORE acting")
+    step(6, 756, "NVS", "safety loop", "committed", dash="4 3")
+
+    selfnote(xs["safety loop"], 778, 76, "authorise and execute",
+             ["m.authed is true -> disarm()",
+              "state := DISARMED, 150 ms beep"], "safety")
+
+    step(7, 876, "safety loop", "networkTask", "event: disarmed  (via eventQ)", dash="4 3")
+    step(8, 916, "networkTask", "MQTT broker", "publish event + retained state", dash="4 3")
+    step(9, 956, "MQTT broker", "Operator", "retained state", dash="4 3")
+
+    # legend
+    f.box(50, 1035, W - 100, 182, fill="#FBFBFC", stroke=LINE, rx=12)
+    f.text(74, 1061, "LEGEND", size="body", anchor="start", bold=True)
+    leg = [
+        ("external", "Outside the device (untrusted)"),
+        ("network", "Core 0: network domain"),
+        ("safety", "Core 1: safety domain"),
+        ("shared", "Internal shared resource"),
+        ("output", "Rejection path"),
+    ]
+    for i, (k, lab) in enumerate(leg):
+        x = 74 + (i % 3) * 330
+        y = 1083 + (i // 3) * 30
+        fill, stroke = PAL[k]
+        f.box(x, y, 26, 18, fill=fill, stroke=stroke, rx=4, sw=1.6)
+        f.text(x + 36, y + 14, lab, size="small", anchor="start", fill=INK)
+
+    f.p.append(f'<path d="M1070 1092 L1130 1092" stroke="{LINE}" stroke-width="1.8" '
+               f'marker-end="url(#arr)"/>')
+    f.text(1140, 1096, "control flow", size="small", anchor="start")
+    f.p.append(f'<path d="M1070 1122 L1130 1122" stroke="{LINE}" stroke-width="1.8" '
+               f'stroke-dasharray="4 3" marker-end="url(#arr)"/>')
+    f.text(1140, 1126, "reporting, not control", size="small", anchor="start")
+
+    f.lines(74, 1163, [
+        "Step 5 commits the counter to flash before the command is acted on, so an interruption "
+        "can at worst burn a counter value: it cannot leave the command replayable.",
+    ], size="small", anchor="start")
+    f.text(74, 1181, "The operator gets no direct acknowledgement: there is no command-ack "
+                     "protocol, so the outcome is inferred from the retained state topic and the "
+                     "event stream.", size="small", anchor="start", fill=MUTED)
+    f.text(74, 1199, "Steps 7 to 9 are therefore best-effort reporting at MQTT QoS 0 "
+                     "(at-most-once delivery).", size="small", anchor="start", fill=MUTED)
     return f
 
 
@@ -497,13 +614,16 @@ def main():
         cairosvg.svg2png(url=sp, write_to=os.path.join(out, name + ".png"), scale=2.5)
         print(f"  {name}: svg + pdf + png")
 
-    # Re-export the hand-written diagrams to PDF so every figure has a vector
-    # form suitable for LaTeX submission.
+    # Re-export the hand-authored diagrams. BOTH pdf and png: the README embeds the
+    # png, so exporting only the pdf leaves an edited svg invisible on GitHub. That
+    # happened once -- a correction to state_machine.svg never reached its png, and
+    # the repository kept showing the old text.
     for name in ("architecture", "state_machine", "event_sequence", "circuit_wiring"):
         sp = os.path.join(out, name + ".svg")
         if os.path.exists(sp):
             cairosvg.svg2pdf(url=sp, write_to=os.path.join(out, name + ".pdf"))
-            print(f"  {name}: pdf re-exported")
+            cairosvg.svg2png(url=sp, write_to=os.path.join(out, name + ".png"), scale=2.0)
+            print(f"  {name}: pdf + png re-exported from svg")
 
 
 if __name__ == "__main__":
