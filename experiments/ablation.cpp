@@ -114,6 +114,18 @@ static Mode g_mode = Mode::None;
 // TransportLeaked, where the adversary holds them too and the flag is irrelevant.
 static bool g_hasBrokerCreds = false;
 
+// Attribution guard for the phase-1 availability measurement.
+//
+// legit_cmd_accepted is inferred from an "exit_delay" event appearing in the window just after
+// the operator publishes ARM. In every mode where the adversary's commands are admitted (none,
+// ratelimit, token after capture, and transport_leaked) the adversary can itself publish a bare
+// ARM, so that event cannot be attributed to the operator: the metric silently measured "someone
+// armed the system", not "the operator's command survived". While this flag is set the adversary
+// still floods at the full configured rate, but emits no command that could arm a disarmed
+// system, so any observed arm is the operator's. Nuisance arming is measured separately by
+// attacker_armed and by the phase-2 replay test, so nothing is lost by excluding it here.
+static bool g_suppressAttackerArm = false;
+
 // The shared token a "token auth" design would embed in every command. The attacker does not
 // know it at the start of the trial, but it travels in plaintext, so capturing one legitimate
 // command reveals it. That is the whole point of including this design in the comparison.
@@ -196,17 +208,19 @@ struct Attacker {
     switch (pick(rng)) {
       case 0: {   // forged: correctly shaped, signed with a key the attacker does not have
         std::uniform_int_distribution<uint32_t> c(1, 4000000000u);
-        deliverGuarded(signWith("attacker-key-not-the-device-key",
-                                (rng() & 1) ? "DISARM" : "ARM", c(rng)), now);
+        const char* verb = g_suppressAttackerArm ? "DISARM" : ((rng() & 1) ? "DISARM" : "ARM");
+        deliverGuarded(signWith("attacker-key-not-the-device-key", verb, c(rng)), now);
         break;
       }
       case 1: {   // replay of something captured on the wire
+        if (g_suppressAttackerArm) break;   // a captured ARM would be unattributable
         if (captured.empty()) { deliverGuarded("ARM", now); break; }
         deliverGuarded(captured[rng() % captured.size()], now);
         break;
       }
       case 2: {   // bare verb, no credential of any kind
-        deliverGuarded((rng() & 1) ? "DISARM" : "ARM", now);
+        deliverGuarded(g_suppressAttackerArm ? "DISARM"
+                                             : ((rng() & 1) ? "DISARM" : "ARM"), now);
         break;
       }
       default: {  // random bytes
@@ -214,6 +228,7 @@ struct Attacker {
         int n = len(rng);
         std::string s;
         for (int i = 0; i < n; i++) s.push_back((char)ch(rng));
+        if (g_suppressAttackerArm && s == "ARM") break;
         deliverGuarded(s, now);
         break;
       }
@@ -225,9 +240,12 @@ struct Attacker {
 struct Trial {
   uint64_t seed;
   uint32_t attackRate;
-  bool     legitAccepted;
+  bool     legitAccepted;         // at least one operator attempt was accepted
+  int      legitAttempts;         // operator publish attempts under flood
+  int      legitAdmitted;         // how many of them reached the state machine
   bool     attackerArmed;
   bool     attackerReplayArmed;   // accepted an arm using only captured/forged material
+  bool     availTestValid;        // false if the system was not DISARMED when the operator published
   bool     replayTestValid;       // false if the system could not be returned to DISARMED
   bool     intrusionTestValid;    // false if the system was not ARMED when the intrusion began
   bool     attackerDisarmed;
@@ -258,6 +276,7 @@ static Trial runTrial(uint64_t seed, uint32_t attackRate) {
   t.attackRate = attackRate;
   t.violation = nullptr;
   t.replayTestValid = true;
+  t.availTestValid = false;
   t.intrusionTestValid = false;
 
   std::mt19937_64 rng(seed);
@@ -286,6 +305,13 @@ static Trial runTrial(uint64_t seed, uint32_t attackRate) {
   drainEvents();
   g_dropAtStart = eventsDropped;
 
+  // Hold the adversary's arm-capable commands for the whole prologue. It still floods at the
+  // full configured rate throughout -- draining the token bucket and saturating the queues --
+  // but cannot itself arm the system. That keeps the system DISARMED by construction, so the
+  // availability measurement needs no quiet settle beforehand: a quiet window would let the
+  // token bucket refill and would make the rate-limit design look better than it is.
+  g_suppressAttackerArm = true;
+
   uint32_t perTick = attackRate / 1000u;
   uint32_t remainder = attackRate % 1000u;
   uint32_t acc = 0;
@@ -308,14 +334,44 @@ static Trial runTrial(uint64_t seed, uint32_t attackRate) {
   // Phase 1: the legitimate user arms. The attacker captures whatever goes on the wire.
   uint32_t legitCtr = 50000 + (uint32_t)(rng() % 1000);
   std::string legitArm = legitCommand("ARM", legitCtr);
-  size_t before = g_events.size();
-  g_hasBrokerCreds = true;             // the legitimate operator is authenticated
-  deliverGuarded(legitArm, g_now);
-  g_hasBrokerCreds = false;
-  atk.captured.push_back(legitArm);
-  stepWithAttack(50);
-  for (size_t i = before; i < g_events.size(); i++)
-    if (g_events[i].rfind("exit_delay:", 0) == 0) t.legitAccepted = true;
+  // The adversary has been flooding at full rate since the trial began but has not been able
+  // to arm, so the system is DISARMED on entry and the token bucket is in whatever state the
+  // flood left it. Any arm observed in the window below is therefore the operator's.
+  t.availTestValid = (state == SysState::DISARMED);
+
+  // Availability is measured over several attempts, not one.
+  //
+  // A single-command boolean is not an availability measurement here. The token-bucket design
+  // admits a fixed number of commands per second regardless of attack intensity, and whether
+  // one particular command is among them depends on the bucket's phase at the instant it is
+  // published. Measured directly, that phase is not even monotonic in attack rate: a heavy
+  // flood is rejected without consuming tokens, which pins the bucket just below the admission
+  // threshold, so a single millisecond of refill can tip it over, while a moderate flood
+  // leaves a lower residue. Counting how many of LEGIT_ATTEMPTS operator publishes are
+  // admitted measures the property we actually care about and is insensitive to that phase.
+  static constexpr int LEGIT_ATTEMPTS = 5;
+  static constexpr uint32_t LEGIT_GAP_MS = 200;
+  t.legitAttempts = LEGIT_ATTEMPTS;
+  for (int a = 0; a < LEGIT_ATTEMPTS; a++) {
+    size_t before = g_events.size();
+    g_hasBrokerCreds = true;           // the legitimate operator is authenticated
+    std::string attempt = legitCommand("ARM", legitCtr + (uint32_t)a);
+    deliverGuarded(attempt, g_now);
+    g_hasBrokerCreds = false;
+    if (a == 0) atk.captured.push_back(attempt);
+    stepWithAttack(LEGIT_GAP_MS);
+    bool got = false;
+    for (size_t i = before; i < g_events.size(); i++)
+      if (g_events[i].rfind("exit_delay:", 0) == 0) got = true;
+    if (got) { t.legitAdmitted++; t.legitAccepted = true; }
+    // Return quietly to DISARMED so every attempt is evaluated from the same state. The
+    // adversary cannot arm during the prologue, so nothing it did is being undone here.
+    if (state != SysState::DISARMED) {
+      g_pin[PIN_ARM_BTN] = LOW;  stepQuiet(80);
+      g_pin[PIN_ARM_BTN] = HIGH; stepQuiet(80);
+    }
+  }
+  g_suppressAttackerArm = false;       // from here the adversary may arm as well as disarm
 
   if (state == SysState::DISARMED) {
     g_pin[PIN_ARM_BTN] = LOW;  stepQuiet(80);
@@ -460,10 +516,12 @@ int main(int argc, char** argv) {
     if (pid == 0) {
       Trial t = runTrial(seed0 + k, rate);
       printf("{\"mode\":\"%s\",\"seed\":%llu,\"attack_rate\":%u,"
-             "\"legit_cmd_accepted\":%s,\"attacker_armed\":%s,\"attacker_replay_armed\":%s,\"replay_test_valid\":%s,\"intrusion_test_valid\":%s,\"attacker_disarmed\":%s,"
+             "\"legit_cmd_accepted\":%s,\"legit_attempts\":%d,\"legit_admitted\":%d,\"avail_test_valid\":%s,\"attacker_armed\":%s,\"attacker_replay_armed\":%s,\"replay_test_valid\":%s,\"intrusion_test_valid\":%s,\"attacker_disarmed\":%s,"
              "\"reached_alarm\":%s,\"safety_latency_ms\":%u,\"violation\":%s%s%s}\n",
              modeName, (unsigned long long)t.seed, t.attackRate,
              t.legitAccepted ? "true" : "false",
+             t.legitAttempts, t.legitAdmitted,
+             t.availTestValid ? "true" : "false",
              t.attackerArmed ? "true" : "false",
              t.attackerReplayArmed ? "true" : "false",
              t.replayTestValid ? "true" : "false",

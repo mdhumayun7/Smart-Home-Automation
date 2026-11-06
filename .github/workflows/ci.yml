@@ -94,7 +94,7 @@ jobs:
             - firmware/smart_home
           cli-compile-flags: |
             - --build-property
-            - compiler.cpp.extra_flags=-DENABLE_ESPNOW=1 -DFUSION_MODE=FUSION_AND -DAUTH_COMMANDS=1
+            - compiler.cpp.extra_flags=-DENABLE_ESPNOW=1 -DFUSION_MODE=FUSION_AND -DAUTH_COMMANDS=1 -DSECRET_CMD_KEY='"test-key-not-the-demo-key"'
 
       # Measure the static cost of transport security. This is the only TLS figure this
       # project reports: the host harness has no TLS implementation, so no runtime latency
@@ -205,7 +205,7 @@ jobs:
           h = s["hmac"]
           if h["attacker_replay_armed"]:
               problems.append(f"hmac defeated by replay in {h['attacker_replay_armed']} trials")
-          if h["legit_accepted_flooded"] != h["flooded_trials"]:
+          if h["legit_admitted_flooded"] != h["legit_attempts_flooded"]:
               problems.append("hmac lost a legitimate command under flood")
 
           # Every design must keep the safety function working: that is the isolation claim.

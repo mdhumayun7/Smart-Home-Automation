@@ -12,7 +12,7 @@ SENS_RUNS="${SENS_RUNS:-2000}"
 echo "== building =="
 g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter -I "$STUBS" \
     -o ablation_unauth ablation.cpp
-g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter -DAUTH_COMMANDS=1 -I "$STUBS" \
+g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter -DAUTH_COMMANDS=1 -DSECRET_CMD_KEY='"test-key-not-the-demo-key"' -I "$STUBS" \
     -o ablation_auth ablation.cpp
 # Transport-security variant. MQTT_USE_TLS with broker credentials is the only configuration
 # in which the firmware's compile guard permits ALLOW_REMOTE_DISARM without application-layer
@@ -20,7 +20,8 @@ g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter -DAUTH_COMMANDS=1 -I "$ST
 g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter \
     -DMQTT_USE_TLS=1 -DSECRET_MQTT_USER='"alarm"' -DSECRET_MQTT_PASS='"pw"' \
     -DSECRET_MQTT_CA_CERT='"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n"' \
-    -DALLOW_REMOTE_DISARM=1 -I "$STUBS" -o ablation_tls ablation.cpp
+    -DALLOW_REMOTE_DISARM=1 -DACKNOWLEDGE_UNAUTHENTICATED_DISARM \
+    -I "$STUBS" -o ablation_tls ablation.cpp
 g++ -O2 -std=c++17 -Wall -Wextra -o sensitivity sensitivity.cpp
 
 echo "== E3: command-path ablation, 6 designs ($TRIALS trials each) =="

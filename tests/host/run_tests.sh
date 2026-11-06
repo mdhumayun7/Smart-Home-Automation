@@ -42,9 +42,29 @@ buildcheck() {  # <label> <flags...>
 }
 buildcheck "TLS + remote disarm config" \
     -DMQTT_USE_TLS=1 -DSECRET_MQTT_CA_CERT='"-----BEGIN CERTIFICATE-----"' \
-    -DSECRET_MQTT_USER='"user"' -DSECRET_MQTT_PASS='"pass"' -DALLOW_REMOTE_DISARM=1
-buildcheck "authenticated commands required" -DAUTH_COMMANDS=1
+    -DSECRET_MQTT_USER='"user"' -DSECRET_MQTT_PASS='"pass"' -DALLOW_REMOTE_DISARM=1 \
+    -DACKNOWLEDGE_UNAUTHENTICATED_DISARM
+buildcheck "authenticated commands required" -DAUTH_COMMANDS=1 -DSECRET_CMD_KEY='"test-key-not-the-demo-key"'
 buildcheck "PIR + radar fusion (AND)"        -DFUSION_MODE=FUSION_AND
+
+# Negative build checks: these configurations must be REFUSED by the compile guards. A guard
+# that stops rejecting them is a silent regression, so failure to fail is a test failure.
+# See docs/SECURITY_ANALYSIS.md for why each combination is unsafe.
+buildfails() {  # <label> <flags...>
+  local label="$1"; shift
+  if g++ -std=c++17 -fsyntax-only -I stubs "$@" test_firmware.cpp >/dev/null 2>&1; then
+    echo "FAIL guard did not reject: $label"; fail=1
+  else
+    echo "PASS guard rejects $label"
+  fi
+}
+# TLS plus a broker login does not authorize a publisher, so it must not be enough on its own.
+buildfails "unauthenticated remote disarm behind TLS + login" \
+    -DMQTT_USE_TLS=1 -DSECRET_MQTT_CA_CERT='"-----BEGIN CERTIFICATE-----"' \
+    -DSECRET_MQTT_USER='"user"' -DSECRET_MQTT_PASS='"pass"' -DALLOW_REMOTE_DISARM=1
+buildfails "unauthenticated remote disarm with no transport security" -DALLOW_REMOTE_DISARM=1
+# Signing with the repository's published demo key is not authentication.
+buildfails "AUTH_COMMANDS with the published demo key" -DAUTH_COMMANDS=1
 buildcheck "Wi-Fi guard disabled"            -DENABLE_WIFI_GUARD=0
 
 # The shared headers in the ESP-NOW receiver must be byte-identical to the alarm's.

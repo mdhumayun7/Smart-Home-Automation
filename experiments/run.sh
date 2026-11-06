@@ -11,7 +11,7 @@ FUZZ_ITERS="${FUZZ_ITERS:-3000000}"
 
 echo "== building campaign =="
 g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter -I "$STUBS" -o campaign_baseline campaign.cpp
-g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter -DAUTH_COMMANDS=1 -I "$STUBS" -o campaign_hardened campaign.cpp
+g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter -DAUTH_COMMANDS=1 -DSECRET_CMD_KEY='"test-key-not-the-demo-key"' -I "$STUBS" -o campaign_hardened campaign.cpp
 
 echo "== running campaign ($TRIALS trials per build) =="
 ./campaign_baseline --trials "$TRIALS" --seed 1000 > results/campaign_baseline.jsonl
@@ -25,7 +25,7 @@ python3 make_figures.py || echo "(figure skipped: matplotlib not available)"
 
 echo "== fuzzing command parser ($FUZZ_ITERS iters) =="
 g++ -O2 -g -std=c++17 -Wall -Wextra -Wno-unused-parameter -fsanitize=address,undefined \
-    -DAUTH_COMMANDS=1 -I "$STUBS" -o fuzz_cmd fuzz_cmd.cpp
+    -DAUTH_COMMANDS=1 -DSECRET_CMD_KEY='"test-key-not-the-demo-key"' -I "$STUBS" -o fuzz_cmd fuzz_cmd.cpp
 ./fuzz_cmd --iters "$FUZZ_ITERS" --seed 7 | tee results/fuzz.json
 
 echo

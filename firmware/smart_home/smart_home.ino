@@ -208,18 +208,44 @@ constexpr uint32_t BUZZER_FREQ_HZ = 2700;
 #endif
 #ifndef SECRET_CMD_KEY
 #  define SECRET_CMD_KEY "demo-shared-key-change-me"   // public demo key; override in secrets.h
+#  define CMD_KEY_IS_DEMO 1
+#else
+#  define CMD_KEY_IS_DEMO 0
 #endif
 constexpr size_t AUTH_TAG_BYTES = 16;   // 128-bit tag: ample against forgery, short on the wire
 
 // 0 = remote DISARM is refused. With AUTH_COMMANDS a signed DISARM is safe (the counter and
 // tag defeat replay and forgery), so remote disarm is permitted when commands are authenticated.
-// Without authentication it still needs TLS and a broker login, because otherwise anyone who
-// learns the topic could switch the alarm off.
+//
+// This guard previously also accepted "MQTT_USE_TLS with a broker login" as sufficient. That
+// was unsound and the experiment in docs/SECURITY_ANALYSIS.md measures the consequence. TLS
+// authenticates the *broker to this device* and protects the device-to-broker hop; the broker
+// terminates TLS and re-originates every message, so a command carries no evidence of who
+// published it. MQTT_HAS_LOGIN, in turn, only says that *this* device supplies a username --
+// it says nothing about any publisher's authorization. Broker credentials are bearer tokens,
+// so one leaked credential turns the adversary into a legitimate client and the alarm can be
+// switched off remotely. Transport security does not supply application-layer authorization.
+//
+// Unauthenticated remote disarm therefore now requires an explicit acknowledgement, named for
+// what the builder is accepting. The research baseline defines it so the original behaviour
+// stays reproducible; a normal deployment should set AUTH_COMMANDS 1 instead.
 #ifndef ALLOW_REMOTE_DISARM
 #  define ALLOW_REMOTE_DISARM 0
 #endif
-#if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && (!MQTT_USE_TLS || !MQTT_HAS_LOGIN)
-#  error "ALLOW_REMOTE_DISARM needs AUTH_COMMANDS 1, or MQTT_USE_TLS 1 with broker credentials"
+#if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && !defined(ACKNOWLEDGE_UNAUTHENTICATED_DISARM)
+#  error "ALLOW_REMOTE_DISARM without AUTH_COMMANDS 1 permits anyone who can publish to the \
+command topic to switch the alarm off, and TLS plus a broker login does not prevent it (see \
+docs/SECURITY_ANALYSIS.md). Set AUTH_COMMANDS 1, or define \
+ACKNOWLEDGE_UNAUTHENTICATED_DISARM to accept that risk deliberately."
+#endif
+
+// Authentication that verifies against a published key is not authentication. The default
+// SECRET_CMD_KEY below is a public demo string in this repository, so a build that enables
+// AUTH_COMMANDS without overriding it would log every command as authenticated while any
+// reader of the repository could forge one.
+#if AUTH_COMMANDS && CMD_KEY_IS_DEMO
+#  error "AUTH_COMMANDS 1 requires a real SECRET_CMD_KEY in secrets.h. The fallback key is \
+published in this repository, so a command signed with it is forgeable by any reader."
 #endif
 
 #define TZ_STRING "IST-5:30"

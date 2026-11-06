@@ -8,30 +8,73 @@ committed JSONL file produced by a seeded run; nothing is hand-entered.
 
 ## 1. Command-path design ablation
 
-Four designs, same adversary, same scenario, same seeds. The adversary floods
+Six designs, same adversary, same scenario, same seeds. The adversary floods
 the command topic and captures the legitimate command off the wire for replay.
 
-| Design | Trials | Legit command survives flood | Defeated by capture-and-replay | Attacker disarmed | Alarm fired | Invariant violations |
-|---|---|---|---|---|---|---|
-| No command defence | 300 | 0/250 | 250/300 | 0 | 300/300 | 0 |
-| Token-bucket rate limit (5/s) | 300 | 0/250 | 246/300 | 0 | 300/300 | 0 |
-| Static shared token | 300 | 250/250 | 250/300 | 0 | 300/300 | 0 |
-| HMAC-SHA256 + counter | 300 | 250/250 | 0/300 | 0 | 300/300 | 0 |
+Availability is measured as the proportion of five operator publish attempts,
+spaced 200 ms apart, that reach the state machine while the adversary floods at
+the configured rate. Throughout the trial prologue the adversary floods at full
+rate but cannot itself arm the system, so an observed arm is attributable to the
+operator; its nuisance arming is measured separately in the replay column. A
+single-command boolean was found to measure token-bucket phase rather than
+availability, and is not reported: see `docs/SECURITY_ANALYSIS.md` section 9.
 
-Safety latency was identical across all four designs (median 151 ms, standard deviation 0.0 ms), which is
+| Design | Trials | Operator commands admitted under flood | Defeated by capture-and-replay | Attacker disarmed | Alarm fired | Invariant violations |
+|---|---|---|---|---|---|---|
+| No command defence | 300 | 1250/1250 | 250/300 | 0 | 300/300 | 0 |
+| Token-bucket rate limit (5/s) | 300 | 737/1250 | 250/300 | 0 | 300/300 | 0 |
+| Static shared token | 300 | 1250/1250 | 250/300 | 0 | 300/300 | 0 |
+| TLS + broker credentials | 300 | 1250/1250 | 0/300 | 0 | 300/300 | 0 |
+| TLS, credentials leaked | 300 | 1250/1250 | 250/300 | 246 | 50/300 | 250 |
+| HMAC-SHA256 + counter | 300 | 1250/1250 | 0/300 | 0 | 300/300 | 0 |
+
+Safety latency was identical across all six designs (median 151 ms, standard deviation 0.0 ms), which is
 expected: the harness advances a logical clock, so there is no contention to
 measure. This says nothing about physical timing.
 
-**Reading.** Availability and integrity are separable, and three of the four
-designs fail at least one of them:
+**Reading.** Availability, integrity and the safety function are separable,
+and four of the six designs fail at least one of them:
 
 - A **rate limit** cannot tell a legitimate command from a flood, so it drops
-  both, and it leaves integrity completely untouched.
+  the operator's command along with the attacker's, and it leaves integrity
+  completely untouched. Its effect on availability is not monotonic in attack
+  intensity: a moderate flood (10-100 commands/s) costs the operator most or
+  all of its attempts, while an extreme flood costs it none, because arrivals
+  that find the
+  bucket below the admission threshold are rejected *without consuming a
+  token*, which pins the bucket just under that threshold and leaves enough
+  refill for the next arrival. This is a property of the limiter, measured
+  rather than assumed; see docs/SECURITY_ANALYSIS.md section 9.
 - A **static token** restores availability, because the edge filters the flood
   cheaply. It is still defeated the moment the attacker captures one
   legitimate command, since the token travels in plaintext.
 - Only the **MAC plus monotonic counter** provides both. The counter, not the
   MAC, is what defeats replay; a MAC alone would behave like the token row.
+
+### 1.1 Operator command availability by attack rate
+
+Admitted / attempted, over trials whose availability measurement was valid.
+
+| Design | 10 cmd/s | 100 cmd/s | 1000 cmd/s | 5000 cmd/s | 20000 cmd/s |
+|---|---|---|---|---|---|
+| No command defence | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| Token-bucket rate limit (5/s) | 82/250 | 0/250 | 155/250 | 250/250 | 250/250 |
+| Static shared token | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| TLS + broker credentials | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| TLS, credentials leaked | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| HMAC-SHA256 + counter | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+
+### 1.2 Statistical comparison
+
+The two transport arms are built from identical source with identical flags
+and run on identical seeds; the adversary's possession of a valid broker
+credential is the only variable that differs.
+
+- Alarm activation, credentials leaked: 50/300 (16.7 %, 95 % Wilson CI [12.9 %, 21.3 %]).
+- Alarm activation, credentials held: 300/300 (100.0 %).
+- Fisher exact test, one-sided: p = 9.827e-119.
+
+- Operator availability, rate limit 737/1250 (59.0 %) against HMAC 1250/1250 (100.0 %): Fisher exact one-sided p = 3.531e-184.
 
 ## 2. Deauthentication detector parameter sensitivity
 

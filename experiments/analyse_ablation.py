@@ -13,6 +13,7 @@ Writes:
 """
 
 import json
+import math
 import os
 import statistics
 from collections import defaultdict
@@ -29,6 +30,32 @@ MODE_LABEL = {
     "transport": "TLS + broker credentials",
     "transport_leaked": "TLS, credentials leaked",
 }
+
+
+def wilson(k, n, z=1.96):
+    """Wilson score interval for a binomial proportion. Stdlib only."""
+    if n == 0:
+        return (0.0, 0.0)
+    p = k / n
+    d = 1 + z * z / n
+    centre = p + z * z / (2 * n)
+    margin = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return ((centre - margin) / d, (centre + margin) / d)
+
+
+def _lchoose(n, k):
+    return math.lgamma(n + 1) - math.lgamma(k + 1) - math.lgamma(n - k + 1)
+
+
+def fisher_one_sided(a, b, c, d):
+    """One-sided Fisher exact test, P(X <= a) under the hypergeometric null."""
+    n, r1, c1 = a + b + c + d, a + b, a + c
+    total = 0.0
+    for x in range(0, a + 1):
+        if x > c1 or (r1 - x) < 0 or (n - c1) < (r1 - x):
+            continue
+        total += math.exp(_lchoose(c1, x) + _lchoose(n - c1, r1 - x) - _lchoose(n, r1))
+    return total
 
 
 def load(name):
@@ -54,14 +81,21 @@ def ablation(rows):
         rs = by.get(m, [])
         if not rs:
             continue
-        flooded = [r for r in rs if r["attack_rate"] > 0]
+        # Availability is only attributable in a trial that began DISARMED; see avail_test_valid
+        # in ablation.cpp. Trials are excluded rather than counted as failures.
+        flooded = [r for r in rs if r["attack_rate"] > 0 and r.get("avail_test_valid", True)]
         replay_valid = [r for r in rs if r.get("replay_test_valid")]
         intr_valid = [r for r in rs if r.get("intrusion_test_valid")]
         lat = [r["safety_latency_ms"] for r in intr_valid if r.get("reached_alarm")]
         summary[m] = {
             "trials": len(rs),
             "flooded_trials": len(flooded),
+            "avail_test_valid": sum(1 for r in rs if r.get("avail_test_valid", True)),
             "legit_accepted_flooded": sum(1 for r in flooded if r["legit_cmd_accepted"]),
+            # Availability as a proportion of operator attempts admitted, which is insensitive
+            # to token-bucket phase in a way a single-command boolean is not.
+            "legit_attempts_flooded": sum(r.get("legit_attempts", 0) for r in flooded),
+            "legit_admitted_flooded": sum(r.get("legit_admitted", 0) for r in flooded),
             "replay_test_valid": len(replay_valid),
             "attacker_replay_armed": sum(1 for r in replay_valid
                                          if r.get("attacker_replay_armed")),
@@ -102,9 +136,17 @@ def main():
     # ---- ablation
     if ab:
         L.append("## 1. Command-path design ablation\n")
-        L.append("Four designs, same adversary, same scenario, same seeds. The adversary floods")
+        L.append("Six designs, same adversary, same scenario, same seeds. The adversary floods")
         L.append("the command topic and captures the legitimate command off the wire for replay.\n")
-        L.append("| Design | Trials | Legit command survives flood | Defeated by capture-and-replay |"
+        L.append("Availability is measured as the proportion of five operator publish attempts,")
+        L.append("spaced 200 ms apart, that reach the state machine while the adversary floods at")
+        L.append("the configured rate. Throughout the trial prologue the adversary floods at full")
+        L.append("rate but cannot itself arm the system, so an observed arm is attributable to the")
+        L.append("operator; its nuisance arming is measured separately in the replay column. A")
+        L.append("single-command boolean was found to measure token-bucket phase rather than")
+        L.append("availability, and is not reported: see `docs/SECURITY_ANALYSIS.md` section 9.\n")
+        L.append("| Design | Trials | Operator commands admitted under flood |"
+                 " Defeated by capture-and-replay |"
                  " Attacker disarmed | Alarm fired | Invariant violations |")
         L.append("|---|---|---|---|---|---|---|")
         for m in MODES:
@@ -113,27 +155,86 @@ def main():
                 continue
             L.append(
                 f"| {MODE_LABEL[m]} | {s['trials']} | "
-                f"{s['legit_accepted_flooded']}/{s['flooded_trials']} | "
+                f"{s['legit_admitted_flooded']}/{s['legit_attempts_flooded']} | "
                 f"{s['attacker_replay_armed']}/{s['replay_test_valid']} | "
                 f"{s['attacker_disarmed']} | "
                 f"{s['reached_alarm']}/{s['intrusion_test_valid']} | "
                 f"{s['violations']} |"
             )
         L.append("")
-        L.append("Safety latency was identical across all four designs "
+        L.append("Safety latency was identical across all six designs "
                  f"(median {ab['hmac']['safety_latency_median_ms']:.0f} ms, "
                  f"standard deviation {ab['hmac']['safety_latency_stdev_ms']:.1f} ms), which is")
         L.append("expected: the harness advances a logical clock, so there is no contention to")
         L.append("measure. This says nothing about physical timing.\n")
-        L.append("**Reading.** Availability and integrity are separable, and three of the four")
-        L.append("designs fail at least one of them:\n")
+        L.append("**Reading.** Availability, integrity and the safety function are separable,")
+        L.append("and four of the six designs fail at least one of them:\n")
         L.append("- A **rate limit** cannot tell a legitimate command from a flood, so it drops")
-        L.append("  both, and it leaves integrity completely untouched.")
+        L.append("  the operator's command along with the attacker's, and it leaves integrity")
+        L.append("  completely untouched. Its effect on availability is not monotonic in attack")
+        L.append("  intensity: a moderate flood (10-100 commands/s) costs the operator most or")
+        L.append("  all of its attempts, while an extreme flood costs it none, because arrivals")
+        L.append("  that find the")
+        L.append("  bucket below the admission threshold are rejected *without consuming a")
+        L.append("  token*, which pins the bucket just under that threshold and leaves enough")
+        L.append("  refill for the next arrival. This is a property of the limiter, measured")
+        L.append("  rather than assumed; see docs/SECURITY_ANALYSIS.md section 9.")
         L.append("- A **static token** restores availability, because the edge filters the flood")
         L.append("  cheaply. It is still defeated the moment the attacker captures one")
         L.append("  legitimate command, since the token travels in plaintext.")
         L.append("- Only the **MAC plus monotonic counter** provides both. The counter, not the")
         L.append("  MAC, is what defeats replay; a MAC alone would behave like the token row.\n")
+
+        # Availability broken out by attack rate. Aggregating hides the non-monotonicity.
+        rates = sorted({r["attack_rate"] for r in ab_rows if r["attack_rate"] > 0})
+        L.append("### 1.1 Operator command availability by attack rate\n")
+        L.append("Admitted / attempted, over trials whose availability measurement was valid.\n")
+        L.append("| Design | " + " | ".join(f"{r} cmd/s" for r in rates) + " |")
+        L.append("|---" * (len(rates) + 1) + "|")
+        for m in MODES:
+            if m not in ab:
+                continue
+            cells = []
+            for rt in rates:
+                fl = [r for r in ab_rows if r["mode"] == m and r["attack_rate"] == rt
+                      and r.get("avail_test_valid", True)]
+                adm = sum(r.get("legit_admitted", 0) for r in fl)
+                att = sum(r.get("legit_attempts", 0) for r in fl)
+                cells.append(f"{adm}/{att}" if att else "-")
+            L.append(f"| {MODE_LABEL[m]} | " + " | ".join(cells) + " |")
+        L.append("")
+
+        # ---- statistical comparisons, computed here so nothing is hand-entered
+        tl, tr = ab.get("transport_leaked"), ab.get("transport")
+        if tl and tr:
+            p = fisher_one_sided(tl["reached_alarm"],
+                                 tl["intrusion_test_valid"] - tl["reached_alarm"],
+                                 tr["reached_alarm"],
+                                 tr["intrusion_test_valid"] - tr["reached_alarm"])
+            lo, hi = wilson(tl["reached_alarm"], tl["intrusion_test_valid"])
+            L.append("### 1.2 Statistical comparison\n")
+            L.append("The two transport arms are built from identical source with identical flags")
+            L.append("and run on identical seeds; the adversary's possession of a valid broker")
+            L.append("credential is the only variable that differs.\n")
+            L.append(f"- Alarm activation, credentials leaked: {tl['reached_alarm']}/"
+                     f"{tl['intrusion_test_valid']} "
+                     f"({100 * tl['reached_alarm'] / tl['intrusion_test_valid']:.1f} %, "
+                     f"95 % Wilson CI [{100 * lo:.1f} %, {100 * hi:.1f} %]).")
+            L.append(f"- Alarm activation, credentials held: {tr['reached_alarm']}/"
+                     f"{tr['intrusion_test_valid']} (100.0 %).")
+            L.append(f"- Fisher exact test, one-sided: p = {p:.3e}.\n")
+            rl, hm = ab.get("ratelimit"), ab.get("hmac")
+            if rl and hm:
+                p2 = fisher_one_sided(rl["legit_admitted_flooded"],
+                                      rl["legit_attempts_flooded"] - rl["legit_admitted_flooded"],
+                                      hm["legit_admitted_flooded"],
+                                      hm["legit_attempts_flooded"] - hm["legit_admitted_flooded"])
+                L.append(f"- Operator availability, rate limit {rl['legit_admitted_flooded']}/"
+                         f"{rl['legit_attempts_flooded']} "
+                         f"({100 * rl['legit_admitted_flooded'] / rl['legit_attempts_flooded']:.1f} %) "
+                         f"against HMAC {hm['legit_admitted_flooded']}/"
+                         f"{hm['legit_attempts_flooded']} (100.0 %): "
+                         f"Fisher exact one-sided p = {p2:.3e}.\n")
 
     # ---- sensitivity
     if benign:
