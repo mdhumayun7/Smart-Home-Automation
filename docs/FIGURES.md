@@ -164,6 +164,21 @@ most 1100 units wide, which is about 8 pt at a 90 mm single-column width.
 > monotonic counter. No design satisfies all three properties except the latter. Host-simulation
 > results; see `docs/EXPERIMENTS.md` for the evidence taxonomy.
 
+### Figure 13 — Credential-compromise comparison
+
+`experiments/results/credential_matrix.pdf` (source: `experiments/make_ablation_figures.py`)
+
+> **Fig. 13.** Safety-function activation and operator availability under each combination of
+> controls and compromised secret, 300 trials per row on identical seeds. Neither broker-side
+> authorization nor application-layer authentication dominates: a per-client ACL contains a
+> compromised device credential but not a compromised controller, while a MAC survives
+> credential compromise but not key compromise, and the key resides in the same flash image as
+> the device's broker credentials. Only the layered configuration survives every row. Panel (b)
+> also shows the owner-lockout result: under key compromise the adversary advances the
+> persisted replay counter beyond the operator's range, and the operator is admitted in 0 of
+> 1250 attempts. Model-based broker admission; see `docs/SECURITY_ANALYSIS.md` §3a for what is
+> and is not modelled.
+
 ---
 
 ## Figures that do not exist yet
@@ -175,6 +190,7 @@ Honest gaps, to be produced only once the data exists:
 | Latency distribution per experimental condition | Hardware conditions A-C |
 | Latency CDF, hardened vs baseline under radio stress | Hardware condition D |
 | Measured TLS handshake latency and encryption overhead | Hardware; the host harness has no TLS implementation, so no runtime TLS cost can be measured there |
+| ACL behaviour against a real broker | A running Mosquitto instance with per-client ACLs. Needs a container, no hardware |
 
 No placeholder or illustrative version of any of these has been produced, because a figure
 showing invented data is a fabrication regardless of how it is labelled.

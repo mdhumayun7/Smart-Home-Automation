@@ -331,8 +331,10 @@ scoped to the dual-core Xtensa ESP32 under arduino-esp32 2.0.17 and 3.3.12 and a
 generalised to single-chip Wi-Fi SoCs as a class. There is no energy measurement and no
 deployment data. Flash encryption, secure boot and signed OTA are not implemented, which means
 the command key is recoverable from a flash dump and the signed-command guarantee is scoped
-accordingly. The ablation models broker admission as a boolean, so a broker enforcing per-client
-topic ACLs is not represented. A full, adversarial account is in
+accordingly; the ablation measures exactly what that costs. The per-client ACL arms are
+model-based and were not validated against a running broker. There is no key rotation or
+revocation, and under key compromise the monotonic replay counter locks the legitimate owner
+out until the device is reflashed. A full, adversarial account is in
 [`docs/PEER_REVIEW.md`](docs/PEER_REVIEW.md).
 
 ### Data and code availability
@@ -390,16 +392,17 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | Publication ethics, submission inventory, cover letter, highlights and the final QA checklist |
 | [`docs/LITERATURE_LOG.md`](docs/LITERATURE_LOG.md) | Dated search log: databases, search strings, screening decisions, and the competing work that narrowed this project's claim |
 | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Every result classified by evidence category, with seeds, runs, environment and reproduction commands, plus the seven experiments not yet run |
+| [`docs/JOURNAL_ASSESSMENT.md`](docs/JOURNAL_ASSESSMENT.md) | Realistic venue outlook and reviewer assessment, including why the manuscript is not yet submittable and what would change that |
 | [`docs/SECURITY_ANALYSIS.md`](docs/SECURITY_ANALYSIS.md) | Root cause of the remote-disarm compile guard, what TLS does and does not protect under credential compromise, the key-management assumptions that bound the HMAC claim, and an assessment against the literature concluding that the finding is a known principle rather than a new vulnerability |
 | [`docs/Q2_GATE.md`](docs/Q2_GATE.md) | Fifteen-question reviewer gate, figure justification, and the IEEE ESL compliance checklist |
 | [`REPRODUCTION.md`](REPRODUCTION.md) | **Start here to reproduce anything.** Three evidence levels, software reproduction in about an hour, and a complete independent hardware-validation guide with bill of materials, wiring, conditions, scripts, troubleshooting and falsification criteria |
 | [`docs/TIMING_ANALYSIS.md`](docs/TIMING_ANALYSIS.md) | Response-time decomposition of the safety loop: which interference terms the design eliminates by construction, which are irreducibly hardware, and the defect this analysis exposed |
 | [`docs/PUBLICATION_READINESS.md`](docs/PUBLICATION_READINESS.md) | Final readiness verdict, re-scored reviewer gate, venue evidence, and likely reviewer objections with answers |
 | [`docs/MANUSCRIPT_REVIEW.md`](docs/MANUSCRIPT_REVIEW.md) | Section-by-section verification report, fact-verification record, and the two hardware-scenario pathways with a validation checklist |
-| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (23 pages). `paper/paper.tex` is the short letters-format version |
+| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (25 pages). `paper/paper.tex` is the short letters-format version |
 
 **Status in one line:** firmware, formal verification, response-time analysis, simulation
-campaign, the six-design ablation, sensitivity sweep, fuzzing and the full-length manuscript are
+campaign, the eleven-design ablation, sensitivity sweep, fuzzing and the full-length manuscript are
 complete and reproducible. The physical timing measurement has **not been performed by anyone**; a complete
 framework for an independent laboratory to perform it is in [`REPRODUCTION.md`](REPRODUCTION.md),
 and no latency figure is claimed anywhere.

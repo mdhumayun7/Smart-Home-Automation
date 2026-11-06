@@ -20,7 +20,7 @@ does not turn a Fail into a Pass.
 | 4 | Is the contribution distinguishable from the closest prior work? | **Pass** | Novelty matrix in `RELATED_WORK.md`, each distinction verified against the source paper, not assumed | — |
 | 5 | Are the assumptions realistic and stated? | **Pass** | Threat model enumerates 12 threats; E5's synthetic arrival model is labelled as an assumption wherever its numbers appear; formal abstraction boundary stated in the paper | — |
 | 6 | Is the methodology technically correct and detailed enough? | **Pass** | `ARCHITECTURE.md` traces every element to source; `EXPERIMENTS.md` records seeds, runs, environment and reproduction commands per experiment | — |
-| 7 | Are the baselines relevant and fairly configured? | **Partial** | E3 now compares six designs, including TLS with broker credentials held and the same build with them leaked. The arm that was missing has been added and is the strongest baseline in the set: with credentials held it is never defeated and the alarm fires in all 300 trials. **Not upgraded to Pass**, for a narrower reason than before: broker admission is modelled as a boolean, so a deployment with per-client topic ACLs that forbid a compromised client from publishing to the command topic is not represented, and a reviewer may reasonably say the transport baseline is still configured more weakly than a careful operator would configure it | Model per-client ACLs, or state the restriction explicitly as a scope limit in the threat model and the results |
+| 7 | Are the baselines relevant and fairly configured? | **Pass** | E3 now compares eleven designs over 3,300 trials on identical seeds, including the strongest realistic broker configuration: per-client topic ACLs under three separate credential-compromise layouts (shared credential, controller credential, device credential), plus a key-compromise arm and a layered arm. The ACL is modelled as a competent operator would deploy it, and it *beats* this project's own mechanism in one arm — a per-client ACL contains a device-credential compromise that the MAC alone does not, because the key sits in the same flash image. A baseline that wins somewhere is not a straw man. **Caveat recorded rather than hidden:** the arms are model-based, with broker admission as a per-identity permission; no Mosquitto instance was used, and ACL pattern syntax, wildcards, bridged brokers, client-certificate identities and revocation are not modelled | Validate against a running Mosquitto instance with real per-client ACLs. Needs a container, no hardware. Tracked as model validity (Q6 and Threats to Validity), not baseline fairness |
 | 8 | Are experiments sufficient to support every central claim? | **FAIL** | Logical isolation: yes (E1, E2). **Timing isolation: no experiment exists** | **Run H1 (conditions A-C)** |
 | 9 | Are physical measurements required for any headline claim? | **Blocked** | Yes — the headline claim is physical by nature, and category 1 of the evidence taxonomy is empty | Two ESP32 boards and a logic probe |
 | 10 | Are results statistically and scientifically interpreted correctly? | **Pass** | The vacuous Mann-Whitney result was removed from the results and re-stated as a pre-registered analysis for hardware. Zero variance is explained, not hidden | — |
@@ -30,9 +30,17 @@ does not turn a Fail into a Pass.
 | 14 | Are citations accurate and current? | **Pass** | 22 references verified against publisher, preprint, institutional-repository or OpenAlex records. The three previously unverified fields are now resolved: the Yun author list is Yun, Rustamov, Kim and Shin (*ACM Computing Surveys* 55(7), OpenAlex record for doi:10.1145/3538644); the Bley venue is ACM CCS 2025 (CISPA's own repository names the published version's DOI 10.1145/3719027.3765125, and the OpenAlex record for it gives the venue); the MQTT-L author list is Yu, Qi, Luo, Tian and Lu, read from Springer's own `citation_author` metadata rather than the truncated display list. The ACM Digital Library itself is behind bot verification, which was not circumvented; each field was resolved from an independent authoritative source instead. No TODO markers remain in the manuscript | Re-check before submission, since venues and page numbers can change between acceptance and issue assignment |
 | 15 | Does the paper comply with the target journal's scope and rules? | **Partial** | IEEE ESL scope fits; formatting does not yet (Section 3) | Reformat to IEEEtran; cut to the page limit |
 
-**Score: 9 Pass, 4 Partial, 1 Fail, 1 Blocked.** The Fail and the Blocked are the same issue.
+**Score: 10 Pass, 3 Partial, 1 Fail, 1 Blocked.** The Fail and the Blocked are the same issue.
 
-**The score did not move when the transport arm was added, and that is the correct outcome.**
+**Q7 has now moved to Pass, on the second attempt.** The first attempt added the transport arm
+and the score did *not* move, because running the experiment the corrective action asked for is
+not the same as satisfying the concern: a boolean broker is still configured more weakly than a
+careful operator would configure one. What changed it was modelling per-client ACLs properly
+and letting them win where they deserve to win. The ordering matters: the earlier refusal to
+upgrade was correct then, and the upgrade is correct now, for a reason that can be pointed at
+in the data rather than in the effort spent.
+
+**For the record, the original reasoning when the transport arm alone was added:**
 The experiment that Q7's corrective action asked for was performed, and it did what it was meant
 to do: it removed the objection that the comparison rested on a straw-man baseline, and it
 turned up a real defect in our own firmware. Neither of those makes the baseline *fairly
@@ -41,7 +49,8 @@ careful operator would run one. Running the experiment is not the same as satisf
 concern, and recording a Pass here because work was done would be the precise failure this gate
 exists to prevent.
 
-It is worth being equally blunt about what the new result is not. The literature search
+**Q8 and Q9 are untouched by any of this**, and no further simulation will touch them. It is
+worth being equally blunt about what the new results are not. The literature search
 recorded in `SECURITY_ANALYSIS.md` §7 establishes that the security principle is textbook, the
 rogue-authenticated-client attack is published, and application-layer authentication for MQTT
 has been implemented on this same SoC under this same threat model. The credential-compromise
@@ -110,7 +119,8 @@ official author instructions on the IEEE CEDA site, 6 November 2026.
 | Experiment H2 (condition D) | Authorised isolated or shielded RF environment, institutional permission | You and Dr. Zaveri |
 | Gate Q15, quartile claim | Scopus Sources lookup | You, ten minutes |
 | Gate Q14, two citation fields | IEEE Xplore / ACM DL access | You, via institution |
-| Gate Q7, TLS baseline arm | None — implementable in the existing harness | Can be added on request |
+| Gate Q7 validation against a real broker | A Mosquitto container; no hardware | Anyone, about a day |
+| Scopus quartile and JSA Guide for Authors | Institutional access to Scopus or JCR | Dr. Zaveri, or the library |
 | Venue decision and MDPI acceptability | Supervisor judgement | Dr. Zaveri |
 
 ---

@@ -107,8 +107,9 @@ cd experiments && ./run_ablation.sh
 ```
 
 Produces `results/ablation_summary.md` and `results/ablation_results.pdf`. Expect the
-six-design table, the availability breakdown by attack rate, the Fisher exact
-comparisons and the detector sweep.
+eleven-design table, the credential-compromise matrix, the availability breakdown by attack
+rate, the Fisher exact comparisons and the detector sweep. Takes about 50 minutes at the
+default 300 trials per design.
 
 ---
 
@@ -290,9 +291,12 @@ Honest statement of what reproducing this will and will not tell you.
   are modelled as Poisson at a stated rate because no capture of real traffic was available. The
   false-positive rates characterise the detector's logic, not any real network.
 - **The ablation's alternative designs are harness models**, not implementations of specific
-  products. The set now includes transport security with broker credentials held and the same
-  build with them leaked, but models broker admission as a boolean: a broker enforcing
-  per-client topic ACLs, which would restrict a compromised client, is not represented.
+  products. The set includes transport security with and without per-client topic ACLs under
+  three credential-compromise layouts, but the broker is modelled as a per-identity permission
+  on the command topic. **No Mosquitto instance was used**, so ACL pattern syntax, wildcards,
+  bridged or clustered brokers, client-certificate identities and revocation are not modelled.
+  Validating these arms against a running broker needs a container and no hardware, and is the
+  highest-value open item that requires no equipment.
 - **No runtime TLS cost is measured anywhere.** `WiFiClientSecure` is real in the firmware but a
   no-op shim in the host stubs, so no handshake latency, encryption overhead or throughput
   figure is reported from simulation. The only TLS cost reported is static flash and RAM,

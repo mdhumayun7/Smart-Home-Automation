@@ -119,11 +119,14 @@ threat model. It does not: the answer is in `docs/SECURITY_ANALYSIS.md`, and the
 been removed from the default build. The baseline remains reproducible because the build now
 defines `ACKNOWLEDGE_UNAUTHENTICATED_DISARM` explicitly.
 
-**What the broker is and is not modelled as.** Admission is a boolean: the broker either accepts
-a publisher or refuses it. Per-client topic ACLs, which a careful operator would use to stop a
-compromised client publishing to the command topic, are not modelled, and a deployment with them
-would not be vulnerable in the way the leaked arm shows. This is a scope limit of the experiment,
-not a claim about such deployments.
+**What the broker is and is not modelled as.** Five further arms now model per-client topic
+ACLs, under three credential-compromise layouts (shared credential, controller credential,
+device credential) plus a key-compromise arm and a layered arm; see `docs/SECURITY_ANALYSIS.md`
+section 3a. The broker is modelled as a per-identity permission on the command topic. **No
+Mosquitto instance was used**, so ACL pattern syntax, wildcards, bridged or clustered brokers,
+client-certificate identities, dynamic credential issuance and revocation after a leak are not
+modelled. Every ACL result is therefore model-based and labelled as such. Validating the arms
+against a running broker needs a container and no hardware.
 
 Four harness defects were found and fixed while building and verifying this experiment, all of
 which had produced misleading output, and two of which flattered the conclusion the experiment
