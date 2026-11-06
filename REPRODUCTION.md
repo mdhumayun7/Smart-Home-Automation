@@ -106,7 +106,9 @@ outputs should regenerate byte-identically from the committed seeds.
 cd experiments && ./run_ablation.sh
 ```
 
-Produces `results/ablation_summary.md`. Expect the four-design table and the detector sweep.
+Produces `results/ablation_summary.md` and `results/ablation_results.pdf`. Expect the
+six-design table, the availability breakdown by attack rate, the Fisher exact
+comparisons and the detector sweep.
 
 ---
 
@@ -288,7 +290,13 @@ Honest statement of what reproducing this will and will not tell you.
   are modelled as Poisson at a stated rate because no capture of real traffic was available. The
   false-positive rates characterise the detector's logic, not any real network.
 - **The ablation's alternative designs are harness models**, not implementations of specific
-  products, and the set omits transport security with broker credentials.
+  products. The set now includes transport security with broker credentials held and the same
+  build with them leaked, but models broker admission as a boolean: a broker enforcing
+  per-client topic ACLs, which would restrict a compromised client, is not represented.
+- **No runtime TLS cost is measured anywhere.** `WiFiClientSecure` is real in the firmware but a
+  no-op shim in the host stubs, so no handshake latency, encryption overhead or throughput
+  figure is reported from simulation. The only TLS cost reported is static flash and RAM,
+  measured by the real compiler in CI.
 - **All results concern one chip** and two framework versions. Nothing here supports claims about
   single-chip Wi-Fi SoCs as a class. The single-core variants are arguably the more interesting
   case, since they cannot pin at all.

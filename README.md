@@ -328,9 +328,11 @@ data — the analysis is pre-registered for the hardware measurements instead.
 
 No hardware measurement has been performed; every result is formal or simulated. Claims are
 scoped to the dual-core Xtensa ESP32 under arduino-esp32 2.0.17 and 3.3.12 and are not
-generalised to single-chip Wi-Fi SoCs as a class. There is no ablation, no parameter sensitivity
-study, no energy measurement and no deployment data. Flash encryption, secure boot and signed OTA
-are not implemented. A full, adversarial account is in
+generalised to single-chip Wi-Fi SoCs as a class. There is no energy measurement and no
+deployment data. Flash encryption, secure boot and signed OTA are not implemented, which means
+the command key is recoverable from a flash dump and the signed-command guarantee is scoped
+accordingly. The ablation models broker admission as a boolean, so a broker enforcing per-client
+topic ACLs is not represented. A full, adversarial account is in
 [`docs/PEER_REVIEW.md`](docs/PEER_REVIEW.md).
 
 ### Data and code availability
@@ -393,11 +395,11 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/TIMING_ANALYSIS.md`](docs/TIMING_ANALYSIS.md) | Response-time decomposition of the safety loop: which interference terms the design eliminates by construction, which are irreducibly hardware, and the defect this analysis exposed |
 | [`docs/PUBLICATION_READINESS.md`](docs/PUBLICATION_READINESS.md) | Final readiness verdict, re-scored reviewer gate, venue evidence, and likely reviewer objections with answers |
 | [`docs/MANUSCRIPT_REVIEW.md`](docs/MANUSCRIPT_REVIEW.md) | Section-by-section verification report, fact-verification record, and the two hardware-scenario pathways with a validation checklist |
-| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (17 pages). `paper/paper.tex` is the short letters-format version |
+| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (23 pages). `paper/paper.tex` is the short letters-format version |
 
 **Status in one line:** firmware, formal verification, response-time analysis, simulation
-campaign, ablation, sensitivity sweep, fuzzing and the full-length manuscript are complete and
-reproducible. The physical timing measurement has **not been performed by anyone**; a complete
+campaign, the six-design ablation, sensitivity sweep, fuzzing and the full-length manuscript are
+complete and reproducible. The physical timing measurement has **not been performed by anyone**; a complete
 framework for an independent laboratory to perform it is in [`REPRODUCTION.md`](REPRODUCTION.md),
 and no latency figure is claimed anywhere.
 

@@ -110,14 +110,26 @@ No result in this project comes from an actual TLS-enabled MQTT deployment. A re
 real transport-security performance figures will not find them here, and should not infer them
 from the ablation.
 
-**Why `transport_leaked` is built with `ALLOW_REMOTE_DISARM=1`.** Not an arbitrary choice: the
-firmware's own compile-time guard permits that combination only when `MQTT_USE_TLS=1` and
-`MQTT_HAS_LOGIN=1`. The design therefore treats transport security as a substitute for
-application-layer authentication when deciding whether remote disarm may be enabled. The mode
-exists to test whether that substitution survives the threat model.
+**Why `transport_leaked` is built with `ALLOW_REMOTE_DISARM=1`.** Not an arbitrary choice: at
+the time the experiment was written, the firmware's own compile-time guard permitted that
+combination precisely when `MQTT_USE_TLS=1` and `MQTT_HAS_LOGIN=1`. The design therefore treated
+transport security as a substitute for application-layer authentication when deciding whether
+remote disarm may be enabled. The mode exists to test whether that substitution survives the
+threat model. It does not: the answer is in `docs/SECURITY_ANALYSIS.md`, and the guard has since
+been removed from the default build. The baseline remains reproducible because the build now
+defines `ACKNOWLEDGE_UNAUTHENTICATED_DISARM` explicitly.
 
-Two harness defects were found and fixed while building this experiment, both of which had
-produced misleading output:
+**What the broker is and is not modelled as.** Admission is a boolean: the broker either accepts
+a publisher or refuses it. Per-client topic ACLs, which a careful operator would use to stop a
+compromised client publishing to the command topic, are not modelled, and a deployment with them
+would not be vulnerable in the way the leaked arm shows. This is a scope limit of the experiment,
+not a claim about such deployments.
+
+Four harness defects were found and fixed while building and verifying this experiment, all of
+which had produced misleading output, and two of which flattered the conclusion the experiment
+was built to support. The last two were found only during the final verification pass, after the
+first completed 1,800-trial campaign, and forced the campaign to be re-run from scratch; the
+full account is in `docs/SECURITY_ANALYSIS.md` section 9. In summary:
 
 1. The attacker could act during the experimenter's own button presses and re-arm the system
    before the measurement window opened, so the replay test silently reported false negatives.
@@ -126,6 +138,21 @@ produced misleading output:
    the aggregate looked as though the alarm had failed to fire in the weaker designs. It had
    not; the trial never reached the test. The system is now settled into `ARMED` quietly before
    the intrusion phase, and `intrusion_test_valid` records any trial where that failed.
+3. `legit_cmd_accepted` was inferred from an arm event appearing after the operator published,
+   but in every arm that admits the adversary's commands the adversary can publish an arm too,
+   so the metric measured "someone armed the system". The symptom was non-monotonic: apparent
+   availability rose with attack rate. The adversary's arm-capable commands are now held for the
+   whole prologue, so an observed arm is the operator's.
+4. A single-command boolean measures token-bucket phase rather than availability. Instrumenting
+   the bucket showed a residue of 0.5 at 10 commands/s, 0.9 at 100 and 0.995 at 1,000 and above,
+   because an arrival below the admission threshold is rejected without consuming a token.
+   Availability is now the proportion of five operator attempts admitted, which is insensitive
+   to phase, and the resulting non-monotonicity is reported as a measured property of the
+   limiter rather than smoothed away.
+
+None of the four affected the headline results, which rest on `attacker_disarmed` and
+`reached_alarm` — read from directly observed events carrying explicit source tags, never
+inferred. All four affected the availability column only.
 
 ### E4 — Command-parser fuzzing
 

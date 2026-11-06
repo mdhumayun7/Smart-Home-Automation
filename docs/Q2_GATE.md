@@ -20,17 +20,35 @@ does not turn a Fail into a Pass.
 | 4 | Is the contribution distinguishable from the closest prior work? | **Pass** | Novelty matrix in `RELATED_WORK.md`, each distinction verified against the source paper, not assumed | — |
 | 5 | Are the assumptions realistic and stated? | **Pass** | Threat model enumerates 12 threats; E5's synthetic arrival model is labelled as an assumption wherever its numbers appear; formal abstraction boundary stated in the paper | — |
 | 6 | Is the methodology technically correct and detailed enough? | **Pass** | `ARCHITECTURE.md` traces every element to source; `EXPERIMENTS.md` records seeds, runs, environment and reproduction commands per experiment | — |
-| 7 | Are the baselines relevant and fairly configured? | **Partial** | E3 now compares four designs instead of one straw man. **Transport security with broker credentials is still missing** | Add a TLS-plus-credentials arm to E3 |
+| 7 | Are the baselines relevant and fairly configured? | **Partial** | E3 now compares six designs, including TLS with broker credentials held and the same build with them leaked. The arm that was missing has been added and is the strongest baseline in the set: with credentials held it is never defeated and the alarm fires in all 300 trials. **Not upgraded to Pass**, for a narrower reason than before: broker admission is modelled as a boolean, so a deployment with per-client topic ACLs that forbid a compromised client from publishing to the command topic is not represented, and a reviewer may reasonably say the transport baseline is still configured more weakly than a careful operator would configure it | Model per-client ACLs, or state the restriction explicitly as a scope limit in the threat model and the results |
 | 8 | Are experiments sufficient to support every central claim? | **FAIL** | Logical isolation: yes (E1, E2). **Timing isolation: no experiment exists** | **Run H1 (conditions A-C)** |
 | 9 | Are physical measurements required for any headline claim? | **Blocked** | Yes — the headline claim is physical by nature, and category 1 of the evidence taxonomy is empty | Two ESP32 boards and a logic probe |
 | 10 | Are results statistically and scientifically interpreted correctly? | **Pass** | The vacuous Mann-Whitney result was removed from the results and re-stated as a pre-registered analysis for hardware. Zero variance is explained, not hidden | — |
 | 11 | Are negative results, failure modes and limitations discussed? | **Pass** | E5 found a defect in a shipped parameter and the firmware changed; two harness bugs in E3 are documented; `PEER_REVIEW.md` is adversarial throughout | — |
 | 12 | Can an independent researcher reproduce the work? | **Pass** | Seeded throughout; E2/E4 verified to regenerate byte-identically; CI re-runs formal and adversarial checks on every push | — |
 | 13 | Are diagrams necessary, accurate, readable and compliant? | **Pass** | Section 2 justifies each figure; two stale diagrams were found and corrected; greyscale-safe conventions documented | — |
-| 14 | Are citations accurate and current? | **Partial** | 18 references verified against publisher, preprint or repository records. Two fields remain unverified (Yun author list; Bley venue) | Resolve both, or cite conservatively |
+| 14 | Are citations accurate and current? | **Partial** | 22 references verified against publisher, preprint or repository records. Three fields remain unverified (Yun author list; Bley venue; MQTT-L author list, which the Springer landing page truncates) | Resolve all three from the PDFs, or cite conservatively |
 | 15 | Does the paper comply with the target journal's scope and rules? | **Partial** | IEEE ESL scope fits; formatting does not yet (Section 3) | Reformat to IEEEtran; cut to the page limit |
 
 **Score: 8 Pass, 5 Partial, 1 Fail, 1 Blocked.** The Fail and the Blocked are the same issue.
+
+**The score did not move when the transport arm was added, and that is the correct outcome.**
+The experiment that Q7's corrective action asked for was performed, and it did what it was meant
+to do: it removed the objection that the comparison rested on a straw-man baseline, and it
+turned up a real defect in our own firmware. Neither of those makes the baseline *fairly
+configured* in the sense Q7 asks about, because the broker is still modelled more weakly than a
+careful operator would run one. Running the experiment is not the same as satisfying the
+concern, and recording a Pass here because work was done would be the precise failure this gate
+exists to prevent.
+
+It is worth being equally blunt about what the new result is not. The literature search
+recorded in `SECURITY_ANALYSIS.md` §7 establishes that the security principle is textbook, the
+rogue-authenticated-client attack is published, and application-layer authentication for MQTT
+has been implemented on this same SoC under this same threat model. The credential-compromise
+finding therefore does **not** lift Q3, which asks whether the primary contribution is
+non-trivial: it adds a well-executed negative control and a configuration-logic defect, not a
+new mechanism. Q3 stays Partial, and Q8/Q9 are untouched, because no amount of simulation
+substitutes for the physical timing measurement that the headline claim requires.
 
 ---
 
