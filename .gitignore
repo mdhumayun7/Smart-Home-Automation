@@ -29,4 +29,10 @@ paper/*.aux
 paper/*.log
 paper/*.out
 experiments/campaign
-experiments/results/*.jsonl
+# Campaign raw per-trial records: ~6000 lines x 2 builds, regenerates identically from the
+# committed seeds, so only the aggregates are tracked.
+experiments/results/campaign_*.jsonl
+# The ablation and sensitivity raw records ARE tracked: they are small (316K and 20K) and
+# keeping the raw measurements, not just the aggregates, is part of the evidence rules.
+!experiments/results/ablation.jsonl
+!experiments/results/sensitivity.jsonl
