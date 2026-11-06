@@ -28,7 +28,7 @@
 \usepackage{caption}
 \captionsetup{font=small,labelfont=bf}
 \usepackage{enumitem}
-\graphicspath{{../docs/images/}{./}}
+\graphicspath{{../docs/images/}{../experiments/results/}{./}}
 
 \title{\textbf{Isolating the Safety Function on a Single-Chip Wi-Fi SoC:\\
 Formal Verification, Response-Time Analysis, and a Reproducible\\
@@ -59,10 +59,19 @@ queues and a zero-timeout status snapshot, hardened with HMAC-SHA256 command aut
 a non-volatile monotonic counter. We specify the isolation argument in TLA+ and verify it
 exhaustively with TLC under a network task given no fairness assumption, and we mutation-test
 both specifications to show the verified properties are not vacuous. We evaluate the design with
-7{,}200 seeded adversarial trials and 3{,}000{,}000 sanitizer-backed fuzzing iterations. An
-ablation over four command-path designs shows that availability and integrity are separable
-properties: a rate limiter cannot distinguish a legitimate command from a flood and so sacrifices
-both, while a static shared token restores availability yet is defeated by capture-and-replay.
+7{,}800 seeded adversarial trials and 3{,}000{,}000 sanitizer-backed fuzzing iterations. An
+ablation over six command-path designs shows that availability, integrity and the safety
+function are separable properties: a rate limiter cannot distinguish a legitimate command from a
+flood and so admits only 59.0\% of operator commands while leaving integrity untouched, and a
+static shared token leaves availability intact yet is defeated by capture-and-replay. Two
+transport arms, compiled identically and differing only in whether the adversary holds a valid
+broker credential, isolate the single configuration in which the safety function itself fails:
+a compile-time guard that accepted TLS plus a broker login as sufficient for unauthenticated
+remote disarm, under which a credential-holding adversary disarms the system and the alarm fires
+in 16.7\% of trials against 100\% for the control. We claim no new vulnerability---the
+underlying principle and the attack class are both established---but report the guard as a
+configuration-logic defect that converts a known security principle into the loss of a safety
+property, and we remove it.
 A parameter sweep of the deauthentication detector revealed that our own initial threshold fired
 spuriously in 79.9\% of benign ten-minute runs, and we revised the firmware accordingly. We are
 explicit that these results establish \emph{logical} isolation only. Physical timing invariance
@@ -139,12 +148,23 @@ without being counted, under a network task given \emph{no fairness assumption} 
 indefinitely, flood, fail or crash. Both specifications are mutation-tested
 (Section~\ref{sec:formal}).
 
-\item \textbf{An ablation over command-path designs that separates two properties commonly
-conflated.} Running one adversary against four designs shows that availability and integrity fail
-independently: a token-bucket rate limiter cannot distinguish a legitimate command from a flood
-and so drops both while leaving integrity untouched, and a static shared token restores
-availability but is defeated the moment one legitimate command is captured
+\item \textbf{An ablation over command-path designs that separates three properties commonly
+conflated.} Running one adversary against six designs shows that availability, integrity and the
+safety function fail independently: a token-bucket rate limiter cannot distinguish a legitimate
+command from a flood and so drops both while leaving integrity untouched, a static shared token
+leaves availability intact but is defeated the moment one legitimate command is captured, and a
+transport-only configuration is a strong baseline exactly as long as broker credentials hold
 (Section~\ref{sec:results}).
+
+\item \textbf{A configuration-logic defect found by that ablation, and its removal.} A
+compile-time guard permitted unauthenticated remote disarm whenever TLS and a broker login were
+configured. The inference is unsound: the broker terminates TLS and re-originates every message,
+so an arriving command carries no evidence of its publisher. Under credential compromise the
+alarm fires in 16.7\% of trials against 100\% for the otherwise identical control. The principle
+is textbook and the attack class is published~\cite{pirates2024}, so we claim no new
+vulnerability; the contribution is that a guard encoding this inference passes review silently
+and costs a \emph{safety} property, and that it is detectable by ablation
+(Sections~\ref{sec:results} and~\ref{sec:discussion}).
 
 \item \textbf{A parameter sensitivity analysis that corrected our own design.} Sweeping the
 deauthentication detector's threshold and window against a model of benign management-frame
@@ -251,6 +271,24 @@ Things~\cite{krichen2023} covers model checking, abstract interpretation and ded
 verification with Event-B, Maude and Simulink tooling, and records no use of
 TLA+~\cite{lamport2002} for this device class.
 
+Application-layer authentication for MQTT, placed above the broker precisely so that the broker
+need not be trusted, is an established and actively developed mechanism class, and we claim no
+novelty for it. Amirkhanova et al.~\cite{amirkhanova2026} implement AES-GCM authenticated
+encryption on an ESP32 MQTT client --- the same SoC and the same transport as this work --- so
+that the broker relays only ciphertext it cannot read or alter undetected. Yu et
+al.~\cite{mqttl2026} treat the broker as honest-but-curious and add timestamp freshness and
+renewable hash-chain anchoring. On the attack side, Alsabbagh et al.~\cite{pirates2024}
+demonstrate an adversary that connects to an MQTT broker as a legitimate client and issues
+unauthorized commands to an industrial system, and Zeghida et al.~\cite{zeghida2024} survey
+weak and leaked credentials as a cause of unauthorized access. The principle that transport
+security does not supply application-layer authorization is therefore established, the attack
+class is published, and the mitigation class is published on this very platform. We make no
+claim of a new vulnerability. What we report in Section~\ref{sec:results} is narrower and, we
+argue, still useful: a compile-time configuration guard that encodes that unsound inference,
+passes review without warning, and converts the known principle into the loss of a
+\emph{safety} property in a system whose central claim is that the safety function stays live
+under attack.
+
 \begin{table}[t]
 \centering\small
 \caption{Positioning against the closest work. Deadline degradation on this chip family has
@@ -327,6 +365,27 @@ transmit arbitrary 802.11 frames, including deauthentication and disassociation 
 frames; observe all traffic on the wireless medium, and therefore capture any message the device
 or its operator transmits; publish arbitrary messages to the device's command topic, either by
 reaching a shared broker or by operating one; and sustain any of these indefinitely.
+
+We additionally consider a \emph{credential-compromise} adversary, which is the same adversary
+plus possession of a valid broker username and password. This is a realistic escalation rather
+than a hypothetical one: MQTT credentials are bearer tokens, commonly shared across every client
+in a deployment, stored in plaintext in firmware or a configuration header, and recoverable from
+an unencrypted flash image. Such an adversary connects to the broker exactly as a legitimate
+client does and requires no cryptographic break of any kind. We evaluate it explicitly in
+Section~\ref{sec:results} because omitting it would leave the ablation resting on a transport
+baseline that is only secure under an assumption we never tested.
+
+The security of the signed-command path rests on assumptions about key management that we state
+rather than assume away. The command key must have been changed from the published default; it
+is symmetric, so every authorized publisher holds a key that can also forge, and it therefore
+exists in at least two places; there is no per-device derivation, rotation or revocation; and
+because this work does not enable the SoC's flash encryption or secure boot, the key is
+recoverable from the device by an adversary with physical access, JTAG or a flash dump. The
+claim we defend is correspondingly scoped: against an adversary holding broker credentials and
+arbitrary network position, but \emph{not} the command key and \emph{not} the ability to read
+device flash, application-layer authentication prevents unauthorized disarm, and the monotonic
+counter additionally prevents replay. We do not claim that a message authentication code is
+secure under broker compromise in general, and under key compromise it provides nothing.
 
 Out of scope: physical tampering, side-channel key extraction, supply-chain compromise of the
 firmware image, and wideband jamming of the 2.4\,GHz band, which defeats every wireless channel
@@ -725,42 +784,78 @@ with the implementation committed in advance.
 \subsection{Command-path ablation}
 
 To avoid resting on a baseline that is defeated by construction, we ran the same adversary
-against four designs: no command defence, a token-bucket rate limiter admitting five commands per
-second, a static shared token carried in the payload, and the signed-counter path. The rate
-limiter and the token are modelled as edge filters, which is where a developer would place them
-in practice. Table~\ref{tab:ablation} reports the outcome.
+against six designs on identical seeds: no command defence; a token-bucket rate limiter
+admitting five commands per second; a static shared token carried in the payload; TLS with
+broker credentials that the adversary does not hold; the same TLS configuration with the
+credentials leaked to the adversary; and the signed-counter path. The rate limiter and the token
+are modelled as edge filters, which is where a developer would place them in practice. The two
+transport arms are compiled from identical source with identical flags and differ only in
+whether the adversary possesses a working broker credential, which makes the comparison a
+controlled one. Table~\ref{tab:ablation} reports the outcome and Fig.~\ref{fig:ablation} plots
+the three properties it separates.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering\small
 \caption{Command-path ablation. 300 trials per design, identical adversary and seeds.
-``Survives flood'' counts flooded trials in which a legitimate command took effect; ``defeated by
-replay'' counts trials in which the adversary obtained an accepted command using only captured or
-forged material.}
+``Operator admitted'' counts operator publish attempts that reached the state machine while the
+adversary flooded, over five attempts per trial; ``defeated by replay'' counts attacked trials in
+which the adversary obtained an accepted command using only captured or forged material.}
 \label{tab:ablation}
-\begin{tabular}{@{}lccc@{}}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
-Design & Survives flood & Defeated by replay & Alarm fired \\
+Design & Operator admitted & Defeated by replay & Attacker disarmed & Alarm fired \\
 \midrule
-No command defence            & 0/250            & 250/300          & 300/300 \\
-Rate limit, 5 commands/s      & 0/250            & 246/300          & 300/300 \\
-Static shared token           & 250/250          & 250/300          & 300/300 \\
-\textbf{HMAC-SHA256 + counter}& \textbf{250/250} & \textbf{0/300}   & \textbf{300/300} \\
+No command defence             & 1250/1250        & 250/250        & 0            & 300/300 \\
+Rate limit, 5 commands/s       & 737/1250         & 250/250        & 0            & 300/300 \\
+Static shared token            & 1250/1250        & 250/250        & 0            & 300/300 \\
+TLS + broker credentials       & 1250/1250        & 0/250          & 0            & 300/300 \\
+TLS, credentials leaked        & 1250/1250        & 250/250        & 246          & 50/300  \\
+\textbf{HMAC-SHA256 + counter} & \textbf{1250/1250} & \textbf{0/250} & \textbf{0} & \textbf{300/300} \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
-The result separates two properties that are easily conflated. A rate limiter cannot distinguish
-a legitimate command from a flood, so it discards both and sacrifices availability while leaving
-integrity entirely untouched. A static shared token \emph{does} restore availability, because the
-edge filters the flood cheaply---but it travels in plaintext, so a single captured command
-defeats it. Only the monotonic counter prevents replay; a message authentication code alone would
-behave as the token row does. The practical implication is that a designer evaluating a
-command-path defence against availability alone will accept a design that is trivially broken on
-integrity.
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{ablation_results.pdf}
+\caption{Command-path ablation across the three properties it separates. (a) The safety function
+holds in every design except the leaked-credential arm; bars give the point estimate and whiskers
+the 95\,\% Wilson interval. (b) Only the rate limiter harms operator availability. (c)
+Capture-and-replay defeats every design except TLS with credentials held and the MAC with a
+monotonic counter.}
+\label{fig:ablation}
+\end{figure*}
 
-The alarm fired in every trial of every design. This is the isolation property behaving as
-intended: the safety function does not depend on the command path, so no command-path design
-choice affects whether the siren sounds.
+The result separates three properties that are easily conflated. A rate limiter cannot
+distinguish a legitimate command from a flood, so it discards both: it admits 59.0\,\% of
+operator attempts against 100\,\% for every other design (Fisher exact, one-sided,
+$p = 3.5\times10^{-184}$), while leaving integrity entirely untouched. Its cost is not monotonic
+in attack intensity, for a reason we measured rather than assumed: an arrival that finds the
+bucket below the admission threshold is rejected \emph{without consuming a token}, so an extreme
+flood pins the bucket just under that threshold while a moderate flood drives it lower. A static
+shared token leaves availability intact, because the edge filters the flood cheaply, but it
+travels in plaintext, so a single captured command defeats it. Only the monotonic counter
+prevents replay; a message authentication code alone would behave as the token row does.
+
+The two transport arms isolate the one configuration in which the safety function fails. With
+broker credentials held, TLS is a strong baseline: the adversary is refused at the broker, never
+obtains an accepted command, and the alarm fires in all 300 trials. With the same build and the
+credentials leaked, the adversary disarms the system in 246 of 300 trials and the alarm fires in
+only 50 --- 16.7\,\%, 95\,\% Wilson CI [12.9\,\%, 21.3\,\%], against 100\,\% for the control
+(Fisher exact, one-sided, $p = 9.8\times10^{-119}$). The 50 successes are exactly the trials in
+which the adversary was silent. The cause is an unsound compile-time guard, analysed in
+Section~\ref{sec:discussion}: the firmware accepted ``TLS enabled and a broker login configured'' as
+sufficient to permit unauthenticated remote disarm. It is not. The broker terminates TLS and
+re-originates every message, so an arriving command carries no evidence of its publisher, and the
+macro recording that a broker login is configured describes only this device, not any publisher's
+authorization. We make no claim that TLS is broken; Section~\ref{sec:discussion} states precisely what
+it does and does not protect.
+
+Apart from that arm, the alarm fired in every trial of every design. This is the isolation
+property behaving as intended: the safety function does not depend on the command path, so no
+command-path design choice affects whether the siren sounds. The leaked-credential arm is the
+single exception, and it is an authorization defect rather than a timing or resource failure,
+which locates the one place where the isolation argument does not hold.
 
 \subsection{Detector parameter sensitivity}
 
@@ -903,6 +998,19 @@ of the two, because granting the network task no fairness means the property hol
 possible interleaving rather than the ones a harness happens to generate. The campaign and
 fuzzing results confirm that the implementation matches the specification.
 
+We state plainly what the leaked-credential arm does \emph{not} establish. That transport
+security does not supply application-layer authorization is a textbook principle; the
+rogue-authenticated-client attack is published~\cite{pirates2024}; and application-layer
+authentication for MQTT is an established mitigation class, implemented on this very SoC with
+this very threat model~\cite{amirkhanova2026,mqttl2026}. We claim no new vulnerability, no new
+attack, and no novelty for authenticated MQTT commands on an ESP32. What the arm contributes is
+a controlled, seed-matched measurement that an unsound \emph{compile-time guard} converts that
+known principle into the loss of a safety property, and a baseline fair enough that the
+comparison against the signed-counter path is worth making at all: without it, a reader could
+reasonably object that a realistic deployment would use TLS with broker credentials and need no
+application-layer authentication. The transport control shows that objection is correct exactly
+as long as credentials hold, and the leaked arm shows where it stops being correct.
+
 The ablation is the result we consider most likely to be useful to other designers, because it is
 the least predictable. It is tempting to evaluate a command-path defence by asking whether
 legitimate commands survive an attack. Both the static token and the signed-counter design pass
@@ -917,6 +1025,59 @@ Because the tag is checked on the network core before the bounded command queue,
 invalid commands is discarded without ever occupying a queue slot. The queue therefore retains
 capacity for the one valid command, and admission is decided by validity rather than arrival
 order. A rate limiter inverts this: it decides by arrival order, which an attacker controls.
+
+\subsection{A compile-time guard that encodes an unsound inference}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{security_paths.pdf}
+\caption{Where broker credentials decide admission and where the command key decides authority.
+Under \texttt{AUTH\_COMMANDS} an adversary holding leaked broker credentials but not the command
+key is rejected and the alarm still fires in all 300 trials; with the removed guard the tag
+check is short-circuited and the same adversary disarms the system. The control, identical in
+both builds, shows an adversary without credentials refused at the broker. Every relationship
+drawn is taken from the implementation; the counts are measured.}
+\label{fig:security}
+\end{figure*}
+
+The leaked-credential arm fails for a reason worth stating precisely, because the defect is not
+in a cryptographic primitive but in a build condition. The firmware permitted unauthenticated
+remote disarm whenever TLS was enabled \emph{and} a broker login was configured. Read as an
+implication, that guard asserts: TLS enabled and a broker username supplied, therefore every
+message delivered on the command topic originates from an authorized principal. Both conjuncts
+fail to support the conclusion, and for different reasons.
+
+TLS, as configured, validates the \emph{broker's} certificate. The device presents no client
+certificate, so its own identity rests entirely on username and password; and because MQTT is a
+store-and-forward protocol in which the broker terminates TLS and re-originates each message,
+every publisher holds a separate session. A command arriving over the device's session carries
+no cryptographic evidence about who published it. TLS secures a hop; it does not convey
+end-to-end provenance across a relay. Fig.~\ref{fig:security} contrasts the two builds. The second conjunct is worse: the macro recording that a
+broker login is configured is set by the presence of a username in the device's own build, so it
+is a fact about the \emph{subscriber}, not about any publisher's authorization. The guard used
+the subscriber's credential state as a proxy for every publisher's authority, which is a
+category error. Even with a correct broker access-control list, authorization is then enforced
+outside the device's trust boundary and is only as strong as credential secrecy.
+
+We emphasise that nothing here bears on the security of TLS, and we do not claim it is broken.
+TLS protects the confidentiality and integrity of the device-to-broker hop, authenticates the
+broker, and prevents on-path injection into that hop. It does not authenticate a publisher end
+to end, it has no notion of what a command means, and it offers nothing once a valid credential
+is in an adversary's possession --- at which point the adversary simply \emph{is} a legitimate
+client. Transport security and application-layer authorization are orthogonal, and no quantity
+of the former supplies the latter.
+
+The minimal correct repair is to delete the unsound branch rather than to add a mechanism.
+Unauthenticated remote disarm now requires an explicit acknowledgement macro named for what the
+builder is accepting, which the research baseline defines so the original behaviour remains
+reproducible. We separately refuse to compile a signed-command build that still uses the
+repository's published demo key, since authentication that verifies against a published key is
+not authentication, and such a build would log every command as authenticated while any reader
+of the repository could forge one. Three negative build checks assert that both guards continue
+to reject the unsafe configurations. We deliberately did not add timestamp freshness, nonce
+challenge-response, or key rotation: the first requires a trusted clock the device does not
+have, the second costs a round trip on an at-most-once path, and the third is a fleet-management
+concern. Adding them would raise the contribution count without evidence to support it.
 
 \subsection{Relationship to prior measurement}
 
@@ -992,11 +1153,18 @@ separation; what it does not establish is whether the available mitigation suffi
 not examined radio-layer load, an adversarial model, or any formal treatment.
 
 We answer the logical half of the question with exhaustive model checking under a network task
-granted no fairness, with 7{,}200 seeded adversarial trials and with three million
-sanitizer-backed fuzzing iterations. We show through ablation that availability and integrity are
-separable properties and that a plausible defence can satisfy the first while failing the second
-completely. We show through sensitivity analysis that our own initial detector threshold was
-wrong by a wide margin, and we corrected it. For the timing half we contribute an analysis
+granted no fairness, with 7{,}800 seeded adversarial trials and with three million
+sanitizer-backed fuzzing iterations. We show through ablation that availability, integrity and
+the safety function are separable properties and that a plausible defence can satisfy one while
+failing another completely. The same ablation found a defect in our own firmware: a compile-time
+guard that accepted transport security plus a broker login as sufficient authority for
+unauthenticated remote disarm. The principle it violates is textbook and the corresponding
+attack is published, so we claim no new vulnerability; what the experiment shows is that such a
+guard passes review in silence and costs a safety property rather than merely a security one,
+and that an ablation with a fair transport baseline is enough to expose it. We removed it. We
+show through sensitivity analysis that our own initial detector threshold was wrong by a wide
+margin, and we corrected that too. Three of the four findings that changed this work were
+corrections to our own design, and we report them in that spirit. For the timing half we contribute an analysis
 and an apparatus rather than a number: a decomposition that removes three of four interference
 terms by construction and names the one that remains, and a public framework with which an
 independent laboratory can measure it. We report no latency figure, because we have not
@@ -1107,6 +1275,24 @@ Hardware and Software Engineers}. Addison-Wesley, 2002.
 
 \bibitem{sysfuss2026} D.~Tharindu, A.~Jayasena, and P.~Mishra, ``SysFuSS: System-level firmware
 fuzzing with selective symbolic execution,'' arXiv:2602.02243, 2026.
+
+\bibitem{pirates2024} W.~Alsabbagh, S.~Amogbonjaye, C.~Kim, and P.~Langend\"orfer, ``Pirates of
+the MQTT: Raiding IIoT systems with a rogue client,'' in \emph{2024 8th Cyber Security in
+Networking Conference (CSNet)}, IEEE, 2024, doi:10.1109/CSNET64211.2024.10851733.
+
+\bibitem{zeghida2024} H.~Zeghida, M.~Boulaiche, and R.~Chikh, ``Security of MQTT protocol: A
+brief overview,'' in \emph{Proc. TACC 2024}, CEUR Workshop Proceedings, 2024.
+
+\bibitem{amirkhanova2026} G.~Amirkhanova, S.~Ismailov, A.~Amirkhanov, S.~Adilzhanova,
+M.~Zhasuzakova, and S.~Chen, ``A lightweight, end-to-end encrypted data pipeline for IIoT: An
+AES-GCM implementation for ESP32, MQTT, and Raspberry Pi,'' \emph{Information}, vol.~17, no.~1,
+art.~33, 2026, doi:10.3390/info17010033.
+
+\bibitem{mqttl2026} C.~Yu, M.~Qi, H.~Luo, J.~Tian, \emph{et al.}, ``MQTT-L: A lightweight
+end-to-end secure protocol with renewable hash chains for IoT environments,'' \emph{Journal of
+King Saud University Computer and Information Sciences}, vol.~38, no.~6, art.~539, 2026,
+doi:10.1007/s44443-026-00972-4. % TODO: complete the author list from the PDF before submission;
+% the publisher landing page truncates it.
 
 \end{thebibliography}
 
