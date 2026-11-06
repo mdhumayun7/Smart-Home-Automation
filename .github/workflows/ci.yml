@@ -208,12 +208,38 @@ jobs:
           if h["legit_admitted_flooded"] != h["legit_attempts_flooded"]:
               problems.append("hmac lost a legitimate command under flood")
 
-          # Every design must keep the safety function working: that is the isolation claim.
+          # The arms split in two. In most, the safety function must hold: that is the
+          # isolation claim. In the compromise arms the adversary holds a secret that defeats
+          # the control by construction, and the alarm is EXPECTED to fail -- so for those we
+          # assert the failure instead. Checking both directions means the job fails either if
+          # isolation regresses or if a compromise arm silently stops demonstrating anything.
+          COMPROMISED = {"transport_leaked", "acl_shared_leaked", "acl_operator_leaked",
+                         "hmac_keyleaked"}
           for name, d in s.items():
+              if name in COMPROMISED:
+                  if not d["attacker_disarmed"]:
+                      problems.append(f"{name}: adversary no longer disarms; this arm has "
+                                      f"stopped demonstrating the compromise it exists to show")
+                  if d["reached_alarm"] == d["intrusion_test_valid"]:
+                      problems.append(f"{name}: alarm fired in every trial, so the arm is "
+                                      f"no longer a compromise")
+                  continue
               if d["violations"]:
                   problems.append(f"{name}: {d['violations']} invariant violations")
               if d["reached_alarm"] != d["intrusion_test_valid"]:
                   problems.append(f"{name}: alarm did not fire in every valid intrusion trial")
+
+          # The layered arm is the one configuration expected to survive a flash dump. If it
+          # ever stops surviving, the paper's central comparison has changed.
+          layered = s.get("acl_hmac_devicedump")
+          if layered and (layered["attacker_disarmed"]
+                          or layered["reached_alarm"] != layered["intrusion_test_valid"]):
+              problems.append("acl_hmac_devicedump: layered defence no longer holds")
+
+          # A per-client ACL must still contain a stolen device credential.
+          dev = s.get("acl_device_leaked")
+          if dev and dev["attacker_disarmed"]:
+              problems.append("acl_device_leaked: ACL no longer contains a device compromise")
 
           # The ablation is only informative if it still separates the designs. If a weaker
           # design stops being defeated by replay, the experiment has silently stopped testing
