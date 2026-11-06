@@ -146,13 +146,68 @@ journal. No specific reason to prefer it over JSAN or Computers for this work.
 
 ---
 
+## 3.7 Journal of Systems Architecture (Elsevier) — added 6 November 2026
+
+**This candidate emerged from the literature search, not from a journal hunt**, which is the
+strongest kind of scope evidence: it is where the closest competing work was published.
+
+| Field | Verified detail | Source |
+|---|---|---|
+| Title | *Journal of Systems Architecture*, subtitled "Embedded Software Design" | Elsevier journal page |
+| ISSN | 1383-7621 | Elsevier |
+| Scope | "All design and architectural aspects related to embedded systems and software", from microarchitecture through system software to application-specific architecture. Explicitly includes real-time systems, operating systems, and communications limited to analysis and the software stack. Case studies accepted if they go beyond describing a single software design | Elsevier |
+| Access model | Institutional subscription offered; open-access policy linked separately | Elsevier |
+| CiteScore / IF | **Not verified** — the page states neither | — |
+| Quartile | **Not verified** | — |
+| Guide for Authors | **Not retrievable** in this environment (ScienceDirect blocks automated access) | — |
+
+**Why it is now the leading candidate.** Behnke et al. (2023), the closest competing work to
+this project, was published here (vol. 140, art. 102891). A paper that extends and complements
+that work is, by construction, in scope. The journal's own scope statement names real-time
+systems and embedded software architecture, which is exactly what this paper is about, and its
+willingness to accept case studies that go beyond a single software design fits a paper built
+around one device with a generalisable mechanism.
+
+**Why it is not yet the decision.** It is a full-length venue whose readership includes the
+authors of the closest prior measurement. They will expect measured results. Submitting without
+the hardware campaign invites precisely the objection this project already knows about.
+
+**What must be checked before submitting:** the Guide for Authors (not retrievable here, so read
+it directly on ScienceDirect), the CiteScore quartile and subject category via Scopus Sources,
+and whether the subscription route avoids an APC.
+
+---
+
 ## 4. Recommendation
+
+**Revised 6 November 2026.** The recommendation now depends on whether the hardware campaign
+happens, because the manuscript has grown past the IEEE ESL page limit and the content that grew
+it is the verified work.
+
+**If hardware conditions A-C are run:**
 
 | Priority | Journal | Reason |
 |---|---|---|
-| 1 | **IEEE Embedded Systems Letters** | Scope explicitly covers early-stage embedded research; no APC on the traditional route; four-page format already matches the draft |
-| 2 | **JSAN** (MDPI) | Best scope match; JCR Q2 in the right category; accepts software artifacts; CHF 2,000 |
-| 3 | **Computers** (MDPI) | JCR Q2, lowest APC at CHF 1,800, acceptable scope fit |
+| 1 | **Journal of Systems Architecture** (Elsevier) | Scope is exact and published the closest competing work. Full length suits the content. Subscription route likely avoids an APC. Verify quartile and Guide for Authors first |
+| 2 | **JSAN** (MDPI) | Strong scope match, JCR Q2 in Computer Science Information Systems, accepts software artifacts, CHF 2,000 |
+| 3 | **Computers** (MDPI) | JCR Q2, lowest APC at CHF 1,800 |
+
+**If hardware is not available:**
+
+| Priority | Journal | Reason |
+|---|---|---|
+| 1 | **IEEE Embedded Systems Letters** | The only venue whose stated remit, "early-stage research", fits a design-and-verification paper with an unmeasured central claim. No APC on the traditional route. Requires cutting to four pages, which means reducing the ablation and sensitivity results to a sentence each |
+| 2 | **Computers** (MDPI) | Accepts full-length work; a reviewer will still ask for the measurement |
+
+**Note on the ESL page limit, verified 6 November 2026 from the official author instructions:**
+"Submitted letters must be four pages or fewer, including all figures, tables, and references.
+Longer submissions are returned without review." The overlength charge of US\$125 per page and
+the eight-page hard limit apply at typesetting, not at submission. The full-length manuscript is
+17 pages and cannot be submitted to ESL without substantial reduction.
+
+ESL also requires AI-use disclosure **in the Acknowledgements section**, naming the tool and its
+role, with desk rejection as the stated consequence for omitting it, and permits at most five
+keywords.
 
 **Submit to one at a time.** Simultaneous submission to multiple journals is a serious ethics
 breach and will get the paper retracted or blacklisted.

@@ -389,7 +389,8 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/LITERATURE_LOG.md`](docs/LITERATURE_LOG.md) | Dated search log: databases, search strings, screening decisions, and the competing work that narrowed this project's claim |
 | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Every result classified by evidence category, with seeds, runs, environment and reproduction commands, plus the seven experiments not yet run |
 | [`docs/Q2_GATE.md`](docs/Q2_GATE.md) | Fifteen-question reviewer gate, figure justification, and the IEEE ESL compliance checklist |
-| [`paper/`](paper/) | Paper draft and a one-page research brief |
+| [`docs/MANUSCRIPT_REVIEW.md`](docs/MANUSCRIPT_REVIEW.md) | Section-by-section verification report, fact-verification record, and the two hardware-scenario pathways with a validation checklist |
+| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (17 pages). `paper/paper.tex` is the short letters-format version |
 
 **Status in one line:** the firmware, formal verification, simulation campaign, fuzzing and
 paper draft are complete; the physical hardware measurement is the one open step, and no
