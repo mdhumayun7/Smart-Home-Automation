@@ -78,6 +78,7 @@ simulation results meaningful at all.
 | Raw result | 0 attacker-caused disarms, 0 invariant violations. Baseline attacker-armed in 2,500/2,500 flooded trials, hardened 0. Legitimate command: 3,000/3,000 hardened, 500/3,000 baseline |
 | Statistical treatment | **None reported.** Latency variance is identically zero, so any test is trivially satisfied and carries no information. The analysis is pre-registered for hardware instead |
 | Reproduce | `cd experiments && ./run.sh` |
+| Re-verified | Repeated in full against the bounded-drain firmware change (2026-11-07): `summary.json`, `summary.md` and `fuzz.json` byte-identical to the pre-change run |
 | **Limitations** | The security outcome follows deductively from the construction; this validates the implementation, it does not discover anything. The informative result is the availability one. The baseline is weak by construction, which is why E3 exists |
 
 ### E3 — Command-path design ablation

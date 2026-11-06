@@ -209,8 +209,14 @@ for (int drained = 0;
 ```
 
 A full queue still drains in one pass, so no functional behaviour changes; commands arriving
-during a pass wait at most one further loop period. All 120 host checks pass after the change,
-and the adversarial campaign results are unchanged.
+during a pass wait at most one further loop period.
+
+**The fix was verified to be behaviour-preserving, not assumed to be.** Changing firmware in the
+command path invalidates any prior reproduction claim, so the entire 6,000-trial campaign and the
+3,000,000-iteration fuzzing run were repeated against the modified firmware. The regenerated
+`summary.json`, `summary.md` and `fuzz.json` are **byte-identical** to the versions produced
+before the change, and all 120 host checks pass. The bound therefore removes an unbounded loop
+from the safety path without altering a single trial outcome.
 
 **This is the clearest argument for doing the analysis at all.** The defect was invisible to
 every other method applied to this project: the test suite passed, the fuzzer found nothing, the
