@@ -8,7 +8,7 @@ committed JSONL file produced by a seeded run; nothing is hand-entered.
 
 ## 1. Command-path design ablation
 
-Six designs, same adversary, same scenario, same seeds. The adversary floods
+Eleven designs, same adversary, same scenario, same seeds. The adversary floods
 the command topic and captures the legitimate command off the wire for replay.
 
 Availability is measured as the proportion of five operator publish attempts,
@@ -26,14 +26,19 @@ availability, and is not reported: see `docs/SECURITY_ANALYSIS.md` section 9.
 | Static shared token | 300 | 1250/1250 | 250/250 | 0 | 300/300 | 0 |
 | TLS + broker credentials | 300 | 1250/1250 | 0/250 | 0 | 300/300 | 0 |
 | TLS, credentials leaked | 300 | 1250/1250 | 250/250 | 246 | 50/300 | 250 |
+| TLS + ACL, shared credential leaked | 300 | 1250/1250 | 250/250 | 246 | 50/300 | 250 |
+| TLS + ACL, controller credential leaked | 300 | 1250/1250 | 250/250 | 246 | 50/300 | 250 |
+| TLS + ACL, device credential leaked | 300 | 1250/1250 | 0/250 | 0 | 300/300 | 0 |
 | HMAC-SHA256 + counter | 300 | 1250/1250 | 0/250 | 0 | 300/300 | 0 |
+| HMAC, command key leaked | 300 | 0/1250 | 245/250 | 234 | 50/300 | 250 |
+| TLS + ACL + HMAC, device flash dumped | 300 | 1250/1250 | 0/250 | 0 | 300/300 | 0 |
 
-Safety latency was identical across all six designs (median 151 ms, standard deviation 0.0 ms), which is
+Safety latency was identical across all eleven designs (median 151 ms, standard deviation 0.0 ms), which is
 expected: the harness advances a logical clock, so there is no contention to
 measure. This says nothing about physical timing.
 
 **Reading.** Availability, integrity and the safety function are separable,
-and four of the six designs fail at least one of them:
+and most of the eleven designs fail at least one of them:
 
 - A **rate limit** cannot tell a legitimate command from a flood, so it drops
   the operator's command along with the attacker's, and it leaves integrity
@@ -62,7 +67,12 @@ Admitted / attempted, over trials whose availability measurement was valid.
 | Static shared token | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
 | TLS + broker credentials | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
 | TLS, credentials leaked | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| TLS + ACL, shared credential leaked | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| TLS + ACL, controller credential leaked | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| TLS + ACL, device credential leaked | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
 | HMAC-SHA256 + counter | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| HMAC, command key leaked | 0/250 | 0/250 | 0/250 | 0/250 | 0/250 |
+| TLS + ACL + HMAC, device flash dumped | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
 
 ### 1.2 Statistical comparison
 
@@ -75,6 +85,53 @@ credential is the only variable that differs.
 - Fisher exact test, one-sided: p = 9.827e-119.
 
 - Operator availability, rate limit 737/1250 (59.0 %) against HMAC 1250/1250 (100.0 %): Fisher exact one-sided p = 3.531e-184.
+
+### 1.3 What each control protects, by which secret the adversary holds
+
+Broker-side access control and application-layer authentication fail under
+*different* compromises, so neither dominates the other. The table reads
+down the adversary's capability, not down a ranking of mechanisms.
+
+| Controls in place | Secret the adversary holds | Unauthorised disarm | Alarm fired | Operator locked out |
+|---|---|---|---|---|
+| TLS, no ACL | none | **no** | 300/300 | no (1250/1250 admitted) |
+| TLS, no ACL | any broker credential | **yes** | 50/300 | no (1250/1250 admitted) |
+| TLS + per-client ACL | the one shared credential | **yes** | 50/300 | no (1250/1250 admitted) |
+| TLS + per-client ACL | controller credential | **yes** | 50/300 | no (1250/1250 admitted) |
+| TLS + per-client ACL | device credential | **no** | 300/300 | no (1250/1250 admitted) |
+| HMAC + counter | any broker credential | **no** | 300/300 | no (1250/1250 admitted) |
+| HMAC + counter | controller credential and command key | **yes** | 50/300 | **yes** (0/1250 admitted) |
+| TLS + ACL + HMAC | device credential and command key (flash dump) | **no** | 300/300 | no (1250/1250 admitted) |
+
+Four readings follow, and the last three cut against this project's own
+mechanism:
+
+- A per-client ACL is **not** a weaker substitute for application-layer
+  authentication. It contains a *device* compromise completely, which
+  matters for an embedded product because the device is the physically
+  accessible component and its broker credentials sit in a readable flash
+  image. It does nothing against a compromised controller, because that
+  identity is the one the ACL must authorise to publish commands.
+- A shared credential defeats the ACL entirely. The ACL must grant the
+  single identity write access to the command topic for the system to
+  work, so the configuration collapses to the no-ACL case. Credential
+  separation, not the ACL syntax, is what carries the protection.
+- **A MAC does not survive key compromise, and the key is in the same
+  flash image.** With the command key dumped, the signed path is defeated
+  exactly as the unsigned one is. Only the combination holds: with both an
+  ACL and a MAC, an adversary who dumps the device gets a key it can sign
+  with and a credential the broker will not let it publish commands under.
+  The defence that survives in this table is layered, not cryptographic.
+- **Under key compromise the replay counter becomes a lockout against the
+  owner.** This was not anticipated and was found in the data. Counters are
+  not secret, so an adversary holding the key can sign commands with a
+  counter far above the operator's; the device persists it, and every
+  subsequent operator command is then rejected as a replay. In this arm the
+  operator is admitted in 0 of 1250 attempts across all attacked trials. A
+  monotonic counter defeats replay and, under key compromise, denies
+  service to the legitimate user at the same time. Recovery needs a key
+  change and a counter reset, neither of which this firmware supports
+  remotely.
 
 ## 2. Deauthentication detector parameter sensitivity
 

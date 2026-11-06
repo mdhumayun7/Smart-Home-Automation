@@ -71,7 +71,14 @@ remote disarm, under which a credential-holding adversary disarms the system and
 in 16.7\% of trials against 100\% for the control. We claim no new vulnerability---the
 underlying principle and the attack class are both established---but report the guard as a
 configuration-logic defect that converts a known security principle into the loss of a safety
-property, and we remove it.
+property, and we remove it. Five further arms vary the broker's per-client access-control list
+and which secret the adversary holds, and show that broker-side authorization and
+application-layer authentication fail under \emph{different} compromises, so neither dominates:
+an ACL contains a compromised device credential but not a compromised controller, a MAC
+survives credential compromise but not key compromise, and only the layered configuration
+survives every case. We also report an unanticipated negative result: under key compromise the
+monotonic replay counter becomes a lockout against the legitimate owner, who is admitted in 0
+of 1250 attempts.
 A parameter sweep of the deauthentication detector revealed that our own initial threshold fired
 spuriously in 79.9\% of benign ten-minute runs, and we revised the firmware accordingly. We are
 explicit that these results establish \emph{logical} isolation only. Physical timing invariance
@@ -165,6 +172,15 @@ is textbook and the attack class is published~\cite{pirates2024}, so we claim no
 vulnerability; the contribution is that a guard encoding this inference passes review silently
 and costs a \emph{safety} property, and that it is detectable by ablation
 (Sections~\ref{sec:results} and~\ref{sec:discussion}).
+
+\item \textbf{A compromise-indexed comparison of broker-side authorization against
+application-layer authentication.} Five arms vary the per-client ACL and the secret the
+adversary holds. Neither control dominates: the ACL contains a compromised device credential
+and fails against a compromised controller, the MAC does the reverse, a shared credential
+collapses the ACL to the no-ACL case, and only the layered configuration survives every
+compromise tested. The comparison also yields a negative result we did not anticipate---under
+key compromise the replay counter locks the legitimate owner out entirely
+(Section~\ref{sec:acl}).
 
 \item \textbf{A parameter sensitivity analysis that corrected our own design.} Sweeping the
 deauthentication detector's threshold and window against a model of benign management-frame
@@ -851,7 +867,83 @@ macro recording that a broker login is configured describes only this device, no
 authorization. We make no claim that TLS is broken; Section~\ref{sec:discussion} states precisely what
 it does and does not protect.
 
-Apart from that arm, the alarm fired in every trial of every design. This is the isolation
+\subsection{Broker access control against application-layer authentication}
+\label{sec:acl}
+
+A reviewer may fairly object that the transport arm above models a broker with no topic-level
+access control, which is weaker than a careful operator would deploy. We therefore added five
+further arms, all on the same seeds, that vary the broker's access-control list and which
+secret the adversary holds. The ACL is modelled as a Mosquitto-style binding of each username
+to the topic patterns it may publish and subscribe to. We stress that none of these is a
+deliberately weakened configuration: for the alarm to function, \emph{some} identity must hold
+write permission on the command topic and the device must hold read permission on it, so which
+identity the adversary steals is what decides whether the ACL contains the compromise.
+Table~\ref{tab:credential} and Fig.~\ref{fig:credential} report the outcome.
+
+\begin{table*}[t]
+\centering\small
+\caption{What each control protects, by which secret the adversary holds. 300 trials per row,
+identical adversary and seeds. ``Locked out'' reports operator commands admitted while the
+adversary is active. Broker-side access control and application-layer authentication fail under
+\emph{different} compromises, so neither dominates.}
+\label{tab:credential}
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Controls in place & Secret the adversary holds & Disarm & Alarm fired & Operator admitted \\
+\midrule
+TLS only            & none                                  & no  & 300/300 & 1250/1250 \\
+TLS only            & any broker credential                 & yes & 50/300  & 1250/1250 \\
+TLS + per-client ACL& the one shared credential             & yes & 50/300  & 1250/1250 \\
+TLS + per-client ACL& controller credential                 & yes & 50/300  & 1250/1250 \\
+TLS + per-client ACL& device credential                     & no  & 300/300 & 1250/1250 \\
+HMAC + counter      & any broker credential                 & no  & 300/300 & 1250/1250 \\
+HMAC + counter      & controller credential and command key & yes & 50/300  & \textbf{0/1250} \\
+\textbf{TLS + ACL + HMAC} & device credential and key (flash dump) & \textbf{no} & \textbf{300/300} & \textbf{1250/1250} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{credential_matrix.pdf}
+\caption{Safety-function activation and operator availability under each combination of
+controls and compromised secret. No single control survives every row; the layered
+configuration does.}
+\label{fig:credential}
+\end{figure*}
+
+Four readings follow, and the last three cut against this work's own mechanism.
+
+First, a per-client ACL is \emph{not} a weaker substitute for application-layer authentication.
+It contains a compromise of the \emph{device's} credential completely, which matters for an
+embedded product precisely because the device is the physically accessible component and its
+broker credentials sit in a readable flash image. It does nothing against a compromised
+controller, because that is the identity the ACL must authorise to publish commands.
+
+Second, a shared credential defeats the ACL entirely. The ACL must grant the single identity
+write access to the command topic for the system to work at all, so the configuration collapses
+to the no-ACL case. Credential separation, not ACL syntax, carries the protection, and shared
+credentials are common practice in deployed IoT fleets.
+
+Third, a MAC does not survive key compromise, and on this platform the key is in the same flash
+image as the broker credentials. With the command key dumped, the signed path is defeated
+exactly as the unsigned one is. Only the combination holds: an adversary who dumps the device
+obtains a key it can sign with \emph{and} a credential the broker will not let it publish
+commands under. The configuration that survives every row of Table~\ref{tab:credential} is
+layered, not cryptographic.
+
+Fourth, and unanticipated, under key compromise the monotonic replay counter becomes a lockout
+against the owner. Counters are not secret---they travel in plaintext in every signed
+command---so an adversary holding the key can sign with a counter far above the operator's. The
+device persists it, and every subsequent operator command is then rejected as a replay. In that
+arm the operator is admitted in \textbf{0 of 1250} attempts across all attacked trials: the
+adversary both disarms the alarm and denies the legitimate user any control. Recovery requires
+a key change and a counter reset, neither of which this firmware supports remotely. The
+mechanism that defeats replay therefore creates a denial-of-service channel the moment its key
+assumption fails, which we report because it bounds the claim made in Section~\ref{sec:model}
+rather than supporting it.
+
+Apart from the compromise arms, the alarm fired in every trial of every design. This is the isolation
 property behaving as intended: the safety function does not depend on the command path, so no
 command-path design choice affects whether the siren sounds. The leaked-credential arm is the
 single exception, and it is an authorization defect rather than a timing or resource failure,
@@ -1102,16 +1194,32 @@ construct and the measure is the reason Section~\ref{sec:hw} exists.
 \paragraph{Internal validity.} Largely controlled. Seeds are fixed, the pipeline regenerates
 byte-identically, and continuous integration re-runs a reduced version on every commit.
 Per-trial process isolation was introduced specifically because global state leakage had produced
-a spurious violation. Two further harness defects were found during the ablation and are
-documented: the adversary could act during the experimenter's own control actions, and could
-leave the system mid-transition so that the intrusion phase was skipped, which made the weaker
-designs appear to fail in a way they had not. The residual threat is that the host models and
-the firmware share an author, so a common misconception would be invisible to both.
+a spurious violation. Four further harness defects were found during the ablation and
+are documented in full: the adversary could act during the experimenter's own control actions;
+it could leave the system mid-transition so that the intrusion phase was skipped; the operator
+availability metric could not distinguish the operator's own arm command from the adversary's
+in any arm that admits adversary commands; and a single-command measurement of availability
+measured token-bucket phase rather than availability. Two of the four flattered the conclusion
+the experiment was built to support, two were found only during the final verification pass,
+and the campaign was re-run from scratch after each correction. None affected the safety or
+disarm results, which are read from directly observed events carrying explicit source tags
+rather than inferred. We record them because three of the four produced entirely plausible
+numbers, and the first was detected only because results were broken out by attack rate rather
+than aggregated. The residual threat is that the host models and the firmware share an author,
+so a common misconception would be invisible to both.
 
 \paragraph{External validity.} Limited, and we scope our claims accordingly. All results concern
 one chip, two framework versions, one application and no deployment. We do not generalise to
 single-chip Wi-Fi SoCs as a class. The single-core variants of the same family are arguably the
 more interesting case, since they cannot pin at all.
+
+\paragraph{Model validity of the broker.} The access-control arms model broker admission as a
+per-identity permission on the command topic. They do not model ACL pattern syntax, wildcard
+subscriptions, bridged or clustered brokers, client-certificate identities, dynamic credential
+issuance, or detection and revocation after a leak. A deployment differing in any of these may
+behave differently, and no claim is made about products we did not test. The arms were also not
+validated against a running broker: no Mosquitto instance was used, so every ACL result is
+model-based, and we label it as such throughout.
 
 \paragraph{Conclusion validity.} We report no statistical conclusion from the simulation,
 precisely because the zero-variance data cannot support one. The formal conclusions are sound
@@ -1132,16 +1240,30 @@ have not measured, and none is estimated.
 
 Beyond this: the benign arrival model underlying the sensitivity analysis is synthetic; the
 per-command CPU cost of tag verification and the energy cost of both the security features and
-promiscuous-mode monitoring are unmeasured; the ablation lacks an arm representing transport
-security with broker credentials; no ablation isolates the contribution of each of the four
-security mechanisms individually; flash encryption, secure boot and signed over-the-air update
-are not implemented; and the false-alarm rate of the sensor-fusion modes has not been
+promiscuous-mode monitoring are unmeasured; the access-control arms are model-based and were
+not validated against a running broker; no runtime TLS cost is measured anywhere, because the
+host harness has no TLS implementation and the only figure we report for it is static flash and
+RAM from the real compiler; and the false-alarm rate of the sensor-fusion modes has not been
 characterised against real sensors.
 
+Three limitations follow directly from Section~\ref{sec:acl} and are properties of the system
+rather than of the evaluation. Flash encryption, secure boot and signed over-the-air update are
+not implemented, so the command key and the broker credentials are both recoverable from a
+device an attacker can physically reach; this is the assumption on which the signed-command
+guarantee rests, and it is the weakest one in the design. There is no key rotation or
+revocation, so recovery from key compromise requires reflashing every holder. And because the
+replay counter is persisted and monotonic, an adversary holding the key can advance it beyond
+reach and lock the owner out until the device is reflashed; a bounded-window or
+timestamp-anchored scheme would trade that failure mode for a dependency on a trusted clock the
+device does not currently have. We identify these as the design's real exposure and do not
+claim to have addressed them.
+
 The ordered priorities for future work are therefore: conditions A through C of the hardware
-protocol, which need only two boards and a probe; condition D, subject to approval; a passive
-capture to replace the synthetic arrival model; and replication on a single-core variant of the
-same family.
+protocol, which need only two boards and a probe; validating the access-control arms against a
+running Mosquitto instance with real per-client ACLs, which needs no special hardware; enabling
+flash encryption and secure boot and re-running the compromise arms against a device whose key
+is no longer extractable; condition D, subject to approval; a passive capture to replace the
+synthetic arrival model; and replication on a single-core variant of the same family.
 
 \section{Conclusion}\label{sec:conclusion}
 
@@ -1163,8 +1285,13 @@ attack is published, so we claim no new vulnerability; what the experiment shows
 guard passes review in silence and costs a safety property rather than merely a security one,
 and that an ablation with a fair transport baseline is enough to expose it. We removed it. We
 show through sensitivity analysis that our own initial detector threshold was wrong by a wide
-margin, and we corrected that too. Three of the four findings that changed this work were
-corrections to our own design, and we report them in that spirit. For the timing half we contribute an analysis
+margin, and we corrected that too. Extending the ablation to vary the broker's access-control
+list and the secret the adversary holds then showed that neither broker-side authorization nor
+application-layer authentication dominates the other---each fails under a compromise the other
+survives---and produced a negative result we did not anticipate, in which the replay counter
+that defeats capture-and-replay becomes, under key compromise, a lockout against the
+legitimate owner. Most of the findings that changed this work were corrections to our own
+design or to our own measurements, and we report them in that spirit. For the timing half we contribute an analysis
 and an apparatus rather than a number: a decomposition that removes three of four interference
 terms by construction and names the one that remains, and a public framework with which an
 independent laboratory can measure it. We report no latency figure, because we have not
@@ -1212,7 +1339,7 @@ publisher or preprint record.
 \bibitem{behnke2020} I.~Behnke, L.~Pirl, L.~Thamsen, R.~Danicki, A.~Polze, and O.~Kao,
 ``Interrupting real-time IoT tasks: How bad can it be to connect your critical embedded system to
 the Internet?,'' in \emph{Proc.\ IEEE 39th Int.\ Performance Computing and Communications Conf.\
-(IPCCC)}, 2020.
+(IPCCC)}, 2020. doi:10.1109/IPCCC50635.2020.9391536.
 
 \bibitem{behnke2022} I.~Behnke, P.~Wiesner, R.~Danicki, and L.~Thamsen, ``A priority-aware
 multiqueue NIC design for real-time IoT devices,'' in \emph{Proc.\ 37th ACM/SIGAPP Symp.\ on
@@ -1266,12 +1393,14 @@ doi:10.3390/app13148122.
 \bibitem{lamport2002} L.~Lamport, \emph{Specifying Systems: The TLA+ Language and Tools for
 Hardware and Software Engineers}. Addison-Wesley, 2002.
 
-\bibitem{fuzzsurvey2022} J.~Yun \emph{et al.}, ``Fuzzing of embedded systems: A survey,''
-\emph{ACM Computing Surveys}, 2022. doi:10.1145/3538644.
+\bibitem{fuzzsurvey2022} J.~Yun, F.~Rustamov, J.~Kim, and Y.~Shin, ``Fuzzing of embedded
+systems: A survey,'' \emph{ACM Computing Surveys}, vol.~55, no.~7, 2022.
+doi:10.1145/3538644.
 
 \bibitem{pemu2025} M.~Bley, T.~Scharnowski, S.~W\"orner, M.~Schloegel, and T.~Holz,
-``Protocol-aware firmware rehosting for effective fuzzing of embedded network stacks,'' ACM,
-2025. doi:10.1145/3719027.3765125.
+``Protocol-aware firmware rehosting for effective fuzzing of embedded network stacks,'' in
+\emph{Proc.\ 2025 ACM SIGSAC Conf.\ on Computer and Communications Security (CCS)}, 2025.
+doi:10.1145/3719027.3765125.
 
 \bibitem{sysfuss2026} D.~Tharindu, A.~Jayasena, and P.~Mishra, ``SysFuSS: System-level firmware
 fuzzing with selective symbolic execution,'' arXiv:2602.02243, 2026.
@@ -1288,11 +1417,10 @@ M.~Zhasuzakova, and S.~Chen, ``A lightweight, end-to-end encrypted data pipeline
 AES-GCM implementation for ESP32, MQTT, and Raspberry Pi,'' \emph{Information}, vol.~17, no.~1,
 art.~33, 2026, doi:10.3390/info17010033.
 
-\bibitem{mqttl2026} C.~Yu, M.~Qi, H.~Luo, J.~Tian, \emph{et al.}, ``MQTT-L: A lightweight
+\bibitem{mqttl2026} C.~Yu, M.~Qi, H.~Luo, J.~Tian, and J.~Lu, ``MQTT-L: A lightweight
 end-to-end secure protocol with renewable hash chains for IoT environments,'' \emph{Journal of
 King Saud University Computer and Information Sciences}, vol.~38, no.~6, art.~539, 2026,
-doi:10.1007/s44443-026-00972-4. % TODO: complete the author list from the PDF before submission;
-% the publisher landing page truncates it.
+doi:10.1007/s44443-026-00972-4.
 
 \end{thebibliography}
 

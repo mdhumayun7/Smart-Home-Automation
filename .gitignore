@@ -40,3 +40,4 @@ experiments/results/campaign_*.jsonl
 # keeping the raw measurements, not just the aggregates, is part of the evidence rules.
 !experiments/results/ablation.jsonl
 !experiments/results/sensitivity.jsonl
+__pycache__/

@@ -21,7 +21,9 @@ from collections import defaultdict
 HERE = os.path.dirname(os.path.abspath(__file__))
 RES = os.path.join(HERE, "results")
 
-MODES = ["none", "ratelimit", "token", "transport", "transport_leaked", "hmac"]
+MODES = ["none", "ratelimit", "token", "transport", "transport_leaked",
+         "acl_shared_leaked", "acl_operator_leaked", "acl_device_leaked",
+         "hmac", "hmac_keyleaked", "acl_hmac_devicedump"]
 MODE_LABEL = {
     "none": "No command defence",
     "ratelimit": "Token-bucket rate limit (5/s)",
@@ -29,6 +31,11 @@ MODE_LABEL = {
     "hmac": "HMAC-SHA256 + counter",
     "transport": "TLS + broker credentials",
     "transport_leaked": "TLS, credentials leaked",
+    "acl_shared_leaked": "TLS + ACL, shared credential leaked",
+    "acl_operator_leaked": "TLS + ACL, controller credential leaked",
+    "acl_device_leaked": "TLS + ACL, device credential leaked",
+    "hmac_keyleaked": "HMAC, command key leaked",
+    "acl_hmac_devicedump": "TLS + ACL + HMAC, device flash dumped",
 }
 
 
@@ -138,7 +145,7 @@ def main():
     # ---- ablation
     if ab:
         L.append("## 1. Command-path design ablation\n")
-        L.append("Six designs, same adversary, same scenario, same seeds. The adversary floods")
+        L.append("Eleven designs, same adversary, same scenario, same seeds. The adversary floods")
         L.append("the command topic and captures the legitimate command off the wire for replay.\n")
         L.append("Availability is measured as the proportion of five operator publish attempts,")
         L.append("spaced 200 ms apart, that reach the state machine while the adversary floods at")
@@ -164,13 +171,13 @@ def main():
                 f"{s['violations']} |"
             )
         L.append("")
-        L.append("Safety latency was identical across all six designs "
+        L.append("Safety latency was identical across all eleven designs "
                  f"(median {ab['hmac']['safety_latency_median_ms']:.0f} ms, "
                  f"standard deviation {ab['hmac']['safety_latency_stdev_ms']:.1f} ms), which is")
         L.append("expected: the harness advances a logical clock, so there is no contention to")
         L.append("measure. This says nothing about physical timing.\n")
         L.append("**Reading.** Availability, integrity and the safety function are separable,")
-        L.append("and four of the six designs fail at least one of them:\n")
+        L.append("and most of the eleven designs fail at least one of them:\n")
         L.append("- A **rate limit** cannot tell a legitimate command from a flood, so it drops")
         L.append("  the operator's command along with the attacker's, and it leaves integrity")
         L.append("  completely untouched. Its effect on availability is not monotonic in attack")
@@ -237,6 +244,68 @@ def main():
                          f"against HMAC {hm['legit_admitted_flooded']}/"
                          f"{hm['legit_attempts_flooded']} (100.0 %): "
                          f"Fisher exact one-sided p = {p2:.3e}.\n")
+
+        # ---- credential-compromise matrix
+        acl = ["transport", "transport_leaked", "acl_shared_leaked", "acl_operator_leaked",
+               "acl_device_leaked", "hmac", "hmac_keyleaked", "acl_hmac_devicedump"]
+        if any(m in ab for m in acl):
+            L.append("### 1.3 What each control protects, by which secret the adversary holds\n")
+            L.append("Broker-side access control and application-layer authentication fail under")
+            L.append("*different* compromises, so neither dominates the other. The table reads")
+            L.append("down the adversary's capability, not down a ranking of mechanisms.\n")
+            L.append("| Controls in place | Secret the adversary holds | Unauthorised disarm |"
+                     " Alarm fired | Operator locked out |")
+            L.append("|---|---|---|---|---|")
+            rows = [
+                ("transport", "TLS, no ACL", "none"),
+                ("transport_leaked", "TLS, no ACL", "any broker credential"),
+                ("acl_shared_leaked", "TLS + per-client ACL", "the one shared credential"),
+                ("acl_operator_leaked", "TLS + per-client ACL", "controller credential"),
+                ("acl_device_leaked", "TLS + per-client ACL", "device credential"),
+                ("hmac", "HMAC + counter", "any broker credential"),
+                ("hmac_keyleaked", "HMAC + counter", "controller credential and command key"),
+                ("acl_hmac_devicedump", "TLS + ACL + HMAC",
+                 "device credential and command key (flash dump)"),
+            ]
+            for m, controls, secret in rows:
+                d = ab.get(m)
+                if not d:
+                    continue
+                disarmed = "yes" if d["attacker_disarmed"] else "no"
+                att, adm = d["legit_attempts_flooded"], d["legit_admitted_flooded"]
+                locked = "**yes**" if att and adm == 0 else "no"
+                L.append(f"| {controls} | {secret} | **{disarmed}** | "
+                         f"{d['reached_alarm']}/{d['intrusion_test_valid']} | "
+                         f"{locked} ({adm}/{att} admitted) |")
+            L.append("")
+            L.append("Four readings follow, and the last three cut against this project's own")
+            L.append("mechanism:\n")
+            L.append("- A per-client ACL is **not** a weaker substitute for application-layer")
+            L.append("  authentication. It contains a *device* compromise completely, which")
+            L.append("  matters for an embedded product because the device is the physically")
+            L.append("  accessible component and its broker credentials sit in a readable flash")
+            L.append("  image. It does nothing against a compromised controller, because that")
+            L.append("  identity is the one the ACL must authorise to publish commands.")
+            L.append("- A shared credential defeats the ACL entirely. The ACL must grant the")
+            L.append("  single identity write access to the command topic for the system to")
+            L.append("  work, so the configuration collapses to the no-ACL case. Credential")
+            L.append("  separation, not the ACL syntax, is what carries the protection.")
+            L.append("- **A MAC does not survive key compromise, and the key is in the same")
+            L.append("  flash image.** With the command key dumped, the signed path is defeated")
+            L.append("  exactly as the unsigned one is. Only the combination holds: with both an")
+            L.append("  ACL and a MAC, an adversary who dumps the device gets a key it can sign")
+            L.append("  with and a credential the broker will not let it publish commands under.")
+            L.append("  The defence that survives in this table is layered, not cryptographic.")
+            L.append("- **Under key compromise the replay counter becomes a lockout against the")
+            L.append("  owner.** This was not anticipated and was found in the data. Counters are")
+            L.append("  not secret, so an adversary holding the key can sign commands with a")
+            L.append("  counter far above the operator's; the device persists it, and every")
+            L.append("  subsequent operator command is then rejected as a replay. In this arm the")
+            L.append("  operator is admitted in 0 of 1250 attempts across all attacked trials. A")
+            L.append("  monotonic counter defeats replay and, under key compromise, denies")
+            L.append("  service to the legitimate user at the same time. Recovery needs a key")
+            L.append("  change and a counter reset, neither of which this firmware supports")
+            L.append("  remotely.\n")
 
     # ---- sensitivity
     if benign:

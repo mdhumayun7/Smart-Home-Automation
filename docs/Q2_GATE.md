@@ -27,10 +27,10 @@ does not turn a Fail into a Pass.
 | 11 | Are negative results, failure modes and limitations discussed? | **Pass** | E5 found a defect in a shipped parameter and the firmware changed; two harness bugs in E3 are documented; `PEER_REVIEW.md` is adversarial throughout | — |
 | 12 | Can an independent researcher reproduce the work? | **Pass** | Seeded throughout; E2/E4 verified to regenerate byte-identically; CI re-runs formal and adversarial checks on every push | — |
 | 13 | Are diagrams necessary, accurate, readable and compliant? | **Pass** | Section 2 justifies each figure; two stale diagrams were found and corrected; greyscale-safe conventions documented | — |
-| 14 | Are citations accurate and current? | **Partial** | 22 references verified against publisher, preprint or repository records. Three fields remain unverified (Yun author list; Bley venue; MQTT-L author list, which the Springer landing page truncates) | Resolve all three from the PDFs, or cite conservatively |
+| 14 | Are citations accurate and current? | **Pass** | 22 references verified against publisher, preprint, institutional-repository or OpenAlex records. The three previously unverified fields are now resolved: the Yun author list is Yun, Rustamov, Kim and Shin (*ACM Computing Surveys* 55(7), OpenAlex record for doi:10.1145/3538644); the Bley venue is ACM CCS 2025 (CISPA's own repository names the published version's DOI 10.1145/3719027.3765125, and the OpenAlex record for it gives the venue); the MQTT-L author list is Yu, Qi, Luo, Tian and Lu, read from Springer's own `citation_author` metadata rather than the truncated display list. The ACM Digital Library itself is behind bot verification, which was not circumvented; each field was resolved from an independent authoritative source instead. No TODO markers remain in the manuscript | Re-check before submission, since venues and page numbers can change between acceptance and issue assignment |
 | 15 | Does the paper comply with the target journal's scope and rules? | **Partial** | IEEE ESL scope fits; formatting does not yet (Section 3) | Reformat to IEEEtran; cut to the page limit |
 
-**Score: 8 Pass, 5 Partial, 1 Fail, 1 Blocked.** The Fail and the Blocked are the same issue.
+**Score: 9 Pass, 4 Partial, 1 Fail, 1 Blocked.** The Fail and the Blocked are the same issue.
 
 **The score did not move when the transport arm was added, and that is the correct outcome.**
 The experiment that Q7's corrective action asked for was performed, and it did what it was meant

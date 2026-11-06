@@ -37,7 +37,21 @@ plt.rcParams.update({
     "figure.dpi": 200,
 })
 
+# Figure 1 keeps the six command-path designs. The credential-compromise arms are a
+# different question -- which secret the adversary holds -- and get their own figure, because
+# eleven categories on one axis is unreadable at journal column width.
 ORDER = ["none", "ratelimit", "token", "transport", "transport_leaked", "hmac"]
+
+MATRIX = [
+    ("transport",           "TLS only", "no secret"),
+    ("transport_leaked",    "TLS only", "any broker\ncredential"),
+    ("acl_shared_leaked",   "TLS + ACL", "shared\ncredential"),
+    ("acl_operator_leaked", "TLS + ACL", "controller\ncredential"),
+    ("acl_device_leaked",   "TLS + ACL", "device\ncredential"),
+    ("hmac",                "HMAC", "any broker\ncredential"),
+    ("hmac_keyleaked",      "HMAC", "controller cred.\n+ command key"),
+    ("acl_hmac_devicedump", "TLS+ACL+HMAC", "device cred.\n+ key (flash dump)"),
+]
 LABEL = {
     "none": "No command\ndefence",
     "ratelimit": "Token-bucket\nrate limit",
@@ -115,6 +129,51 @@ def main():
     for ext in ("pdf", "png"):
         fig.savefig(os.path.join(RES, f"ablation_results.{ext}"), bbox_inches="tight")
     print("wrote results/ablation_results.pdf and .png")
+    credential_figure(ab)
+
+
+def credential_figure(ab):
+    """Which secret the adversary holds, against what the system still does."""
+    rows = [(m, c, sec) for m, c, sec in MATRIX if m in ab]
+    if not rows:
+        return
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.2, 3.6), sharey=True)
+    # Horizontal bars: the category labels are two-part (controls, secret held) and do not fit
+    # legibly on a rotated x axis at journal column width.
+    y = list(range(len(rows)))[::-1]
+
+    alarm, avail = [], []
+    for m, _, _ in rows:
+        d = ab[m]
+        alarm.append(100 * d["reached_alarm"] / d["intrusion_test_valid"]
+                     if d["intrusion_test_valid"] else 0.0)
+        avail.append(100 * d["legit_admitted_flooded"] / d["legit_attempts_flooded"]
+                     if d["legit_attempts_flooded"] else 0.0)
+
+    for ax, vals, lab, title in (
+            (ax1, alarm, "Alarm activation rate (%)",
+             "(a) Does the safety function still fire?"),
+            (ax2, avail, "Operator commands admitted (%)",
+             "(b) Can the owner still command the system?")):
+        ax.barh(y, vals, color=[C_FAIL if v < 99.0 else C_PASS for v in vals],
+                height=0.66, zorder=3)
+        ax.set_xlabel(lab)
+        ax.set_title(title, loc="left", fontsize=9)
+        ax.set_xlim(0, 118)
+        for yy, v in zip(y, vals):
+            ax.text(v + 2.5, yy, f"{v:.0f}", va="center", fontsize=7.5, color=INK)
+        ax.set_yticks(y)
+        ax.set_yticklabels([f"{c} — " + sec.replace("\n", " ") for _, c, sec in rows],
+                           fontsize=7.4)
+        ax.xaxis.grid(True, color=GRID, linewidth=0.7, zorder=0)
+        ax.set_axisbelow(True)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+
+    fig.tight_layout()
+    for ext in ("pdf", "png"):
+        fig.savefig(os.path.join(RES, f"credential_matrix.{ext}"), bbox_inches="tight")
+    print("wrote results/credential_matrix.pdf and .png")
 
 
 if __name__ == "__main__":

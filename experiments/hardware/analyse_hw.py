@@ -87,7 +87,13 @@ def main():
         import matplotlib.pyplot as plt
         plt.rcParams.update({"font.family": "serif", "font.size": 9})
         fig, ax = plt.subplots(figsize=(4.0, 2.6))
-        ax.boxplot([data[c] for c in conds], labels=conds, showfliers=True)
+        # matplotlib renamed boxplot's `labels` to `tick_labels` in 3.9 and removed the old
+        # name in 3.11. Try the new name first so this runs on whatever the reproducing
+        # laboratory happens to have installed.
+        try:
+            ax.boxplot([data[c] for c in conds], tick_labels=conds, showfliers=True)
+        except TypeError:
+            ax.boxplot([data[c] for c in conds], labels=conds, showfliers=True)
         ax.set_ylabel("sensor-to-siren latency (ms)")
         ax.set_xlabel("condition")
         for s in ("top", "right"):

@@ -118,6 +118,64 @@ It is modelled only as a party that has obtained a working credential and can co
 broker as a legitimate client would. This matters for section 7: the attack requires no
 cryptographic break at all.
 
+## 3a. Broker access control against application-layer authentication
+
+The analysis above leaves a fair objection open: a careful operator would not run a broker
+without per-client topic access-control lists. Five further arms were added to answer it, all
+on the same seeds, varying the ACL and the secret the adversary holds.
+
+**How the ACL is modelled.** As a Mosquitto-style binding of each username to the topic
+patterns it may publish and subscribe to. For the alarm to function, *some* identity must hold
+write on the command topic and the device must hold read on it. Which identity the adversary
+steals therefore decides whether the ACL contains the compromise. None of these arms is a
+deliberately weakened configuration: each is what a competent operator would deploy for the
+stated credential layout.
+
+| Controls | Secret held by adversary | Disarm | Alarm fired | Operator admitted |
+|---|---|---|---|---|
+| TLS only | none | no | 300/300 | 1250/1250 |
+| TLS only | any broker credential | yes | 50/300 | 1250/1250 |
+| TLS + per-client ACL | the one shared credential | yes | 50/300 | 1250/1250 |
+| TLS + per-client ACL | controller credential | yes | 50/300 | 1250/1250 |
+| TLS + per-client ACL | device credential | no | 300/300 | 1250/1250 |
+| HMAC + counter | any broker credential | no | 300/300 | 1250/1250 |
+| HMAC + counter | controller credential and command key | yes | 50/300 | **0/1250** |
+| **TLS + ACL + HMAC** | device credential and key (flash dump) | **no** | **300/300** | **1250/1250** |
+
+**Evidence category: simulation, model-based.** No Mosquitto instance was used. The broker is
+modelled as a per-identity permission on the command topic, and the arms do not model ACL
+pattern syntax, wildcards, bridged or clustered brokers, client-certificate identities, dynamic
+credential issuance, or revocation after a leak. Validating these arms against a running broker
+is listed as future work and needs no special hardware.
+
+**Four readings, three of which cut against this project's own mechanism.**
+
+1. **A per-client ACL is not a weaker substitute for application-layer authentication.** It
+   contains a *device* credential compromise completely. That matters disproportionately for an
+   embedded product, because the device is the physically accessible component and its broker
+   credentials sit in a readable flash image, so device compromise is the likelier event. The
+   ACL does nothing against a compromised controller, because that identity is the one it must
+   authorise to publish commands.
+2. **A shared credential defeats the ACL entirely.** The ACL must grant the single identity
+   write on the command topic for the system to work, so the configuration collapses to the
+   no-ACL case. Credential separation, not ACL syntax, carries the protection — and shared
+   credentials are common practice in deployed fleets.
+3. **A MAC does not survive key compromise, and the key is in the same flash image as the
+   credentials.** With the key dumped, the signed path is defeated exactly as the unsigned one
+   is. Only the combination holds: an adversary who dumps the device gets a key it can sign
+   with *and* a credential the broker will not let it publish commands under. What survives
+   every row of this table is layered, not cryptographic. This is the strongest argument in the
+   document against treating section 5's HMAC claim as the headline mitigation.
+4. **Under key compromise the replay counter becomes a lockout against the owner.** This was
+   not anticipated; it was found in the data when the operator-availability column read 0/1250
+   and had to be explained before it could be reported. Counters are not secret — they travel
+   in plaintext in every signed command — so an adversary holding the key can sign with a
+   counter far above the operator's. The device persists it (`persistCounter`), and every
+   subsequent operator command is rejected by `if (m.ctr <= cmdCounter)` as a replay. The
+   adversary therefore disarms the alarm *and* denies the owner control. Recovery needs a key
+   change and a counter reset, neither of which this firmware supports remotely. The mechanism
+   that defeats replay creates a denial-of-service channel the moment its key assumption fails.
+
 ## 4. What TLS does and does not protect
 
 Stated explicitly, because it would be wrong to conclude from section 3 that TLS is broken.
@@ -204,6 +262,8 @@ inflate the contribution count without evidence to support them:
 | Credential rotation / revocation | A broker-side and fleet-management concern, outside this firmware's scope. Recommended in deployment guidance, not implemented. |
 | Secure key storage (flash encryption, secure boot) | The correct mitigation for section 5.3 and an ESP-IDF platform feature, but it cannot be validated without physical hardware, which this project does not have. Documented as a requirement for any real deployment and listed in the hardware-validation framework. |
 | Separate broker-auth from command-auth | Already the structure after change 1: `m.authed` is the only path to disarm in a default build. |
+| Per-client broker ACLs | **Recommended, not implemented here**, because it is a broker-side configuration rather than firmware. Section 3a measures what it buys: it contains a device-credential compromise, which firmware alone cannot. Deployment guidance should require separate device and controller identities with write on the command topic granted only to the controller. |
+| Bounded-window or timestamp-anchored counter | Would remove the owner-lockout failure mode in reading 4, at the cost of a dependency on a trusted clock the device does not have. Recorded as a genuine trade-off rather than dismissed. |
 
 ## 7. Is this a research contribution?
 
@@ -237,6 +297,23 @@ list is unverified and must be completed from the PDF before submission.)*
 new mechanism, or novelty for HMAC-authenticated MQTT commands on an ESP32. Any such claim
 would be false.
 
+### 7a. The five candidate contributions, assessed individually
+
+Each was checked against the closest existing work rather than assumed novel.
+
+| Candidate | Verdict | Closest prior work, and what is left |
+|---|---|---|
+| Formal analysis of unsafe compile-time security assumptions | **Partly defensible, and the strongest of the five.** | The TLA+ model in this work covers the alarm state machine, *not* the compile guard; no formal artifact here proves anything about the guard, which was found by experiment. So "formal analysis of compile-time assumptions" overstates what was done. What is defensible is narrower: a configuration-logic defect in a safety-critical FSM, found by ablation, where the unsound predicate is a build condition rather than a runtime check. Claim it as an empirical finding, not a formal one. |
+| Relationship between broker authentication and application-layer authorization | **Not novel as a principle.** | Textbook, and published as an attack by Alsabbagh et al. (CSNet 2024). What section 3a adds is a *compromise-indexed* comparison on identical seeds showing neither control dominates, which we have not found stated with measurements elsewhere, but it is a careful restatement of known engineering, not a discovery. |
+| Safety-property degradation under credential compromise | **Defensible, and the most distinctive framing.** | The prior work treats credential compromise as a security failure. Framing it as the loss of a *safety* property — the alarm not sounding during a physical intrusion — and measuring the activation rate with confidence intervals against a matched control is the part a safety-oriented venue would find new. Still modest. |
+| Comparative assessment of rate limiting, static tokens, TLS, ACLs and HMAC | **Defensible as engineering evidence, weak as novelty.** | Each mechanism is individually well known. The contribution is the controlled comparison on one system, one adversary and one seed set across eleven configurations, including the negative results. Its value is that it separates availability, integrity and safety, which practitioners conflate; its weakness is that nothing in it is a new mechanism. |
+| Reproducible experimental methodology for embedded safety-critical systems | **Defensible but crowded.** | Artifact-evaluation practice is mature and many embedded-security papers ship seeded harnesses. What is unusual here is the evidence taxonomy that labels every number by category, the refusal to report any unmeasured physical quantity, and the documented record of four harness defects that produced plausible but wrong numbers. That last item is unusual in published work and is worth a short methodological subsection, not a headline claim. |
+
+The honest summary is that **no single item on this list is a novel mechanism**, and a
+manuscript claiming otherwise would not survive review. The defensible position is a
+system-and-evidence paper: one artifact, examined from several angles, that reports what it
+found including the parts that undercut its own design.
+
 What survives as a contribution, stated at the size it deserves:
 
 1. **A configuration-logic defect class, found by experiment, in a safety-critical FSM.** The
@@ -254,7 +331,14 @@ What survives as a contribution, stated at the size it deserves:
    commands/s, forgery, replay — leaves the safety path intact. The contribution is the
    *contrast*: it locates the one place where the isolation argument does not hold, and shows
    that the breach is an authorization defect rather than a timing or resource failure.
-3. **A fair baseline for the ablation.** This was the original reason for the arm. Without it,
+3. **A compromise-indexed comparison showing that no single control suffices.** Section 3a:
+   broker-side authorization and application-layer authentication fail under different
+   compromises, a shared credential collapses the ACL, and the only configuration that survives
+   every compromise tested is the layered one. The unanticipated lockout result — the replay
+   counter denying the owner service under key compromise — is the kind of negative finding
+   that a comparison run honestly produces and a comparison run to confirm a thesis does not.
+
+4. **A fair baseline for the ablation.** This was the original reason for the arm. Without it,
    the comparison "HMAC beats the alternatives" was open to the objection that a realistic
    deployment would use TLS with broker credentials and need no application-layer
    authentication. The `transport` arm (0 successful disarms, alarm fires in every trial)

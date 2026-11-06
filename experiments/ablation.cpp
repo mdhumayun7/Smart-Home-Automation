@@ -105,7 +105,9 @@ static std::string signWith(const char* key, const char* verb, uint32_t ctr) {
 }
 
 // ---------------------------------------------------------------- defences
-enum class Mode { None, RateLimit, Token, Hmac, Transport, TransportLeaked };
+enum class Mode { None, RateLimit, Token, Hmac, Transport, TransportLeaked,
+                  AclSharedLeaked, AclOperatorLeaked, AclDeviceLeaked,
+                  HmacKeyLeaked, AclHmacDeviceDump };
 
 static Mode g_mode = Mode::None;
 
@@ -125,6 +127,17 @@ static bool g_hasBrokerCreds = false;
 // system, so any observed arm is the operator's. Nuisance arming is measured separately by
 // attacker_armed and by the phase-2 replay test, so nothing is lost by excluding it here.
 static bool g_suppressAttackerArm = false;
+
+// Whether the adversary holds the device's command-signing key as well as broker credentials.
+// Set only in the arms that model a flash dump of the device, since SECRET_CMD_KEY lives in
+// the firmware image and this project does not enable flash encryption or secure boot.
+static bool g_attackerHasKey = false;
+
+// Monotone source of counters for an adversary that holds the key. Counters are not secret --
+// they travel in plaintext in every signed command -- so an adversary that can sign can also
+// pick a counter above whatever the device has persisted. Starting well above the operator's
+// range models that without needing to observe it.
+static uint32_t g_attackerCtr = 2000000u;
 
 // The shared token a "token auth" design would embed in every command. The attacker does not
 // know it at the start of the trial, but it travels in plaintext, so capturing one legitimate
@@ -187,6 +200,37 @@ static bool defenceAllows(std::string& payload, uint32_t now) {
       // Credentials have leaked, so the adversary authenticates like anyone else. The broker
       // admits every publisher and the device performs no application-layer check.
       return true;
+
+    // ---- per-client topic access-control lists
+    //
+    // A Mosquitto-style ACL binds each username to patterns it may read (subscribe) and write
+    // (publish). The command topic is the only one that matters here. For the alarm to work at
+    // all, *some* identity must hold write on the command topic, and the device must hold read
+    // on it. Which identity the adversary steals therefore decides whether the ACL contains
+    // the compromise. These arms are not a weakened ACL: each is the configuration a competent
+    // operator would actually deploy for the stated credential layout.
+    case Mode::AclSharedLeaked:
+      // One credential shared by the controller and the device, which is common practice. The
+      // ACL must then grant that single identity write on the command topic, so a leak of it
+      // conveys full command authority and the ACL cannot help.
+      return true;
+    case Mode::AclOperatorLeaked:
+      // Per-client credentials, correct ACL, and the *controller's* identity is compromised.
+      // That identity is the one authorised to publish commands, so the ACL permits the
+      // adversary's publish exactly as it permits the operator's.
+      return true;
+    case Mode::AclDeviceLeaked:
+    case Mode::AclHmacDeviceDump:
+      // Per-client credentials, correct ACL, and the *device's* identity is compromised --
+      // the likelier case for an embedded product, because the device is the physically
+      // accessible component and its credentials sit in a readable flash image. The device
+      // identity holds read on the command topic and write on the status topic, never write
+      // on the command topic, so the broker refuses the adversary's publish.
+      return g_hasBrokerCreds;
+    case Mode::HmacKeyLeaked:
+      // The controller host is compromised, yielding both its broker credentials and the
+      // shared command key. Nothing at either layer refuses this adversary.
+      return true;
   }
   return true;
 }
@@ -206,10 +250,14 @@ struct Attacker {
     g_hasBrokerCreds = false;          // the adversary holds no broker credentials
     std::uniform_int_distribution<int> pick(0, 3);
     switch (pick(rng)) {
-      case 0: {   // forged: correctly shaped, signed with a key the attacker does not have
-        std::uniform_int_distribution<uint32_t> c(1, 4000000000u);
+      case 0: {   // signed: with the real key if the adversary has dumped it, otherwise not
         const char* verb = g_suppressAttackerArm ? "DISARM" : ((rng() & 1) ? "DISARM" : "ARM");
-        deliverGuarded(signWith("attacker-key-not-the-device-key", verb, c(rng)), now);
+        if (g_attackerHasKey) {
+          deliverGuarded(signWith(SECRET_CMD_KEY, verb, g_attackerCtr++), now);
+        } else {
+          std::uniform_int_distribution<uint32_t> c(1, 4000000000u);
+          deliverGuarded(signWith("attacker-key-not-the-device-key", verb, c(rng)), now);
+        }
         break;
       }
       case 1: {   // replay of something captured on the wire
@@ -265,7 +313,15 @@ static std::string legitCommand(const char* verb, uint32_t ctr) {
       // Transport security carries no application-layer credential: the device receives a
       // bare verb, exactly as in the undefended case. The protection is entirely at the broker.
       return std::string(verb);
-    case Mode::Hmac:      return signWith(SECRET_CMD_KEY, verb, ctr);
+    case Mode::AclSharedLeaked:
+    case Mode::AclOperatorLeaked:
+    case Mode::AclDeviceLeaked:
+      // An ACL is a broker-side control. The device still receives a bare verb.
+      return std::string(verb);
+    case Mode::Hmac:
+    case Mode::HmacKeyLeaked:
+    case Mode::AclHmacDeviceDump:
+      return signWith(SECRET_CMD_KEY, verb, ctr);
   }
   return verb;
 }
@@ -475,16 +531,27 @@ int main(int argc, char** argv) {
   else if (!strcmp(modeName, "hmac")) g_mode = Mode::Hmac;
   else if (!strcmp(modeName, "transport")) g_mode = Mode::Transport;
   else if (!strcmp(modeName, "transport_leaked")) g_mode = Mode::TransportLeaked;
+  else if (!strcmp(modeName, "acl_shared_leaked")) g_mode = Mode::AclSharedLeaked;
+  else if (!strcmp(modeName, "acl_operator_leaked")) g_mode = Mode::AclOperatorLeaked;
+  else if (!strcmp(modeName, "acl_device_leaked")) g_mode = Mode::AclDeviceLeaked;
+  else if (!strcmp(modeName, "hmac_keyleaked")) g_mode = Mode::HmacKeyLeaked;
+  else if (!strcmp(modeName, "acl_hmac_devicedump")) g_mode = Mode::AclHmacDeviceDump;
   else { fprintf(stderr, "unknown --mode %s\n", modeName); return 2; }
 
+  // The arms that model a flash dump or a compromised controller give the adversary the
+  // command key as well as broker credentials.
+  g_attackerHasKey = (g_mode == Mode::HmacKeyLeaked || g_mode == Mode::AclHmacDeviceDump);
+
+  const bool needsAuthBuild = (g_mode == Mode::Hmac || g_mode == Mode::HmacKeyLeaked ||
+                               g_mode == Mode::AclHmacDeviceDump);
 #if AUTH_COMMANDS
-  if (g_mode != Mode::Hmac) {
-    fprintf(stderr, "build has AUTH_COMMANDS=1; only --mode hmac is meaningful\n");
+  if (!needsAuthBuild) {
+    fprintf(stderr, "build has AUTH_COMMANDS=1; only the signed-command modes are meaningful\n");
     return 2;
   }
 #else
-  if (g_mode == Mode::Hmac) {
-    fprintf(stderr, "--mode hmac needs a build with -DAUTH_COMMANDS=1\n");
+  if (needsAuthBuild) {
+    fprintf(stderr, "--mode %s needs a build with -DAUTH_COMMANDS=1\n", modeName);
     return 2;
   }
 #endif
@@ -492,14 +559,20 @@ int main(int argc, char** argv) {
   // Only the leaked-credential mode is meaningful in a build that permits remote disarm
   // without application-layer authentication, which the firmware allows only under
   // MQTT_USE_TLS with broker credentials.
-  if (g_mode != Mode::TransportLeaked) {
-    fprintf(stderr, "build has ALLOW_REMOTE_DISARM=1; only --mode transport_leaked applies\n");
+  const bool needsDisarmBuild = (g_mode == Mode::TransportLeaked ||
+                                 g_mode == Mode::AclSharedLeaked ||
+                                 g_mode == Mode::AclOperatorLeaked ||
+                                 g_mode == Mode::AclDeviceLeaked);
+  if (!needsDisarmBuild) {
+    fprintf(stderr, "build has ALLOW_REMOTE_DISARM=1; only the unauthenticated-disarm modes "
+                    "apply\n");
     return 2;
   }
 #else
-  if (g_mode == Mode::TransportLeaked) {
-    fprintf(stderr, "--mode transport_leaked needs a build with -DMQTT_USE_TLS=1 "
-                    "-DSECRET_MQTT_USER=... -DALLOW_REMOTE_DISARM=1\n");
+  if (g_mode == Mode::TransportLeaked || g_mode == Mode::AclSharedLeaked ||
+      g_mode == Mode::AclOperatorLeaked || g_mode == Mode::AclDeviceLeaked) {
+    fprintf(stderr, "--mode %s needs a build with -DMQTT_USE_TLS=1 "
+                    "-DSECRET_MQTT_USER=... -DALLOW_REMOTE_DISARM=1\n", modeName);
     return 2;
   }
 #endif

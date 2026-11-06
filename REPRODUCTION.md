@@ -193,7 +193,7 @@ python3 experiments/hardware/collect.py --port /dev/ttyUSB1 --condition C --n 20
 | Column | Type | Meaning |
 |---|---|---|
 | `condition` | string | A, B, C or D |
-| `sample` | integer | Index within the condition |
+| `index` | integer | Index within the condition, as written by `collect.py` |
 | `latency_us` | integer | Microseconds from the sensor edge to the siren edge, as timed by the probe |
 
 Then:
