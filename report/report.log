@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.11.3)  7 NOV 2026 17:23
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.11.3)  7 NOV 2026 17:28
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1218,7 +1218,7 @@ Underfull \hbox (badness 7944) in paragraph at lines 22--23
 ]) [72]
 Appendix B.
 
-Overfull \hbox (2.1234pt too wide) in paragraph at lines 22--27
+Overfull \hbox (2.1234pt too wide) in paragraph at lines 28--33
 []\T1/lmr/m/n/10.95 (-20) The com-plete source is dis-tributed as \T1/lmtt/m/n/
 10 FINAL_-SUBMISSION_-PACKAGE/source_-code/COMPLETE_-
  []
@@ -1233,12 +1233,12 @@ Underfull \hbox (badness 10000) in paragraph at lines 24--24
 ]) [74]
 Appendix C.
 
-Underfull \hbox (badness 10000) in paragraph at lines 44--44
+Underfull \hbox (badness 10000) in paragraph at lines 50--50
 []|\T1/lmtt/m/n/10 ACKNOWLEDGE_-
  []
 
 
-Overfull \hbox (2.17706pt too wide) in paragraph at lines 44--44
+Overfull \hbox (2.17706pt too wide) in paragraph at lines 50--50
 []|\T1/lmr/m/n/10.95 (-20) undefined| 
  []
 
@@ -1247,47 +1247,47 @@ Overfull \hbox (2.17706pt too wide) in paragraph at lines 44--44
 ] [76]
 Appendix D.
 
-Underfull \hbox (badness 10000) in paragraph at lines 96--96
+Underfull \hbox (badness 10000) in paragraph at lines 102--102
 []|\T1/lmtt/m/n/10 MaxCtr = 4\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Overfull \hbox (18.85497pt too wide) in paragraph at lines 96--96
+Overfull \hbox (18.85497pt too wide) in paragraph at lines 102--102
 \T1/lmtt/m/n/10 AllowUnauthDisarm = FALSE| 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 98--98
+Underfull \hbox (badness 10000) in paragraph at lines 104--104
 []|\T1/lmtt/m/n/10 QCap = 16\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 98--99
+Underfull \hbox (badness 10000) in paragraph at lines 104--105
 []|\T1/lmr/m/n/10.95 (+20) 2,686 gen-er-ated,
  []
 
 
-Underfull \hbox (badness 1735) in paragraph at lines 98--99
+Underfull \hbox (badness 1735) in paragraph at lines 104--105
 \T1/lmr/m/n/10.95 (+20) 660 dis-tinct, no
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 100--100
+Underfull \hbox (badness 10000) in paragraph at lines 106--106
 []|\T1/lmtt/m/n/10 AlarmFSM_-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 100--100
+Underfull \hbox (badness 10000) in paragraph at lines 106--106
 []|\T1/lmtt/m/n/10 MaxCtr = 4\T1/lmr/m/n/10.95 (+20) ,
  []
 
 
-Overfull \hbox (13.60498pt too wide) in paragraph at lines 100--100
+Overfull \hbox (13.60498pt too wide) in paragraph at lines 106--106
 \T1/lmtt/m/n/10 AllowUnauthDisarm = TRUE| 
  []
 
 
-Overfull \hbox (18.74368pt too wide) in paragraph at lines 101--101
+Overfull \hbox (18.74368pt too wide) in paragraph at lines 107--107
 []|\T1/lmtt/m/n/10 NoUnauthRemoteDisarm
  []
 
@@ -1296,47 +1296,47 @@ Overfull \hbox (18.74368pt too wide) in paragraph at lines 101--101
 ]
 Appendix E.
 
-Underfull \hbox (badness 10000) in paragraph at lines 119--119
+Underfull \hbox (badness 10000) in paragraph at lines 125--125
 []|\T1/lmr/m/n/10.95 (+20) 3 con-fig-u-ra-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 120--120
+Underfull \hbox (badness 10000) in paragraph at lines 126--126
 []|\T1/lmtt/m/n/10 experiments/test_-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 120--120
+Underfull \hbox (badness 10000) in paragraph at lines 126--126
 []|\T1/lmr/m/n/10.95 (+20) 19,529 tran-si-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 122--122
+Underfull \hbox (badness 10000) in paragraph at lines 128--128
 []|\T1/lmr/m/n/10.95 (+20) metamorphic
  []
 
 
-Underfull \hbox (badness 1048) in paragraph at lines 122--125
+Underfull \hbox (badness 1048) in paragraph at lines 128--131
 \T1/lmr/m/n/10.95 (+20) sen-si-tiv-ity, mono-tone at-tack ef-fort,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 125--125
+Underfull \hbox (badness 10000) in paragraph at lines 131--131
 []|\T1/lmtt/m/n/10 experiments/corpus/test_-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 128--128
+Underfull \hbox (badness 10000) in paragraph at lines 134--134
 []|\T1/lmtt/m/n/10 experiments/validate_-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 130--130
+Underfull \hbox (badness 10000) in paragraph at lines 136--136
 []|\T1/lmtt/m/n/10 experiments/check_-figure_-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 131--131
+Underfull \hbox (badness 10000) in paragraph at lines 137--137
 []|\T1/lmtt/m/n/10 experiments/check_-figure_-
  []
 
@@ -1345,7 +1345,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 131--131
 ]
 Appendix F.
 
-Overfull \hbox (9.79176pt too wide) in paragraph at lines 142--146
+Overfull \hbox (9.79176pt too wide) in paragraph at lines 148--152
 \T1/lmtt/m/n/10 arduino-cli \T1/lmr/m/n/10.95 (-20) with the \T1/lmtt/m/n/10 es
 p32:esp32 \T1/lmr/m/n/10.95 (-20) core; the \T1/lmtt/m/n/10 Adafruit SSD1306\T1
 /lmr/m/n/10.95 (-20) , \T1/lmtt/m/n/10 Adafruit GFX \T1/lmr/m/n/10.95 (-20) and
@@ -1485,131 +1485,131 @@ Underfull \hbox (badness 10000) in paragraph at lines 23--24
 ]
 Appendix I.
 
-Overfull \hbox (2.21098pt too wide) in paragraph at lines 229--229
+Overfull \hbox (2.21098pt too wide) in paragraph at lines 235--235
 []|\T1/lmr/bx/n/10.95 (-20) Shielding| 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 232--232
+Underfull \hbox (badness 10000) in paragraph at lines 238--238
 []|\T1/lmr/m/n/10.95 (+20) A ---
  []
 
 
-Underfull \hbox (badness 3029) in paragraph at lines 232--234
+Underfull \hbox (badness 3029) in paragraph at lines 238--240
 []|\T1/lmr/m/n/10.95 (+20) The con-trol dis-tri-bu-tion and the
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 234--234
+Underfull \hbox (badness 10000) in paragraph at lines 240--240
 []|\T1/lmr/m/n/10.95 (+20) B ---
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 234--234
+Underfull \hbox (badness 10000) in paragraph at lines 240--240
 \T1/lmr/m/n/10.95 (+20) le-git-i-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 234--234
+Underfull \hbox (badness 10000) in paragraph at lines 240--240
 \T1/lmr/m/n/10.95 (+20) mate
  []
 
 
-Underfull \hbox (badness 1127) in paragraph at lines 234--234
+Underfull \hbox (badness 1127) in paragraph at lines 240--240
 []|\T1/lmr/m/n/10.95 (+20) Frequent sta-tus pub-li-ca-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 237--237
+Underfull \hbox (badness 10000) in paragraph at lines 243--243
 []|\T1/lmr/m/n/10.95 (+20) C ---
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 237--237
+Underfull \hbox (badness 10000) in paragraph at lines 243--243
 \T1/lmr/m/n/10.95 (+20) com-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 237--237
+Underfull \hbox (badness 10000) in paragraph at lines 243--243
 \T1/lmr/m/n/10.95 (+20) mand
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 239--239
+Underfull \hbox (badness 10000) in paragraph at lines 245--245
 []|\T1/lmr/m/n/10.95 (+20) D ---
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 239--239
+Underfull \hbox (badness 10000) in paragraph at lines 245--245
 \T1/lmr/m/n/10.95 (+20) ra-dio
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 239--239
+Underfull \hbox (badness 10000) in paragraph at lines 245--245
 []|\T1/lmr/m/n/10.95 (+20) 802.11 deau-then-ti-ca-tion
  []
 
 [82
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 284--284
+Underfull \hbox (badness 10000) in paragraph at lines 290--290
 []|\T1/lmtt/m/n/10 experiments/hardware/latency_-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 286--286
+Underfull \hbox (badness 10000) in paragraph at lines 292--292
 []|\T1/lmtt/m/n/10 experiments/hardware/analyse_-
  []
 
 [83]
 Appendix J.
 
-Underfull \hbox (badness 10000) in paragraph at lines 320--320
+Underfull \hbox (badness 10000) in paragraph at lines 326--326
 []|\T1/lmr/bx/n/10.95 (+20) author con-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 320--320
+Underfull \hbox (badness 10000) in paragraph at lines 326--326
 \T1/lmr/bx/n/10.95 (+20) fir-ma-tion
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 322--322
+Underfull \hbox (badness 10000) in paragraph at lines 328--328
 []|\T1/lmr/bx/n/10.95 (+20) author con-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 322--322
+Underfull \hbox (badness 10000) in paragraph at lines 328--328
 \T1/lmr/bx/n/10.95 (+20) fir-ma-tion
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 323--323
+Underfull \hbox (badness 10000) in paragraph at lines 329--329
 []|\T1/lmr/m/n/10.95 (+20) Authorship con-tri-bu-tion
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 323--323
+Underfull \hbox (badness 10000) in paragraph at lines 329--329
 []|\T1/lmr/bx/n/10.95 (+20) author con-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 323--323
+Underfull \hbox (badness 10000) in paragraph at lines 329--329
 \T1/lmr/bx/n/10.95 (+20) fir-ma-tion
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 325--325
+Underfull \hbox (badness 10000) in paragraph at lines 331--331
 []|\T1/lmr/m/n/10.95 (+20) Corresponding au-thor's
  []
 
 
-Underfull \hbox (badness 1297) in paragraph at lines 327--327
+Underfull \hbox (badness 1297) in paragraph at lines 333--333
 []|\T1/lmr/m/n/10.95 (+20) Institutional sim-i-lar-ity re-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 331--333
+Underfull \hbox (badness 10000) in paragraph at lines 337--339
 \T1/lmtt/m/n/10 zeghida2024\T1/lmr/m/n/10.95 (+20) , and an ISBN for
  []
 
@@ -1649,7 +1649,7 @@ ublic/lm/lmtt10.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt8.pfb></usr/sha
 re/texmf/fonts/type1/public/lm/lmtt9.pfb></usr/share/texmf/fonts/type1/public/l
 m/lmtti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbol
 s/msam10.pfb>
-Output written on report.pdf (98 pages, 902989 bytes).
+Output written on report.pdf (98 pages, 903317 bytes).
 PDF statistics:
  2390 PDF objects out of 2487 (max. 8388607)
  2174 compressed objects within 22 object streams

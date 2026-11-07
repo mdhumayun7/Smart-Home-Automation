@@ -1,6 +1,6 @@
 # Final submission checklist
 
-Status of every submission requirement at commit `1f16880`. Each row carries the evidence that
+Status of every submission requirement at commit `5fbe123`. Each row carries the evidence that
 established it, not an assertion that it is done.
 
 **Summary: the academic report is complete. The journal manuscript is not submission-ready.**
