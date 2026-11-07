@@ -144,7 +144,11 @@ system it checks.
 
 Neither method we used is novel. What we report is that applying them to a system's
 \emph{assumptions}, rather than to its running behaviour, caught two defects that testing,
-fuzzing, exhaustive model checking and 9{,}300 adversarial trials all missed. We make the
+fuzzing, exhaustive model checking and 9{,}300 adversarial trials all missed. A third instance
+turned up in our own formal work: the invariant stating that unauthenticated remote disarm
+never takes effect was vacuous in the specification we shipped, because it \emph{assumed} the
+refusal instead of deriving it---the same unsound inference the compile guard made
+(Section~\ref{sec:vacuity}). We make the
 following contributions in support of that claim, each stated with the evidence behind it and
 the limits of that evidence. We claim no new mechanism, attack, protocol or formalism.
 
@@ -670,7 +674,8 @@ them distinct, to a graph depth of 26, with no violation.
 
 \begin{table}[t]
 \centering\small
-\caption{Properties verified by TLC. Both specifications were additionally mutation-tested.}
+\caption{Properties verified by TLC. Both specifications are mutation-tested; see
+Section~\ref{sec:vacuity} for a property that was vacuous in the shipped specification.}
 \label{tab:properties}
 \begin{tabular}{@{}llp{0.48\textwidth}@{}}
 \toprule
@@ -689,13 +694,37 @@ Property & Type & Statement \\
 \end{tabular}
 \end{table}
 
-\subsection{Mutation testing}
+\subsection{Mutation testing, and a vacuous invariant we shipped}\label{sec:vacuity}
 
-A model checker reports no violation for a vacuous specification as readily as for a sound one.
-We therefore injected defects corresponding to each property and confirmed that TLC reports the
-expected violation: permitting an unauthenticated disarm violates
-\textsc{NoUnauthRemoteDisarm}, and allowing the network task to write alarm state violates
-\textsc{NoNetworkWrite}. The properties therefore have force.
+A model checker reports no violation for a vacuous specification as readily as for a sound one,
+so each property must be shown to have force. Allowing the network task to write alarm state
+violates \textsc{NoNetworkWrite}, as expected.
+
+\textsc{NoUnauthRemoteDisarm} did not have force, and we report this because the reason is the
+subject of this paper. The specification modelled an unauthenticated remote command with an
+action named \texttt{RemoteUnauthDisarmRefused} whose entire body was
+\texttt{UNCHANGED}, carrying a comment asserting that this is ``exactly as the firmware does''.
+The flag \texttt{badDisarm} was initialised false and left unchanged by every action in the
+specification, so it could never become true. The invariant
+$\textsc{NoUnauthRemoteDisarm}$, which states simply that \texttt{badDisarm} is false, was
+therefore unfalsifiable by construction. The mutation test for it had been performed by hand-editing a local copy; the
+specification we shipped and checked in continuous integration was vacuous for that property.
+
+The cause is the same unsound inference the compile guard encoded. Both artefacts
+\emph{assumed} that an unauthenticated remote disarm is refused, rather than deriving it, so
+neither could detect that a build configuration existed in which it is not. A model that
+embeds the assumption under test cannot test it, and this is why exhaustive model checking did
+not find a defect the ablation did.
+
+The configuration is now a parameter of the specification. With
+$\texttt{AllowUnauthDisarm} = \textsc{false}$ the command is refused and the invariant holds
+non-vacuously, the violating action being reachable under the other valuation; with
+$\texttt{AllowUnauthDisarm} = \textsc{true}$ the command takes effect exactly as the
+\texttt{ALLOW\_REMOTE\_DISARM} build does, and TLC returns a three-state counterexample in which
+the system is armed by button and then disarmed by an unauthenticated remote command. Both
+configurations run in continuous integration, and the defective one is required to \emph{fail}:
+a run in which it passes means the invariant has become vacuous again. The defect is therefore
+now reproduced formally as well as experimentally.
 
 \subsection{What the models do not cover}
 

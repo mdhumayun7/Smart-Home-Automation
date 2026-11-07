@@ -19,7 +19,8 @@
 (***************************************************************************)
 EXTENDS Naturals
 
-CONSTANT MaxCtr            \* bound the counter so the state space is finite
+CONSTANT MaxCtr,           \* bound the counter so the state space is finite
+         AllowUnauthDisarm \* the ALLOW_REMOTE_DISARM build switch, modelled explicitly
 
 VARIABLES state,          \* Disarmed, ExitDelay, Armed, EntryDelay, Alarm
           ctr,            \* highest accepted authenticated command counter
@@ -95,19 +96,35 @@ RemoteReplay(n) ==
   /\ n <= ctr
   /\ UNCHANGED <<state, ctr, badDisarm>>
 
-(* An UNauthenticated remote command. The firmware refuses it: ARM is ignored here for the
-   abstraction, and DISARM must NOT take effect. We model the *attempted* disarm and assert,
-   through the firmware's rule, that state does not change. If a future change ever let it
-   through, badDisarm would be set and the safety invariant would catch it. *)
-RemoteUnauthDisarmRefused ==
+(* An UNauthenticated remote command, modelled as the firmware actually behaves rather than as
+   we would like it to.
+
+   This action previously hard-coded the refusal as UNCHANGED, with a comment asserting that
+   this is "exactly as the firmware does". That was an assumption, not a verified fact, and it
+   made the whole exercise vacuous: badDisarm was initialised FALSE and left UNCHANGED by every
+   action, so NoUnauthRemoteDisarm could not fail under any behaviour. The invariant was
+   unfalsifiable by construction, and the specification therefore embedded the very assumption
+   that the compile-time guard in the firmware got wrong. That is why model checking did not
+   catch a defect the ablation did.
+
+   The configuration is now a parameter. With AllowUnauthDisarm = FALSE the command is refused
+   and the invariant holds non-vacuously, because the violating action exists and is reachable
+   under the other valuation. With AllowUnauthDisarm = TRUE the command takes effect, exactly
+   as the ALLOW_REMOTE_DISARM build does, and TLC reports the violation: the defect is now
+   reproduced formally as well as experimentally. See formal/run_tlc.sh, which checks both. *)
+RemoteUnauthDisarm ==
   /\ state \in ArmedLike
-  /\ UNCHANGED <<state, ctr, badDisarm>>   \* refused: no effect, exactly as the firmware does
+  /\ IF AllowUnauthDisarm
+       THEN /\ state' = "Disarmed"
+            /\ badDisarm' = TRUE
+            /\ UNCHANGED ctr
+       ELSE UNCHANGED <<state, ctr, badDisarm>>
 
 Next ==
   \/ ButtonArm \/ ButtonDisarm
   \/ ExitExpire \/ SensorTrigger \/ EntryExpire \/ AlarmExpire
   \/ \E n \in 1..MaxCtr : RemoteAuthArm(n) \/ RemoteAuthDisarm(n) \/ RemoteReplay(n)
-  \/ RemoteUnauthDisarmRefused
+  \/ RemoteUnauthDisarm
 
 (* Fairness so the timed transitions actually happen, for the liveness properties. *)
 Fairness ==
