@@ -176,8 +176,11 @@ then carries a lower counter and is correctly rejected as a replay.
 
 The mechanism behaved exactly as specified. The specification was incomplete: it did not
 consider that an adversary who can advance the counter can also exhaust the operator's ability
-to use it. This was not predicted, and the authors have not found it reported for counter-based
-replay protection in embedded command paths. It is reported as a negative result about a design
+to use it. This was not predicted by this project, though the mechanism itself is not new: Wara
+and Yu~\cite{wara2020} state it as background in the ZigBee setting, without a citation and
+without an experiment. What is contributed here is the measurement --- a complete rather than
+partial lockout, 0 of 1,250 --- and the resulting observation that replay resistance and owner
+availability are coupled under key compromise. It is reported as a negative result about a design
 decision made in this project, and a candidate repair --- a counter-resynchronisation path
 authenticated by the local button, which is physically present and outside the adversary's reach
 --- is identified in Chapter~\ref{ch:limitations} as future work. It has not been implemented or

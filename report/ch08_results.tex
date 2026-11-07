@@ -172,9 +172,19 @@ device persists that counter, as it must in order to resist replay. Every subseq
 command then carries a lower counter and is correctly rejected as a replay. The mechanism that
 defeats capture-and-replay has become a lockout against the legitimate owner.
 
-The authors have not found this reported for counter-based replay protection in embedded command
-paths. It is a consequence of a design decision made in this project, and it is reported as a
-negative result about that decision.
+\textbf{The mechanism is not new; the measurement is.} A literature check carried out for this
+report found the mechanism stated as background in work on ZigBee replay attacks: Wara and
+Yu~\cite{wara2020} note that an attacker can set a device's frame counter above its normal value
+so that subsequent lower-counter frames are discarded. They state it in passing, without a
+citation and without an experiment, and their own measurements go the other way --- they test
+whether raising a captured frame's counter lets a \emph{replay} succeed, not whether it blocks
+legitimate traffic.
+
+What this work adds is therefore not the observation but the quantification and the attribution:
+the lockout is complete rather than partial (0 of 1,250), it arises from a design decision made
+for a defensible reason, and it shows that replay resistance and owner availability are coupled
+under key compromise rather than independent. An earlier draft of this report claimed the
+mechanism had not been reported at all. That claim was wrong and has been withdrawn.
 
 \subsection{An overclaim found by measuring the missing arm}\label{sec:res-overclaim}
 

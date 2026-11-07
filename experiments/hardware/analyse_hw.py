@@ -20,7 +20,7 @@ from collections import defaultdict
 def mann_whitney_u(a, b):
     n1, n2 = len(a), len(b)
     if n1 == 0 or n2 == 0:
-        return None, None, None
+        return None, None, None, False
     combined = sorted([(v, 0) for v in a] + [(v, 1) for v in b])
     ranks = [0.0] * len(combined)
     i = 0
@@ -42,10 +42,15 @@ def mann_whitney_u(a, b):
     n = n1 + n2
     var = (n1 * n2 / 12.0) * ((n + 1) - tie_term / (n * (n - 1))) if n > 1 else 0.0
     if var <= 0:
-        return u, 0.0, 1.0
+        # Every reading in both conditions is identical, so the statistic has zero variance
+        # and the test cannot reject under any data. That is not the same as failing to
+        # reject, so the degeneracy is returned and labelled rather than reported as a pass.
+        # This does not alter the pre-registered test: it only prevents a degenerate case
+        # being reported as evidence of no difference.
+        return u, 0.0, 1.0, True
     z = (u - mu) / math.sqrt(var)
     p = math.erfc(abs(z) / math.sqrt(2))
-    return u, z, p
+    return u, z, p, False
 
 
 def main():
@@ -76,8 +81,11 @@ def main():
         for c in conds:
             if c == args.control:
                 continue
-            u, z, p = mann_whitney_u(data[c], data[args.control])
-            verdict = "indistinguishable" if (p is None or p > 0.05) else "DIFFERENT"
+            u, z, p, degenerate = mann_whitney_u(data[c], data[args.control])
+            if degenerate:
+                verdict = "DEGENERATE: zero variance, test cannot reject"
+            else:
+                verdict = "indistinguishable" if (p is None or p > 0.05) else "DIFFERENT"
             print(f"  {c}: U={u} z={None if z is None else round(z,3)} "
                   f"p={None if p is None else round(p,4)} -> {verdict}")
 

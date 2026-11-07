@@ -60,13 +60,17 @@ def mann_whitney_u(a, b):
     n = n1 + n2
     sigma_sq = (n1 * n2 / 12.0) * ((n + 1) - tie_term / (n * (n - 1))) if n > 1 else 0.0
     if sigma_sq <= 0:
-        # All values identical: distributions are indistinguishable.
-        return u, 0.0, 1.0
+        # Every observation in both samples is identical, so the rank-sum statistic has zero
+        # variance and the test is degenerate: it cannot reject under ANY data, which is a
+        # different thing from failing to reject. Returning p = 1.0 alone would be read as
+        # "no difference found", so the degeneracy is returned as a third value and carried
+        # into the verdict, rather than being noted only in the surrounding prose.
+        return u, 0.0, 1.0, True
     z = (u - mu) / (sigma_sq ** 0.5)
     # two-sided p from the normal approximation
     import math
     p = math.erfc(abs(z) / math.sqrt(2))
-    return u, z, p
+    return u, z, p, False
 
 
 def summarise(rows, label):
@@ -143,9 +147,14 @@ def main():
         if rate == 0:
             continue
         lat = hard["rates"][rate]["_lat"]
-        u, z, p = mann_whitney_u(lat, control)
-        verdict = "indistinguishable" if (p is None or p > 0.05) else "DIFFERENT"
-        tests[rate] = {"U": u, "z": z, "p": p, "verdict": verdict}
+        u, z, p, degenerate = mann_whitney_u(lat, control)
+        if degenerate:
+            # Do not label a test that cannot fail as a test that passed.
+            verdict = "degenerate: zero variance, test cannot reject"
+        else:
+            verdict = "indistinguishable" if (p is None or p > 0.05) else "DIFFERENT"
+        tests[rate] = {"U": u, "z": z, "p": p,
+                       "degenerate_zero_variance": degenerate, "verdict": verdict}
         lines.append(f"| {rate} | {len(lat)} | {len(control)} | {fmt(u)} | {fmt(None if z is None else round(z,3))} "
                      f"| {fmt(None if p is None else round(p,4))} | {verdict} |")
 
