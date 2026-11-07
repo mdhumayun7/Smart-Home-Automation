@@ -1105,8 +1105,10 @@ controller, because that is the identity the ACL must authorise to publish comma
 
 Second, a shared credential defeats the ACL entirely. The ACL must grant the single identity
 write access to the command topic for the system to work at all, so the configuration collapses
-to the no-ACL case. Credential separation, not ACL syntax, carries the protection, and shared
-credentials are common practice in deployed IoT fleets.
+to the no-ACL case. Credential separation, not ACL syntax, carries the protection. We
+include this arm because a single shared credential is the configuration an operator reaches
+for when per-device provisioning is inconvenient; we have no deployment data on how often that
+happens, and we make no claim about its prevalence.
 
 Third, a MAC does not survive key compromise, and on this platform the key is in the same flash
 image as the broker credentials. With the command key dumped, the signed path is defeated
