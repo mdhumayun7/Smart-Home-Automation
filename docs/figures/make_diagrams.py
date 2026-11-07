@@ -144,7 +144,7 @@ def command_flow():
     ], size="small")
 
     # domain bands
-    f.box(40, 80, 1020, 300, fill=NETWORK, dash="7 5", rx=14)
+    f.box(40, 80, 1020, 290, fill=NETWORK, dash="7 5", rx=14)
     f.text(60, 104, "CORE 0  —  network domain  (networkTask, priority 1, 8 KB stack)",
            size="head", anchor="start", bold=True)
     f.box(40, 430, 1020, 290, fill=SAFETY, dash="7 5", rx=14)
@@ -164,19 +164,24 @@ def command_flow():
         f.arrow([(x0, 193), (x1, 193)])
 
     # rejection paths out of core 0
-    f.box(300, 282, 460, 72, fill=LIGHT, dash="4 3")
-    f.text(530, 306, "rejected on core 0  —  never reaches the safety core", size="body", bold=True)
-    f.lines(530, 328, [
-        "malformed: dropped silently   ·   bad tag: cmd_badmac   ·   unsigned: cmd_unauth"
+    f.box(250, 282, 580, 80, fill=LIGHT, dash="4 3")
+    f.text(540, 306, "rejected on core 0  —  never reaches the safety core",
+           size="body", bold=True)
+    f.lines(540, 328, [
+        "malformed: dropped silently   ·   bad tag: cmd_badmac",
+        "unsigned: cmd_unauth",
     ], size="small")
     f.arrow([(495, 236), (495, 282)], dash="4 3")
     f.arrow([(665, 236), (620, 282)], dash="4 3")
 
     # the queue crossing
-    f.box(790, 386, 170, 58, fill=DARK, rx=8)
-    f.text(875, 412, "cmdQ  depth 4", size="body", bold=True)
-    f.text(875, 430, "bounded, non-blocking", size="small", fill=MUTED)
-    f.arrow([(875, 236), (875, 386)], sw=2.4)
+    # The badge sits in the gap between the two domain bands: it is the only object that
+    # crosses the boundary, which is the point the figure makes.
+    f.box(762, 374, 226, 52, fill=DARK, rx=8)
+    f.text(875, 396, "cmdQ  depth 4", size="body", bold=True)
+    f.text(875, 416, "bounded, non-blocking", size="small", fill=MUTED)
+    f.arrow([(875, 236), (875, 374)], sw=2.4)
+    f.arrow([(875, 426), (875, 470)], sw=2.4)
 
     # core 1 stages
     f.box(700, 470, 260, 86, fill=MID)
@@ -194,11 +199,12 @@ def command_flow():
     f.text(260, 518, "NVS write BEFORE acting:", size="small", fill=MUTED)
     f.text(260, 536, "a crash cannot replay", size="small", fill=MUTED)
 
-    f.box(150, 600, 500, 92, fill=LIGHT)
-    f.text(400, 626, "authorise and execute", size="body", bold=True)
-    f.lines(400, 648, [
-        "DISARM requires m.authed OR ALLOW_REMOTE_DISARM, else cmd_rejected",
-        "ARM / ARM_AWAY only from DISARMED, else cmd_ignored   ·   STATUS publishes",
+    f.box(150, 600, 560, 100, fill=LIGHT)
+    f.text(430, 628, "authorise and execute", size="body", bold=True)
+    f.lines(430, 652, [
+        "DISARM requires m.authed or ALLOW_REMOTE_DISARM,",
+        "else cmd_rejected   ·   STATUS always publishes",
+        "ARM / ARM_AWAY only from DISARMED, else cmd_ignored",
     ], size="small")
 
     f.arrow([(700, 513), (650, 513)])
@@ -206,14 +212,14 @@ def command_flow():
     f.arrow([(260, 556), (260, 600)])
 
     # response path back up
-    f.box(700, 600, 260, 92, fill=LIGHT, dash="4 3")
-    f.text(830, 626, "response", size="body", bold=True)
-    f.lines(830, 648, [
+    f.box(740, 600, 300, 100, fill=LIGHT, dash="4 3")
+    f.text(890, 628, "response", size="body", bold=True)
+    f.lines(890, 652, [
         "retained state publish",
         "plus one outcome event",
         "no acknowledgement protocol",
     ], size="small")
-    f.arrow([(650, 646), (700, 646)], dash="4 3")
+    f.arrow([(710, 650), (740, 650)], dash="4 3")
 
     f.text(550, 738,
            "Dashed: rejection and reporting paths.  Solid: the accepted-command path.",
@@ -723,11 +729,11 @@ def guard_decision():
     """
     OK, BAD = "#2E7D32", "#C0392B"
     OKF, BADF = "#E9F7EF", "#FDECEC"
-    f = Fig(1180, 700, "Compile-time guard for unauthenticated remote disarm")
-    f.text(590, 36, "The compile guard, before and after", size="title", bold=True)
-    f.lines(590, 60, [
+    f = Fig(1180, 706, "Compile-time guard for unauthenticated remote disarm", crop_top=14)
+    f.lines(590, 34, [
         "A build condition is a security argument. This one asserted that transport security "
-        "plus a broker login implies publisher authority.",
+        "plus a broker login",
+        "implies publisher authority.",
     ], size="small")
 
     def diamond(cx, cy, w, h, label, rows, fill=LIGHT, stroke=LINE):
@@ -740,27 +746,27 @@ def guard_decision():
     f.box(36, 100, 554, 560, fill=BADF, dash="7 5", rx=14)
     f.text(56, 126, "Before: the guard this work removed", size="head", anchor="start",
            bold=True)
-    f.box(150, 150, 320, 46, fill="#FFFFFF")
-    f.text(310, 178, "ALLOW_REMOTE_DISARM = 1", size="small", bold=True, mono=True)
-    f.arrow([(310, 196), (310, 222)])
-    diamond(310, 258, 300, 72, "AUTH_COMMANDS = 1 ?", [])
-    f.arrow([(460, 258), (548, 258), (548, 440)], stroke=OK)
-    f.text(505, 250, "yes", size="small", fill=OK)
-    f.arrow([(310, 294), (310, 322)], stroke=BAD)
-    f.text(322, 312, "no", size="small", anchor="start", fill=BAD)
-    diamond(310, 372, 330, 86, "MQTT_USE_TLS = 1", ["and MQTT_HAS_LOGIN = 1 ?"], fill="#FFFFFF",
-            stroke=BAD)
-    f.arrow([(310, 415), (310, 446)], stroke=BAD)
-    # Both branches land in the same outcome box: that is the defect. A signed build reaches it
-    # legitimately, an unsigned one reaches it through the unsound transport test.
-    f.box(96, 446, 428, 60, fill=BADF, stroke=BAD)
-    f.text(310, 470, "compiles: any admitted DISARM is acted on", size="small", bold=True,
+    f.box(153, 150, 320, 46, fill="#FFFFFF")
+    f.text(313, 178, "ALLOW_REMOTE_DISARM = 1", size="small", bold=True, mono=True)
+    f.arrow([(313, 196), (313, 222)])
+    diamond(313, 258, 300, 72, "AUTH_COMMANDS = 1 ?", [])
+    f.arrow([(463, 258), (548, 258), (548, 440)], stroke=OK)
+    f.text(506, 250, "yes", size="small", fill=OK)
+    f.arrow([(313, 294), (313, 322)], stroke=BAD)
+    f.text(325, 312, "no", size="small", anchor="start", fill=BAD)
+    diamond(313, 372, 330, 86, "MQTT_USE_TLS = 1", ["and MQTT_HAS_LOGIN = 1 ?"],
+            fill="#FFFFFF", stroke=BAD)
+    f.arrow([(313, 415), (313, 446)], stroke=BAD)
+    # Both branches land in the same outcome box: that is the defect. A signed build reaches
+    # it legitimately, an unsigned one reaches it through the unsound transport test.
+    f.box(60, 446, 506, 60, fill=BADF, stroke=BAD)
+    f.text(313, 470, "compiles: any admitted DISARM is acted on", size="small", bold=True,
            fill=BAD)
-    f.text(310, 490, "the m.authed test is short-circuited", size="small", fill=BAD)
-    f.box(96, 526, 428, 110, fill="#FFFFFF", stroke=BAD, dash="4 3")
-    f.text(310, 550, "Why the predicate cannot support the conclusion",
+    f.text(313, 490, "the m.authed test is short-circuited", size="small", fill=BAD)
+    f.box(44, 526, 538, 110, fill="#FFFFFF", stroke=BAD, dash="4 3")
+    f.text(313, 550, "Why the predicate cannot support the conclusion",
            size="small", bold=True, fill=BAD)
-    f.lines(310, 572, [
+    f.lines(313, 572, [
         "The broker terminates TLS and re-originates every message,",
         "so an arriving command carries no evidence of its publisher.",
         "MQTT_HAS_LOGIN describes this device's own build, not any",
@@ -770,28 +776,33 @@ def guard_decision():
     # ---------------- after
     f.box(626, 100, 518, 560, fill=SAFETY, dash="7 5", rx=14)
     f.text(646, 126, "After", size="head", anchor="start", bold=True)
-    f.box(725, 150, 320, 46, fill="#FFFFFF")
-    f.text(885, 178, "ALLOW_REMOTE_DISARM = 1", size="small", bold=True, mono=True)
-    f.arrow([(885, 196), (885, 222)])
-    diamond(885, 258, 300, 72, "AUTH_COMMANDS = 1 ?", [])
-    f.arrow([(1035, 258), (1105, 258), (1105, 420)], stroke=OK)
-    f.text(1068, 250, "yes", size="small", fill=OK)
-    f.arrow([(885, 294), (885, 322)])
-    f.text(897, 312, "no", size="small", anchor="start", fill=MUTED)
-    diamond(885, 374, 350, 90, "ACKNOWLEDGE_", ["UNAUTHENTICATED_DISARM", "defined ?"],
+    f.box(715, 150, 320, 46, fill="#FFFFFF")
+    f.text(875, 178, "ALLOW_REMOTE_DISARM = 1", size="small", bold=True, mono=True)
+    f.arrow([(875, 196), (875, 222)])
+    diamond(875, 258, 300, 72, "AUTH_COMMANDS = 1 ?", [])
+    f.arrow([(1025, 258), (1120, 258), (1120, 420)], stroke=OK, head=False)
+    f.text(1070, 250, "yes", size="small", fill=OK)
+    f.arrow([(875, 294), (875, 322)])
+    f.text(887, 312, "no", size="small", anchor="start", fill=MUTED)
+    diamond(875, 374, 430, 104, "ACKNOWLEDGE_", ["UNAUTHENTICATED_DISARM", "defined ?"],
             fill="#FFFFFF")
-    f.arrow([(885, 419), (885, 446)], stroke=BAD)
-    f.box(680, 446, 410, 52, fill=BADF, stroke=BAD)
-    f.text(885, 468, "no: #error, the build is refused", size="small", bold=True, fill=BAD)
-    f.text(885, 487, "transport security is no longer accepted as authority",
-           size="small", fill=BAD)
-    f.arrow([(1060, 374), (1105, 374), (1105, 420)])
-    f.text(1115, 400, "yes", size="small", anchor="start", fill=MUTED)
-    f.box(680, 528, 410, 52, fill=OKF, stroke=OK)
-    f.text(885, 550, "compiles: signed DISARM, or acknowledged risk",
+    # Refusing the build is the protective outcome, so it is green. An earlier version drew
+    # #error in red, which read as "this is the bad branch" -- the opposite of what it is.
+    f.arrow([(875, 426), (875, 446)], stroke=OK)
+    f.box(650, 446, 450, 52, fill=OKF, stroke=OK)
+    f.text(875, 468, "no: #error, the build is refused", size="small", bold=True, fill=OK)
+    f.text(875, 487, "transport security is no longer accepted as authority",
+           size="small", fill=OK)
+    f.arrow([(1090, 374), (1120, 374), (1120, 420)], head=False)
+    f.text(1114, 366, "yes", size="small", anchor="end", fill=MUTED)
+    f.box(650, 528, 450, 52, fill=OKF, stroke=OK)
+    f.text(875, 550, "compiles: signed DISARM, or acknowledged risk",
            size="small", bold=True, fill=OK)
-    f.text(885, 569, "the research baseline takes the second path", size="small")
-    f.arrow([(1105, 420), (1105, 554), (1094, 554)], stroke=OK)
+    f.text(875, 569, "the research baseline takes the second path", size="small")
+    f.arrow([(1120, 420), (1120, 554), (1104, 554)], stroke=OK)
+
+    f.text(590, 684, "Red marks a build in which an unauthenticated DISARM can be acted on; "
+                     "green marks one in which it cannot.", size="small", fill=MUTED)
     return f
 
 
@@ -799,63 +810,72 @@ def guard_decision():
 def acl_architecture():
     """Topic permissions per identity, and which compromise each control contains.
 
-    The permissions shown are the configuration the ablation's ACL arms model; see
-    docs/SECURITY_ANALYSIS.md section 3a for what is and is not modelled.
+    The permissions shown are the configuration the ablation's ACL arms model, and the same
+    matrix was then written as a Mosquitto acl_file and exercised against a real broker; see
+    docs/SECURITY_ANALYSIS.md section 3a and experiments/broker/.
+
+    The canvas is 1,160 units so the type scale clears the 6 pt print floor; see
+    experiments/check_figure_type.py.
     """
     OK, BAD = "#2E7D32", "#C0392B"
-    f = Fig(1200, 660, "Per-client topic permissions and trust boundaries")
-    f.text(600, 36, "Broker access control and where each compromise stops",
-           size="title", bold=True)
-    f.lines(600, 60, [
-        "Some identity must hold write on the command topic, or the alarm cannot be commanded. "
+    f = Fig(1160, 700, "Per-client topic permissions and trust boundaries", crop_top=14)
+    f.lines(580, 38, [
+        "Some identity must hold write on the command topic, or the alarm cannot be "
+        "commanded at all.",
         "Which identity the adversary steals is what decides the outcome.",
     ], size="small")
 
     # topic permission table
-    f.box(40, 100, 1120, 214, fill=MID, dash="7 5", rx=14)
-    f.text(60, 126, "PER-CLIENT ACL, as modelled", size="head", anchor="start", bold=True)
-    cols = [(330, "cmd topic: publish"), (610, "cmd topic: subscribe"), (900, "stat topic: publish")]
+    f.box(36, 72, 1088, 214, fill=MID, dash="7 5", rx=14)
+    f.text(48, 98, "PER-CLIENT ACL  —  modelled, and reproduced on Mosquitto 2.0.18",
+           size="head", anchor="start", bold=True)
+    cols = [(340, "cmd topic: publish"), (620, "cmd topic: subscribe"),
+            (900, "stat topic: publish")]
     for x, t in cols:
-        f.text(x, 158, t, size="small", bold=True, fill=MUTED)
-    f.text(150, 158, "identity", size="small", bold=True, fill=MUTED)
-    rows = [(192, "controller", True, False, False), (240, "device", False, True, True)]
+        f.text(x, 130, t, size="small", bold=True, fill=MUTED)
+    f.text(146, 130, "identity", size="small", bold=True, fill=MUTED)
+    rows = [(180, "controller", True, False, False), (228, "device", False, True, True)]
     for y, name, pub, sub, stat in rows:
-        f.box(60, y - 20, 180, 40, fill="#FFFFFF")
-        f.text(150, y + 5, name, size="small", bold=True)
+        f.box(56, y - 20, 180, 40, fill="#FFFFFF")
+        f.text(146, y + 5, name, size="small", bold=True)
         for (x, _), val in zip(cols, (pub, sub, stat)):
             f.box(x - 60, y - 20, 120, 40, fill="#E9F7EF" if val else LIGHT)
             f.text(x, y + 5, "allow" if val else "deny", size="small", bold=val,
                    fill=OK if val else MUTED)
-    f.text(600, 292, "Only the controller may publish commands. The device may only read them.",
+    f.text(580, 268, "Only the controller may publish commands; the device may only read "
+                     "them.   (Broker usernames: operator, device.)",
            size="small", fill=MUTED)
 
     # outcomes
-    f.text(600, 352, "Which compromise each control contains", size="head", bold=True)
+    f.text(580, 322, "Which compromise each control contains", size="head", bold=True)
     cards = [
-        (60, "Device credential\nstolen", "ACL holds", "the device identity has no write on "
+        (40, "Device credential\nstolen", "ACL holds", "the device identity has no write on "
          "the command topic, so the broker refuses the publish", OK),
-        (400, "Controller credential\nstolen", "ACL fails", "that identity is the one the ACL "
+        (420, "Controller credential\nstolen", "ACL fails", "that identity is the one the ACL "
          "must authorise to publish commands", BAD),
-        (740, "One shared credential\nstolen", "ACL fails", "it must carry write on the command "
-         "topic, so the configuration collapses to no ACL", BAD),
+        (800, "One shared credential\nstolen", "ACL fails", "it must carry write on the "
+         "command topic, so the configuration collapses to no ACL", BAD),
     ]
     for x, title, verdict, why, col in cards:
-        f.box(x, 380, 320, 150, fill="#FFFFFF", stroke=col)
+        f.box(x, 350, 320, 176, fill="#FFFFFF", stroke=col)
         a, b = title.split("\n")
-        f.text(x + 160, 408, a, size="body", bold=True)
-        f.text(x + 160, 428, b, size="body", bold=True)
-        f.text(x + 160, 456, verdict, size="small", bold=True, fill=col)
-        f.lines(x + 160, 480, textwrap.wrap(why, 40)[:3], size="small")
+        f.text(x + 160, 378, a, size="body", bold=True)
+        f.text(x + 160, 398, b, size="body", bold=True)
+        f.text(x + 160, 426, verdict, size="small", bold=True, fill=col)
+        f.lines(x + 160, 450, textwrap.wrap(why, 33)[:4], size="small")
 
-    f.box(60, 554, 1000, 76, fill=SHARED, dash="4 3")
-    f.text(560, 580, "A MAC fails under the one compromise the ACL survives",
+    # The ACL and the MAC fail under different compromises, and the figure has to say so in
+    # both directions. Stating only the device-dump case would imply the layered build is
+    # unconditional, which experiments/results/ablation.jsonl contradicts.
+    f.box(56, 548, 1048, 124, fill=SHARED, dash="4 3")
+    f.text(580, 574, "The ACL and the MAC fail under different compromises",
            size="body", bold=True)
-    f.lines(560, 602, [
-        "The command key lives in the same flash image as the device's broker credentials, so a "
-        "flash dump yields both.",
-        "With an ACL as well, that adversary holds a key it can sign with and a credential the "
-        "broker will not let it publish commands under.",
-    ], size="small")
+    f.lines(580, 598, textwrap.wrap(
+        "The command key and the device's broker credentials share one flash image, so a "
+        "flash dump yields both; the ACL still refuses that identity, and the layered build "
+        "holds. A compromised controller host is the opposite case: it yields a credential "
+        "the ACL must permit and the key to sign with, so neither layer refuses it.",
+        114)[:4], size="small")
     return f
 
 
