@@ -65,8 +65,11 @@ def esc(s):
 class Fig:
     """Minimal SVG builder. Coordinates are user units; 1 unit renders as 1 px."""
 
-    def __init__(self, w, h, title):
-        self.w, self.h, self.title = w, h, title
+    def __init__(self, w, h, title, crop_top=0):
+        # crop_top removes dead space at the top of the canvas, which is what is left behind
+        # when a figure's in-drawing title is deleted. The caption carries the title in the
+        # manuscript, and repeating it inside the artwork is a style error in most journals.
+        self.w, self.h, self.title, self.crop_top = w, h, title, crop_top
         self.p = []
 
     # -- primitives
@@ -117,12 +120,16 @@ class Fig:
             'markerWidth="7" markerHeight="7" orient="auto">'
             f'<path d="M0 0 L10 5 L0 10 z" fill="{LINE}"/></marker></defs>'
         )
+        h = self.h - self.crop_top
+        body = "".join(self.p)
+        if self.crop_top:
+            body = f'<g transform="translate(0,{-self.crop_top})">{body}</g>'
         return (
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.w}" height="{self.h}" '
-            f'viewBox="0 0 {self.w} {self.h}" font-family=\'{FONT}\'>'
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{self.w}" height="{h}" '
+            f'viewBox="0 0 {self.w} {h}" font-family=\'{FONT}\'>'
             f"<title>{esc(self.title)}</title>"
             f'<rect width="100%" height="100%" fill="#FFFFFF"/>{defs}'
-            + "".join(self.p)
+            + body
             + "</svg>"
         )
 
@@ -605,22 +612,24 @@ def security_paths():
     deliverGuarded/admit in experiments/ablation.cpp; the device-side checks are handleCommands
     in firmware/smart_home/smart_home.ino. The counts are measured, from
     experiments/results/ablation.jsonl (300 trials per arm).
+
+    The canvas is 1,160 units because the type scale only clears the 6 pt print floor at or
+    below about 1,200; see experiments/check_figure_type.py.
     """
     OK, BAD = "#2E7D32", "#C0392B"
     OKF, BADF = "#E9F7EF", "#FDECEC"
-    f = Fig(1280, 820, "Transport-layer admission against application-layer authorization")
-    f.text(640, 36, "Transport security does not supply command authorization",
-           size="title", bold=True)
-    f.lines(640, 60, [
+    f = Fig(1160, 866, "Transport-layer admission against application-layer authorization",
+            crop_top=10)
+    f.lines(580, 38, [
         "The broker terminates TLS and re-originates every message, so an arriving command "
         "carries no evidence of who published it.",
         "Broker credentials decide admission. Only the command key decides authority.",
     ], size="small")
 
-    XP, WP = 56, 250          # publisher
-    XB, WB = 346, 150         # broker
-    XC, WC = 536, 250         # device-side check
-    XO, WO = 836, 388         # outcome
+    XP, WP = 48, 228          # publisher
+    XB, WB = 296, 132         # broker
+    XC, WC = 448, 238         # device-side check
+    XO, WO = 706, 398         # outcome
 
     def header(y):
         for x, w, t in ((XP, WP, "Publisher"), (XB, WB, "Broker"),
@@ -633,11 +642,14 @@ def security_paths():
         f.text(XP + WP / 2, y + 26, who, size="body", bold=True)
         f.text(XP + WP / 2, y + 46, sub, size="small", fill=MUTED)
 
+        # Only the Outcome column is coloured. An intermediate step that blocks an attack and
+        # an outcome in which the attack succeeds are opposite things, and colouring both red
+        # (because both are "a failure" in some sense) is what made the earlier version of
+        # this figure unreadable. The intermediate columns say what happened in words.
         f.arrow([(XP + WP, y + h / 2), (XB - 6, y + h / 2)], stroke=col)
-        f.box(XB, y, WB, h, fill=OKF if admit else BADF,
-              stroke=LINE if admit else BAD)
+        f.box(XB, y, WB, h, fill=LIGHT)
         f.text(XB + WB / 2, y + h / 2 + 5, "admits" if admit else "refuses",
-               size="small", bold=True, fill=INK if admit else BAD)
+               size="small", bold=True, fill=INK)
 
         if not admit:
             f.text(XC + WC / 2, y + h / 2 + 5, "never reached", size="small", fill=MUTED)
@@ -645,48 +657,62 @@ def security_paths():
             f.text(XO + WO / 2, y + h / 2 + 5, outcome, size="small", bold=True, fill=OK)
             return
         f.arrow([(XB + WB, y + h / 2), (XC - 6, y + h / 2)], stroke=col)
-        f.box(XC, y, WC, h, fill=OKF if chk_ok else BADF,
-              stroke=LINE if chk_ok else BAD)
-        f.lines(XC + WC / 2, y + 24, check, size="small",
-                fill=INK if chk_ok else BAD)
+        f.box(XC, y, WC, h, fill=LIGHT)
+        f.lines(XC + WC / 2, y + 24, check, size="small", fill=INK)
         f.arrow([(XC + WC, y + h / 2), (XO - 6, y + h / 2)], stroke=col)
         f.box(XO, y, WO, h, fill=OKF if out_ok else BADF, stroke=OK if out_ok else BAD)
         f.text(XO + WO / 2, y + h / 2 + 5, outcome, size="small", bold=True, fill=col)
 
     # ---------------- panel 1: the default build
-    f.box(36, 110, 1208, 268, fill=SAFETY, dash="7 5", rx=14)
-    f.text(56, 136, "AUTH_COMMANDS = 1    —  application-layer authentication required",
+    f.box(36, 70, 1088, 340, fill=SAFETY, dash="7 5", rx=14)
+    f.text(48, 96, "AUTH_COMMANDS = 1    \u2014  application-layer authentication required",
            size="head", anchor="start", bold=True)
-    f.text(56, 158, "A command is acted on only if its HMAC-SHA256 tag verifies under "
-                    "SECRET_CMD_KEY and its counter exceeds the value in NVS.",
+    f.text(48, 118, "Acted on only if the HMAC-SHA256 tag verifies under SECRET_CMD_KEY "
+                    "and the counter exceeds the value in NVS.",
            size="small", anchor="start", fill=MUTED)
-    header(186)
-    row(196, "Operator", "holds credentials and key", True,
+    header(146)
+    row(156, "Operator", "credential + key", True,
         ["tag verifies,", "counter advances"], True, "DISARM executes", True)
-    row(276, "Adversary", "leaked credentials, no key", True,
-        ["tag fails:", "cmd_badmac"], False, "rejected — alarm fires, 300/300 trials", True)
+    row(236, "Adversary", "credential, no key", True,
+        ["tag fails:", "cmd_badmac"], False, "rejected; alarm fires 300/300", True)
+    # The row that stops this figure from implying the layered build is unconditional. The
+    # adversary who has taken the controller host holds a credential the ACL must permit and
+    # the key the device trusts, so both layers pass it. Measured, not asserted.
+    row(316, "Adversary", "controller cred + key", True,
+        ["tag verifies,", "counter advances"], True,
+        "DISARM executes; alarm fires 50/300", False)
+    f.text(580, 396, "Row 3 is a compromised controller host: a credential the ACL must "
+                     "permit plus the key. Neither layer refuses it.",
+           size="small", fill=BAD)
 
     # ---------------- panel 2: the unsound guard
-    f.box(36, 400, 1208, 268, fill="#FDF3F2", dash="7 5", rx=14)
-    f.text(56, 426, "ALLOW_REMOTE_DISARM = 1 without AUTH_COMMANDS   "
-                    "—  the guard this work removed",
+    f.box(36, 432, 1088, 250, fill="#FDF3F2", dash="7 5", rx=14)
+    f.text(48, 458, "ALLOW_REMOTE_DISARM = 1 without AUTH_COMMANDS   "
+                    "\u2014  the guard this work removed",
            size="head", anchor="start", bold=True)
-    f.text(56, 448, "The guard accepted TLS plus a broker login as sufficient. "
-                    "The HMAC test is short-circuited, so any admitted DISARM is acted on.",
+    f.text(48, 480, "The guard treated TLS plus a broker login as sufficient: the HMAC test "
+                    "is skipped, so any admitted DISARM is acted on.",
            size="small", anchor="start", fill=MUTED)
-    header(476)
-    row(486, "Operator", "holds credentials, no key", True,
+    header(508)
+    row(518, "Operator", "credential, no key", True,
         ["no check:", "ALLOW_REMOTE_DISARM"], False, "DISARM executes", True)
-    row(566, "Adversary", "leaked credentials, no key", True,
+    row(598, "Adversary", "credential, no key", True,
         ["no check:", "ALLOW_REMOTE_DISARM"], False,
-        "DISARM executes — alarm fires in only 50/300", False)
+        "DISARM executes; alarm fires 50/300", False)
 
     # ---------------- the control, shared by both builds
-    f.box(36, 690, 1208, 100, fill=MID, dash="7 5", rx=14)
-    f.text(56, 714, "Control, identical in both builds", size="head", anchor="start", bold=True)
-    row(722, "Adversary", "no credentials", False, [], True,
-        "connection refused — alarm fires, 300/300", True, h=56)
+    f.box(36, 704, 1088, 100, fill=MID, dash="7 5", rx=14)
+    f.text(48, 728, "Control, identical in both builds", size="head", anchor="start", bold=True)
+    row(736, "Adversary", "no credential", False, [], True,
+        "connection refused; alarm fires 300/300", True, h=56)
+
+    f.lines(580, 824, [
+        "Outcome colour is the only colour that carries meaning: green, the alarm still "
+        "protects the house;",
+        "red, an unauthorised DISARM succeeded. Every outcome also states its measured count.",
+    ], size="small")
     return f
+
 
 # ------------------------------------------ 7. compile guard decision flow --
 def guard_decision():
