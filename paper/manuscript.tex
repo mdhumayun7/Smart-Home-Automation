@@ -96,6 +96,8 @@ listened port and 3.17--6.67\% for an unused port, with lateness growing roughly
 the microcontroller saturated. Their conclusion was that command-and-control over IP is
 unsuitable for hard real-time work on such devices.
 
+\subsection{Research gap}
+
 That finding closes one question and opens three others, which motivate this paper.
 
 First, their work measures the \emph{phenomenon} but does not evaluate a \emph{mitigation}. The
@@ -904,6 +906,33 @@ transport and HMAC arms appear in both tables, which is why the two together nam
 twelve rows while the dataset holds exactly $300 \times 12$ trials.
 
 \section{Results}\label{sec:results}
+
+\subsection{Statistical treatment}\label{sec:stats}
+
+Three decisions govern every test reported below, and we state them once rather than repeating
+them per experiment.
+
+\emph{Interval estimates.} Proportions are reported with 95\,\% Wilson score intervals rather
+than the normal approximation, because several arms sit at or near $p=0$ or $p=1$, where the
+normal interval is known to be degenerate and can extend outside $[0,1]$. Intervals are clamped
+at the unit bounds, and the implementation is duplicated independently in
+\texttt{make\_ablation\_figures.py} and \texttt{validate\_figures.py}; the two agree.
+
+\emph{Hypothesis tests.} Comparisons of two proportions use Fisher's exact test, one-sided, in
+preference to $\chi^2$: several of the $2\times2$ tables contain zero cells, where the
+$\chi^2$ approximation is not valid. Tests are computed with a stdlib-only implementation
+committed in the repository, so no external statistical package can alter a reported value.
+
+\emph{Where we do not test.} We report no hypothesis test on a quantity whose variance is
+identically zero by construction. The simulation harness advances a logical clock, so the safety
+latency is the same constant in every trial; a test on two constant-valued samples is trivially
+satisfied and carries no information. The pre-registered test for the hardware measurement,
+should it be performed, is stated in Section~\ref{sec:hw} and was committed before any data
+existed.
+
+Because every arm is a fixed, pre-declared configuration rather than a selected subset, and
+because the comparisons reported are the ones the design questions dictate, we apply no
+multiplicity correction; we note this so a reader can judge it rather than infer it.
 
 \subsection{Adversarial campaign}
 
