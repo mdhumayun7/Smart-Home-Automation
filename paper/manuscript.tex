@@ -59,8 +59,8 @@ queues and a zero-timeout status snapshot, hardened with HMAC-SHA256 command aut
 a non-volatile monotonic counter. We specify the isolation argument in TLA+ and verify it
 exhaustively with TLC under a network task given no fairness assumption, and we mutation-test
 both specifications to show the verified properties are not vacuous. We evaluate the design with
-7{,}800 seeded adversarial trials and 3{,}000{,}000 sanitizer-backed fuzzing iterations. An
-ablation over six command-path designs shows that availability, integrity and the safety
+9{,}300 seeded adversarial trials and 3{,}000{,}000 sanitizer-backed fuzzing iterations. An
+ablation over eleven command-path and credential-compromise configurations shows that availability, integrity and the safety
 function are separable properties: a rate limiter cannot distinguish a legitimate command from a
 flood and so admits only 59.0\% of operator commands while leaving integrity untouched, and a
 static shared token leaves availability intact yet is defeated by capture-and-replay. Two
@@ -156,8 +156,8 @@ indefinitely, flood, fail or crash. Both specifications are mutation-tested
 (Section~\ref{sec:formal}).
 
 \item \textbf{An ablation over command-path designs that separates three properties commonly
-conflated.} Running one adversary against six designs shows that availability, integrity and the
-safety function fail independently: a token-bucket rate limiter cannot distinguish a legitimate
+conflated.} Running one adversary against eleven configurations on identical seeds shows that
+availability, integrity and the safety function fail independently: a token-bucket rate limiter cannot distinguish a legitimate
 command from a flood and so drops both while leaving integrity untouched, a static shared token
 leaves availability intact but is defeated the moment one legitimate command is captured, and a
 transport-only configuration is a strong baseline exactly as long as broker credentials hold
@@ -382,14 +382,45 @@ frames; observe all traffic on the wireless medium, and therefore capture any me
 or its operator transmits; publish arbitrary messages to the device's command topic, either by
 reaching a shared broker or by operating one; and sustain any of these indefinitely.
 
-We additionally consider a \emph{credential-compromise} adversary, which is the same adversary
-plus possession of a valid broker username and password. This is a realistic escalation rather
-than a hypothetical one: MQTT credentials are bearer tokens, commonly shared across every client
-in a deployment, stored in plaintext in firmware or a configuration header, and recoverable from
-an unencrypted flash image. Such an adversary connects to the broker exactly as a legitimate
-client does and requires no cryptographic break of any kind. We evaluate it explicitly in
-Section~\ref{sec:results} because omitting it would leave the ablation resting on a transport
-baseline that is only secure under an assumption we never tested.
+This is adversary~A, and it is the \emph{primary} threat model: every claim this paper makes
+about the design, including the isolation property~\eqref{eq:invariance} and the formal results
+of Section~\ref{sec:formal}, is a claim against adversary~A unless explicitly stated otherwise.
+
+Sections~\ref{sec:acl} and~\ref{sec:brokerval} additionally evaluate four \emph{extended
+compromise} scenarios. These are not part of the primary model. They exist because a comparison
+of command-path defences is uninformative unless one asks what each defence costs when its own
+assumption fails, and because omitting them would leave the ablation resting on a transport
+baseline whose security we had never tested. Table~\ref{tab:threats} states them.
+
+\begin{table}[t]
+\centering\small
+\caption{Adversary scenarios. A is the primary threat model; B through E are extended
+compromise analyses reported separately and never used to support a claim about the design.}
+\label{tab:threats}
+\begin{tabular}{@{}llll@{}}
+\toprule
+& Additional capability & Access & Evaluated in \\
+\midrule
+A & none (radio range only)      & remote   & throughout \\
+B & one shared broker credential & remote   & \S\ref{sec:acl}, \S\ref{sec:brokerval} \\
+C & controller credential        & remote   & \S\ref{sec:acl}, \S\ref{sec:brokerval} \\
+D & device credential            & remote   & \S\ref{sec:acl}, \S\ref{sec:brokerval} \\
+E & device credential + command key & \textbf{physical} & \S\ref{sec:acl}, \S\ref{sec:brokerval} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Scenarios B, C and D remain \emph{remote}: broker credentials are bearer tokens, commonly
+shared across every client in a deployment and stored in plaintext in a configuration header,
+so an adversary can obtain one without ever touching the device. Such an adversary connects to
+the broker exactly as a legitimate client does and requires no cryptographic break.
+
+Scenario E is different in kind and we keep it separate for that reason. Recovering the command
+key requires reading the device's flash, which requires physical access, so E abandons the
+remote-only assumption that A through D share. We do not mix the two: no result in this paper
+claims that the design resists an adversary with physical access, and E is reported only to
+show what the layered configuration does and does not buy once the key is gone. Where a
+conclusion depends on E, we say so.
 
 The security of the signed-command path rests on assumptions about key management that we state
 rather than assume away. The command key must have been changed from the published default; it
@@ -771,13 +802,45 @@ Detection latency & Simulated milliseconds from attack onset to first detector r
 
 \subsection{Experimental configurations}
 
-The adversarial campaign runs 3{,}000 trials per build across six attack rates from 0 to
+The adversarial campaign runs 3{,}000 trials per build (500 at each rate) across six attack rates from 0 to
 20{,}000~messages/s. The adversary injects forged tags signed with a key it does not hold,
 replays of messages captured on the wire, bare verbs carrying no credential, and random bytes.
 The ablation runs 300 trials per design over the same rates with identical seeds. The fuzzer
 runs 3{,}000{,}000 iterations over six input classes under AddressSanitizer and
 UndefinedBehaviorSanitizer. The sensitivity sweep runs 2{,}000 benign trials of ten simulated
 minutes per grid cell.
+
+Table~\ref{tab:accounting} reconciles every count reported in this paper against the committed
+raw data, so that a reader can check the totals rather than take them on trust. Each row names
+the file the count is derived from.
+
+\begin{table}[t]
+\centering\small
+\caption{Trial accounting. Every figure is derived from the named committed artefact; no count
+in this paper is stated independently of these files.}
+\label{tab:accounting}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Experiment & Committed artefact & Count \\
+\midrule
+E1/E2 adversarial campaign & \texttt{summary.json} & 6{,}000 trials \\
+\quad 500 per rate $\times$ 6 rates $\times$ 2 builds & & \\
+E3 ablation & \texttt{ablation.jsonl} & 3{,}300 trials \\
+\quad 300 per configuration $\times$ 11 & & \\
+\midrule
+\textbf{Total adversarial trials} & & \textbf{9{,}300} \\
+\midrule
+E4 command-parser fuzzing & \texttt{fuzz.json} & 3{,}000{,}000 iterations \\
+E5 detector sensitivity & \texttt{sensitivity.jsonl} & 180 grid cells \\
+E6 broker access control & \texttt{broker\_acl.jsonl} & 8 scenarios \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The eleven configurations of E3 comprise six command-path designs (Table~\ref{tab:ablation})
+and five further credential-compromise configurations (Table~\ref{tab:credential}); the
+transport arms appear in both tables, which is why the two tables together name more than
+eleven rows while the dataset holds exactly $300 \times 11$ trials.
 
 \section{Results}\label{sec:results}
 
@@ -800,7 +863,7 @@ with the implementation committed in advance.
 \subsection{Command-path ablation}
 
 To avoid resting on a baseline that is defeated by construction, we ran the same adversary
-against six designs on identical seeds: no command defence; a token-bucket rate limiter
+against six command-path designs on identical seeds: no command defence; a token-bucket rate limiter
 admitting five commands per second; a static shared token carried in the payload; TLS with
 broker credentials that the adversary does not hold; the same TLS configuration with the
 credentials leaked to the adversary; and the signed-counter path. The rate limiter and the token
@@ -943,6 +1006,60 @@ exactly as the unsigned one is. Only the combination holds: an adversary who dum
 obtains a key it can sign with \emph{and} a credential the broker will not let it publish
 commands under. The configuration that survives every row of Table~\ref{tab:credential} is
 layered, not cryptographic.
+
+\subsubsection{Validation against a real broker}
+\label{sec:brokerval}
+
+The arms above model broker admission as a per-identity permission. To check that the model is
+faithful rather than convenient, we repeated the scenarios against an actual broker: Mosquitto
+2.0.18 over TLS 1.2 with a private certificate authority, password authentication, and
+per-client ACL files. This is the one experiment in this paper that is a \emph{testbed
+measurement} rather than a simulation.
+
+One methodological point governs how the results are read. MQTT 3.1.1 has no return code
+meaning ``refused by policy'': the broker acknowledges a QoS 1 publish and then silently
+discards it. A \texttt{PUBACK} is therefore not evidence of delivery, and we observed exactly
+that---every denied publish in Table~\ref{tab:broker} was acknowledged. Each scenario is
+decided instead by whether a subscriber holding the device's identity actually received the
+message, which is also how the real firmware would learn of it, namely not at all.
+
+\begin{table}[t]
+\centering\small
+\caption{Access-control scenarios against Mosquitto 2.0.18 with TLS and per-client ACLs.
+Testbed measurement. Scenario letters match the threat model in Section~\ref{sec:model}.}
+\label{tab:broker}
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Scenario & Adversary uses & Connected & Delivered & Executes \\
+\midrule
+control & controller (legitimate) & yes & yes & yes \\
+A & no credentials          & \textbf{no} & no  & no \\
+C & controller credential   & yes & yes & \textbf{yes} \\
+D & device credential       & yes & \textbf{no}  & no \\
+E & device credential + key & yes & \textbf{no}  & no \\
+E$'$ & controller credential + key & yes & yes & \textbf{yes} \\
+B & shared credential (shared ACL) & yes & yes & \textbf{yes} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The broker reproduced every prediction of the model. It refused the connection outright in
+scenario A; it delivered the adversary's command when the stolen identity was the controller's
+(C) or the single shared account (B); and it logged \texttt{Denied PUBLISH} and dropped the
+message when the stolen identity was the device's (D and E). Scenario E is the one that matters
+for the layered argument, and E$'$ is its control: in E the adversary holds a flash dump, so its
+command carries a signature that \emph{does} verify under the real command key, and the broker
+stops it anyway; in E$'$ the identical signature published from an identity the ACL permits is
+delivered and would execute. The signature is therefore valid in both, and the ACL is what
+distinguishes them. No arm of the simulation was contradicted.
+
+Two caveats remain. The broker ran on loopback with a private CA rather than in a deployed
+network, and the scenarios exercise ACL semantics rather than broker performance: no timing,
+throughput or handshake cost is measured or reported from this testbed. What it establishes is
+that the access-control behaviour the simulation assumed is the behaviour a real broker
+exhibits, which is what the simulation needed and did not previously have.
+
+\subsubsection{The replay counter as a lockout}
 
 Fourth, and unanticipated, under key compromise the monotonic replay counter becomes a lockout
 against the owner. Counters are not secret---they travel in plaintext in every signed
@@ -1242,9 +1359,11 @@ more interesting case, since they cannot pin at all.
 per-identity permission on the command topic. They do not model ACL pattern syntax, wildcard
 subscriptions, bridged or clustered brokers, client-certificate identities, dynamic credential
 issuance, or detection and revocation after a leak. A deployment differing in any of these may
-behave differently, and no claim is made about products we did not test. The arms were also not
-validated against a running broker: no Mosquitto instance was used, so every ACL result is
-model-based, and we label it as such throughout.
+behave differently, and no claim is made about products we did not test. The ACL semantics the arms assume are
+no longer only assumed: Section~\ref{sec:brokerval} reproduces every scenario against a real
+Mosquitto broker, which agreed with the model in all eight cases. What remains unvalidated is
+everything outside those semantics---the list above---and the broker testbed ran on loopback
+with a private CA rather than in a deployed network.
 
 \paragraph{Conclusion validity.} We report no statistical conclusion from the simulation,
 precisely because the zero-variance data cannot support one. The formal conclusions are sound
@@ -1265,8 +1384,10 @@ have not measured, and none is estimated.
 
 Beyond this: the benign arrival model underlying the sensitivity analysis is synthetic; the
 per-command CPU cost of tag verification and the energy cost of both the security features and
-promiscuous-mode monitoring are unmeasured; the access-control arms are model-based and were
-not validated against a running broker; no runtime TLS cost is measured anywhere, because the
+promiscuous-mode monitoring are unmeasured; the access-control arms model broker admission as a
+per-identity permission, and although Section~\ref{sec:brokerval} confirms those semantics
+against a real Mosquitto broker, the richer ACL features listed in Section~\ref{sec:threats}
+remain unmodelled; no runtime TLS cost is measured anywhere, because the
 host harness has no TLS implementation and the only figure we report for it is static flash and
 RAM from the real compiler; and the false-alarm rate of the sensor-fusion modes has not been
 characterised against real sensors.
@@ -1284,8 +1405,8 @@ device does not currently have. We identify these as the design's real exposure 
 claim to have addressed them.
 
 The ordered priorities for future work are therefore: conditions A through C of the hardware
-protocol, which need only two boards and a probe; validating the access-control arms against a
-running Mosquitto instance with real per-client ACLs, which needs no special hardware; enabling
+protocol, which need only two boards and a probe; extending the broker testbed of
+Section~\ref{sec:brokerval} to wildcards, bridged brokers and client-certificate identities; enabling
 flash encryption and secure boot and re-running the compromise arms against a device whose key
 is no longer extractable; condition D, subject to approval; a passive capture to replace the
 synthetic arrival model; and replication on a single-core variant of the same family.
@@ -1300,7 +1421,7 @@ separation; what it does not establish is whether the available mitigation suffi
 not examined radio-layer load, an adversarial model, or any formal treatment.
 
 We answer the logical half of the question with exhaustive model checking under a network task
-granted no fairness, with 7{,}800 seeded adversarial trials and with three million
+granted no fairness, with 9{,}300 seeded adversarial trials and with three million
 sanitizer-backed fuzzing iterations. We show through ablation that availability, integrity and
 the safety function are separable properties and that a plausible defence can satisfy one while
 failing another completely. The same ablation found a defect in our own firmware: a compile-time

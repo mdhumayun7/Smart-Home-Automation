@@ -250,3 +250,62 @@ jobs:
           print("\n".join(problems) if problems else "ablation OK")
           sys.exit(1 if problems else 0)
           PY
+
+  broker-acl:
+    name: Access control against a real Mosquitto broker
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install mosquitto and paho
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mosquitto mosquitto-clients
+          sudo systemctl stop mosquitto || true
+          pip3 install --break-system-packages paho-mqtt
+      - name: Validate the access-control scenarios
+        run: ./experiments/broker/run.sh
+      - name: Check the broker enforced what the model predicts
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          rows = {}
+          for line in open("experiments/results/broker_acl.jsonl"):
+              r = json.loads(line)
+              rows[(r["scenario"], r["acl_variant"])] = r
+          problems = []
+
+          def want(scenario, variant, executes, why):
+              r = rows.get((scenario, variant))
+              if r is None:
+                  problems.append(f"{scenario}/{variant}: scenario missing from the results")
+              elif r["command_would_execute"] != executes:
+                  problems.append(f"{scenario}/{variant}: expected execute={executes} ({why}), "
+                                  f"got {r['command_would_execute']}")
+
+          # Controls: if the legitimate controller stops working the test proves nothing.
+          want("control-operator", "perclient", True, "the controller must be able to command")
+          want("control-operator", "shared", True, "the controller must be able to command")
+          # A no credentials; C controller credential; D device credential.
+          want("A", "perclient", False, "no credentials, the broker must refuse the connection")
+          want("C", "perclient", True, "the controller identity is the one allowed to publish")
+          want("D", "perclient", False, "a per-client ACL must contain a device compromise")
+          # E: a flash dump yields a valid signature, and the ACL must still stop it.
+          want("E", "perclient", False, "the ACL must stop a validly signed command from the device identity")
+          want("E-control", "perclient", True, "the same signature from a permitted identity must be delivered")
+          # B: one shared credential collapses the ACL to the no-ACL case.
+          want("B", "shared", True, "a shared credential carries write on the command topic")
+
+          e = rows.get(("E", "perclient"))
+          if e and not e["hmac_verifies"]:
+              problems.append("E: the signature did not verify, so the scenario does not show "
+                              "that the ACL is what stopped it")
+
+          print("\n".join(problems) if problems else "broker ACL enforcement OK")
+          sys.exit(1 if problems else 0)
+          PY
+      - name: Upload broker logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: broker-logs
+          path: experiments/broker/run/*.log

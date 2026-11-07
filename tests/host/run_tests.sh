@@ -4,7 +4,7 @@
 # arduino-esp32 2.x and 3.x LEDC APIs.
 set -euo pipefail
 cd "$(dirname "$0")"
-SCENARIOS="basic arm_alarm disarm_in_entry door_left_open pir_edge pir_glitch remote display_fail oled network persist restore restore_door diag auth wifiguard linklost alert fusion"
+SCENARIOS="basic arm_alarm disarm_in_entry door_left_open pir_edge pir_glitch remote display_fail oled network persist restore restore_door diag hmac_vectors auth wifiguard linklost alert fusion"
 STARTS="0 2147483000 4294950000"
 fail=0
 # Every MQTT payload that looks like JSON must parse (state, events, Home Assistant discovery).

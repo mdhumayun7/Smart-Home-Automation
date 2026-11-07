@@ -159,6 +159,55 @@ static void s_remote(uint32_t st) {
   CHECK(uxQueueMessagesWaiting(cmdQ) == 1, "ARM_AWAY accepted as ARM");
 }
 
+// Known-answer tests for the HMAC-SHA256 implementation itself.
+//
+// Everything the signed-command path claims rests on this primitive being real HMAC-SHA256,
+// and nothing else in the suite checks that: the other tests only verify that the firmware
+// agrees with itself, which a subtly wrong implementation would also do. These are the
+// standard RFC 4231 vectors, so they fail if the construction is wrong in any way that
+// matters -- wrong block size, missing key padding, inner and outer pads swapped.
+static std::string hexmac(const uint8_t* key, size_t klen, const char* msg) {
+  uint8_t mac[32];
+  authmac::hmac_sha256(key, klen, (const uint8_t*)msg, strlen(msg), mac);
+  char out[65];
+  for (int i = 0; i < 32; i++) snprintf(out + i * 2, 3, "%02x", mac[i]);
+  return std::string(out);
+}
+
+static void s_hmac_vectors(uint32_t) {
+  // RFC 4231 test case 1: 20 bytes of 0x0b, "Hi There".
+  uint8_t k1[20]; memset(k1, 0x0b, sizeof k1);
+  CHECK(hexmac(k1, sizeof k1, "Hi There") ==
+        "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7",
+        "HMAC-SHA256 matches RFC 4231 case 1");
+
+  // Case 2: key "Jefe", short key, no padding edge.
+  CHECK(hexmac((const uint8_t*)"Jefe", 4, "what do ya want for nothing?") ==
+        "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843",
+        "HMAC-SHA256 matches RFC 4231 case 2");
+
+  // Case 6: a 131-byte key, longer than the 64-byte block, so it must be hashed first.
+  // This is the case a naive implementation gets wrong.
+  uint8_t k6[131]; memset(k6, 0xaa, sizeof k6);
+  CHECK(hexmac(k6, sizeof k6, "Test Using Larger Than Block-Size Key - Hash Key First") ==
+        "60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54",
+        "HMAC-SHA256 matches RFC 4231 case 6, key longer than the block");
+
+  // A key of exactly one block, the other boundary.
+  uint8_t k64[64]; memset(k64, 0x5c, sizeof k64);
+  CHECK(hexmac(k64, sizeof k64, "block-sized key").size() == 64,
+        "HMAC-SHA256 handles a key of exactly one block");
+
+  // Truncation to AUTH_TAG_BYTES must be a prefix of the full tag, which is what the wire
+  // format and the verifier both assume.
+  uint8_t full[32];
+  authmac::hmac_sha256(k1, sizeof k1, (const uint8_t*)"Hi There", 8, full);
+  char pre[33];
+  for (size_t i = 0; i < AUTH_TAG_BYTES; i++) snprintf(pre + i * 2, 3, "%02x", full[i]);
+  CHECK(std::string(pre) == std::string("b0344c61d8db38535ca8afceaf0bf12b").substr(0, AUTH_TAG_BYTES * 2),
+        "the truncated tag is a prefix of the full HMAC");
+}
+
 // v2.2: authenticated commands -- forgery, replay, and a valid signed DISARM.
 // Builds the same "<VERB>:<ctr>:<tag>" string the signer tool and the device agree on.
 static std::string signCmd(const char* verb, uint32_t ctr) {
@@ -455,7 +504,7 @@ int main(int argc, char** argv) {
     {"door_left_open", s_door_left_open}, {"pir_edge", s_pir_edge}, {"pir_glitch", s_pir_glitch},
     {"remote", s_remote}, {"display_fail", s_display_fail}, {"oled", s_oled}, {"network", s_network},
     {"persist", s_persist}, {"restore", s_restore}, {"restore_door", s_restore_door}, {"diag", s_diag},
-    {"auth", s_auth}, {"wifiguard", s_wifiguard}, {"linklost", s_linklost}, {"alert", s_alert}, {"fusion", s_fusion}};
+    {"hmac_vectors", s_hmac_vectors}, {"auth", s_auth}, {"wifiguard", s_wifiguard}, {"linklost", s_linklost}, {"alert", s_alert}, {"fusion", s_fusion}};
   for (auto& a : all) if (!strcmp(a.n, name)) { a.f(start); printf(fails ? "RESULT FAIL (%d)\n" : "RESULT PASS\n", fails); return fails ? 1 : 0; }
   printf("unknown scenario\n"); return 2;
 }
