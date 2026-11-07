@@ -202,7 +202,7 @@ counter locks the legitimate owner out of the system entirely
 
 \item \textbf{A reproducible artifact with an explicit evidence taxonomy.} Firmware,
 specifications, harnesses, analysis scripts and figure sources are public, and results
-regenerate byte-identically from committed seeds. Every number is labelled by evidence category,
+regenerate byte-identically from committed seeds. Every number is labelled by one of five evidence categories,
 no physical quantity is reported that was not measured, and we document four harness defects
 that produced plausible but wrong numbers---two of which flattered the conclusion the experiment
 was built to support.
@@ -795,13 +795,29 @@ arduino-esp32 3.3.12 & 968{,}221 & 73.9\% & 49{,}876 & 15.2\% \\
 
 \subsection{Evidence categories}
 
-Results in this paper fall into three categories and we label each one, because they are not
-interchangeable. \emph{Formal verification results} come from exhaustive model checking.
-\emph{Simulation results} come from the unmodified firmware driven by a seeded harness on a host.
-\emph{Analytical results} follow from the construction, such as the $2^{-128}$ forgery
-probability. No result in this paper is a physical hardware measurement; the single exception
-is the build cost of Table~\ref{tab:build}, which a real compiler measured but which describes
-the binary rather than the running device.
+Results in this paper fall into five categories and we label each one, because they are not
+interchangeable and a reader is entitled to know which kind of claim a number is.
+
+\begin{description}[leftmargin=1.6em,itemsep=0.2em]
+\item[Formal.] Exhaustive model checking of the TLA+ specifications (Section~\ref{sec:formal}).
+A formal result holds of the model, and transfers to the implementation only as far as the
+trace-conformance check establishes.
+\item[Simulation.] The unmodified firmware logic driven by a seeded harness on a host, with no
+radio, no true parallelism and no CPU contention. E1--E5 are of this kind. Regenerates
+byte-identically from committed seeds.
+\item[Testbed measurement.] Observations of a live external system. E6 is the only one: eight
+scenarios against a running Mosquitto 2.0.18 over TLS with per-client ACLs. The verdicts
+reproduce; the timestamps and client identifiers do not, because the broker is real.
+\item[Analytical.] Follows from the construction rather than from running anything---the
+$2^{-128}$ forgery probability, the zero blocking term, the response-time decomposition.
+\item[Corpus study.] Static analysis over 135 commit-pinned open-source projects
+(Section~\ref{sec:corpus}). The corpus is biased by construction and its result is reported as
+an existence claim, never as a prevalence estimate.
+\end{description}
+
+\noindent No result in this paper is a physical measurement of the running device. The single
+exception is the build cost of Table~\ref{tab:build}, which a real compiler measured, and
+which describes the binary rather than the device executing it.
 
 \subsection{Hypotheses}
 
@@ -1177,9 +1193,11 @@ mechanism that defeats replay therefore creates a denial-of-service channel the 
 assumption fails, which we report because it bounds the claim made in Section~\ref{sec:model}
 rather than supporting it.
 
-Apart from the compromise arms, the alarm fired in every trial of every design. This is the isolation
-property behaving as intended: the safety function does not depend on the command path, so no
-command-path design choice affects whether the siren sounds. The leaked-credential arm is the
+Apart from the compromise arms, the alarm fired in every trial of every design. This is
+\emph{logical} isolation behaving as intended, and nothing more: the safety function does not
+depend on the command path, so no command-path design choice affects whether the siren sounds.
+The harness advances a logical clock, so this result carries no information about timing
+isolation, which remains unmeasured. The leaked-credential arm is the
 single exception, and it is an authorization defect rather than a timing or resource failure,
 which locates the one place where the isolation argument does not hold.
 
