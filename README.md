@@ -407,7 +407,7 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/TITLE_ASSESSMENT.md`](docs/TITLE_ASSESSMENT.md) | Why the title changed, five candidates scored on six criteria, and the title-abstract-contribution alignment check |
 | [`docs/FIGURE_VALIDATION.md`](docs/FIGURE_VALIDATION.md) | Figure-by-figure validation of all eight manuscript figures: source, regeneration command, technical correctness, printed type size, vector check and caption review |
 | [`docs/CONSISTENCY_AUDIT.md`](docs/CONSISTENCY_AUDIT.md) | Eleven-point audit of the manuscript against the raw artefacts, with the command for each check and the three defects it found |
-| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (30 pages). `paper/paper.tex` is the short letters-format version |
+| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (31 pages). `paper/paper.tex` is the short letters-format version |
 
 **Status in one line:** firmware, formal verification, response-time analysis, simulation
 campaign, the twelve-design ablation, sensitivity sweep, fuzzing, the access-control validation

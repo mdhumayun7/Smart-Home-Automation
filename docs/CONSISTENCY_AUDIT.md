@@ -326,8 +326,8 @@ reconciles every count to a named artefact. `tab:credential` verified cell by ce
 had previously been orphaned when a related-work paragraph was lost; that is not the case now.
 
 **Cross-references.** `pdflatex` completes with **zero warnings** over three passes, so every
-`\ref` and `\cite` resolves. No `Overfull \hbox` exceeds 20 pt. The document builds to **30
-pages**. (An earlier revision of this audit recorded 31; that figure was taken immediately
+`\ref` and `\cite` resolves. No `Overfull \hbox` exceeds 20 pt. The document builds to **31 pages** as
+of the Phase 6 corrections (30 when this audit was first written). (An earlier revision of this audit recorded 31; that figure was taken immediately
 after the float-placement change, which briefly added a page, and before the caption and
 evidence-taxonomy edits reflowed it. 30 is the count for the final document and is
 reproducible from a clean build.)

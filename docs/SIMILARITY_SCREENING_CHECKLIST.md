@@ -196,7 +196,7 @@ For the author. Items 1–4 are prerequisites; 5–9 are the run and its handlin
 
 - [ ] **1.** Confirm with the supervisor which tool SVNIT licenses (Turnitin or iThenticate) and who can submit on the author's behalf.
 - [ ] **2.** Add the missing DOIs (§2.6) before submitting the file, so the bibliography is final.
-- [ ] **3.** Export the manuscript as a single PDF — `paper/manuscript.pdf`, 30 pages. Do not submit the `.tex`; markup inflates the score.
+- [ ] **3.** Export the manuscript as a single PDF — `paper/manuscript.pdf`, 31 pages. Do not submit the `.tex`; markup inflates the score.
 - [ ] **4.** Confirm the submission does **not** add the manuscript to the tool's permanent repository, or a later publisher check will match it against itself. For Turnitin this is the "no repository" / "do not store" submission option.
 - [ ] **5.** Run the check.
 - [ ] **6.** In the report settings, exclude: the bibliography, quoted material, and matches under about 10 words.

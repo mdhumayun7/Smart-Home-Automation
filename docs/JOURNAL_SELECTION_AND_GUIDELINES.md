@@ -88,7 +88,7 @@ manuscript's main risk at this venue. See §3.
 | Formal methods | TLA+ specification, exhaustive model checking, a disclosed vacuous invariant and mutation testing of the specification. Design and architecture, which the scope names. |
 | Response-time analysis | A decomposition that reduces four interference terms to one. Classical real-time systems work, and the scope names real-time systems first among its topics. |
 | Reproducibility | Byte-identical regeneration from committed seeds, commit-pinned corpus, a live-broker testbed whose verdicts reproduce. Well above the norm. |
-| Length | 30 pages in a neutral `article` class. JSA publishes full-length work; this is not a letters-length paper. |
+| Length | 31 pages in a neutral `article` class. JSA publishes full-length work; this is not a letters-length paper. |
 
 ### Where it is at risk
 
@@ -137,7 +137,7 @@ submission. The manuscript's current state is given so the gap is visible.
 
 | Requirement | Current state of the manuscript | Action |
 |---|---|---|
-| Article types and any page limit | 30 pages, `article` class | confirm no limit is exceeded |
+| Article types and any page limit | 31 pages, `article` class | confirm no limit is exceeded |
 | Abstract: word limit, structured or not | ~430 words, unstructured | **likely over a typical 250-word limit; check first** |
 | Keywords: how many | 10 supplied | confirm the permitted range |
 | Reference style | Numbered `\bibitem`, 22 entries | JSA is typically numbered Elsevier style; confirm, and consider `elsarticle-num` with a `.bib` |

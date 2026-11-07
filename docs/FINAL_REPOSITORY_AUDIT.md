@@ -64,7 +64,7 @@ Built from a clean state — `.aux`, `.log`, `.out` and `.toc` deleted first —
 | Check | Result |
 |---|---|
 | Compilation exit status | 0 |
-| **Pages** | **30** |
+| **Pages** | **30** at the time of this audit; **31** after the Phase 6 corrections (see the note below) |
 | `LaTeX Warning` occurrences | **0** |
 | Undefined references | **0** |
 | `Overfull \hbox` exceeding 20 pt | **0** |
@@ -81,7 +81,13 @@ later commits — `7318ad4` (the expanded broker-table caption and the extra con
 document carried the intermediate figure forward. `CONSISTENCY_AUDIT.md` has been corrected
 and now states 30 with a note explaining the discrepancy.
 
-A clean rebuild reproduces 30 pages.
+A clean rebuild reproduced 30 pages at the time of this audit.
+
+**Update after Phase 6.** The scientific review added two passages — the E′ row and
+explanatory paragraph in the threat model, and the host-fuzzing scope statement — and the
+document is now **31 pages**. The lesson from the original discrepancy applies to this number
+too: a page count is only true of the commit it was measured at. Build and check rather than
+quoting.
 
 ---
 
@@ -278,7 +284,7 @@ value or claim required correction.
 ## 10. Verdict
 
 The repository is internally consistent, fully reproducible from committed sources, and the
-manuscript compiles cleanly to 30 pages with no warnings and no unresolved references.
+manuscript compiles cleanly to 31 pages with no warnings and no unresolved references.
 
 This is **technical completion**. It is not submission readiness, which additionally requires
 the hardware measurement (Phase 3), the target journal's current requirements (Phase 4), an
