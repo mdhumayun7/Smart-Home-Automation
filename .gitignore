@@ -44,3 +44,11 @@ __pycache__/
 experiments/broker/run/
 formal/*_TTrace_*.tla
 formal/states/
+
+# LaTeX pulls figures from docs/images/ and experiments/results/ via graphicspath.
+# A copy left in paper/ shadows the real one and silently goes stale.
+paper/*.pdf
+!paper/manuscript.pdf
+!paper/paper.pdf
+!paper/supervisor_brief.pdf
+!paper/fig_campaign.pdf
