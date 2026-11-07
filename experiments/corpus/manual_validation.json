@@ -1,0 +1,45 @@
+{
+ "procedure": [
+  "Every project flagged by Rule 2 was opened and read. The question asked of each was narrow: does a payload received on a subscribed MQTT topic cause a physical output to change, and is there any authentication of that payload anywhere in the project's own source?",
+  "Vendored and example code was excluded by path (lib/, libraries/, examples/, build/, .pio/). A match found only inside a bundled third-party library or an upstream example sketch is a false positive of the automated rule, not a property of the project.",
+  "A write to a status LED is not actuation. Several projects drive an indicator GPIO from a callback, which the automated ACTUATE pattern cannot distinguish from driving a relay.",
+  "Actuation that does not go through a GPIO call was counted when found by reading: Modbus register writes, RF transmission to a paired appliance, and serial command frames to a controller board are all actuation, and the automated rule misses all three.",
+  "Verdicts are recorded below with the file and the reason. Where the reading was not conclusive the verdict is 'uncertain' rather than a guess."
+ ],
+ "rule": "Rule 2, as defined in analyse_guards.py",
+ "flagged_by_rule": 18,
+ "corpus_size": 135,
+ "verdicts": {
+  "confirmed": [
+   {"project": "toblum/McGarager", "evidence": "src/McGarager.cpp: subscribes to a command topic; a payload of \"trigger\" reaches digitalWrite(RELAY_PIN, HIGH) and opens a garage door. No authentication of the payload.", "actuation": "garage door relay"},
+   {"project": "TheHolyRoger/ESP32-MQTT-AlarmKeypad", "evidence": "ESP32-MQTT-AlarmKeypad.ino: several subscribe() callbacks compare the payload against ON/OFF strings and change alarm keypad state. No authentication of the payload.", "actuation": "alarm keypad state"},
+   {"project": "vailatis/mqtt_thermostat", "evidence": "firmware/firmware.ino: digitalWrite(RELE_Output, ...) drives a heating relay from thermostat state reachable over MQTT.", "actuation": "heating relay"},
+   {"project": "caspercze/esp32-intexsbh20", "evidence": "src/esp32-intexsbh20/esp32-intexsbh20.ino: MQTT commands drive spa functions including heater and pump.", "actuation": "spa heater and pump"},
+   {"project": "dewenni/ESP_Buderus_KM271", "evidence": "src/: MQTT commands write setpoints to a Buderus boiler over its KM271 bus.", "actuation": "boiler setpoints"},
+   {"project": "michaelusner/esp32-pentair-controller", "evidence": "main/main.c: MQTT commands are translated into Pentair pool-controller command frames. The GPIO writes in this file are a status LED, not the actuation.", "actuation": "pool controller commands"},
+   {"project": "tfohlmeister/berbel-remote", "evidence": "BerbelRemote/src/main.cpp: MQTT commands are retransmitted as RF to an extractor hood. The GPIO write in this file is a status LED, not the actuation.", "actuation": "RF to extractor hood"},
+   {"project": "jesus-llusia/datouboss-modbus-mqtt", "evidence": "src/main.cpp: MQTT payloads become Modbus register writes. The GPIO write is the RS-485 direction pin, not the actuation.", "actuation": "Modbus register writes"},
+   {"project": "Boisti13/papers3-dashboard", "evidence": "src/display/pages/heating/heating_page.cpp: heating setpoints adjustable through the MQTT-connected dashboard.", "actuation": "heating setpoints"}
+  ],
+  "false_positive": [
+   {"project": "Cian911/zimaboard-monitor", "reason": "monitoring only; publishes metrics, no actuation outside vendored code"},
+   {"project": "DocBigs-Lab/LD2410S_C3mini-mqtt-HomeAssistant", "reason": "presence sensor reporting to Home Assistant; no actuation"},
+   {"project": "G-Two/smoke-x-receiver", "reason": "receives and republishes thermometer readings; no actuation"},
+   {"project": "Keralots/MonitorLEDBar", "reason": "drives an indicator LED bar from received data; display, not actuation"},
+   {"project": "askrejans/G86-info", "reason": "information display; no actuation"},
+   {"project": "aslak3/matrix-display", "reason": "LED matrix display; no actuation"},
+   {"project": "erikxson/watermeter-flowiq2200", "reason": "water meter reading and publishing; no actuation"},
+   {"project": "adlerre/obd2-mqtt", "reason": "reads OBD-II data and publishes it; no actuation"},
+   {"project": "domoticafacilconjota/panel-led-mqtt", "reason": "the only actuation match is inside a bundled WiFiManager example sketch, not the project's own code"}
+  ],
+  "uncertain": []
+ },
+ "summary": {
+  "confirmed_true_positive": 9,
+  "false_positive": 9,
+  "uncertain": 0,
+  "false_positive_rate_of_flagged": "9/18, about 50 per cent",
+  "known_under_counting": "Rule 2 requires a GPIO-style actuation call. Three of the nine confirmed cases actuate through Modbus, RF or a serial command frame instead, and were flagged only because an unrelated GPIO write happened to be present. Projects that actuate solely through those channels and have no GPIO write at all are missed entirely, so the automated count is not a lower bound either.",
+  "reading": "These verdicts support an existence claim and not a prevalence claim. Nine projects in this corpus act on unauthenticated MQTT payloads to move physical things, one of them a garage door. The 18/135 figure is not a rate: the rule over-counts monitoring projects at about fifty per cent and under-counts non-GPIO actuation by an unknown amount."
+ }
+}

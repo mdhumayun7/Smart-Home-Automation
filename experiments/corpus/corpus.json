@@ -1,0 +1,1397 @@
+{
+ "criteria": {
+  "exclude_archived": true,
+  "exclude_forks": true,
+  "languages": [
+   "C",
+   "C++"
+  ],
+  "max_size_kb": 80000,
+  "min_stars": 3
+ },
+ "n_projects": 135,
+ "projects": [
+  {
+   "clone_url": "https://github.com/21cncstudio/project_aura.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "21cncstudio/project_aura",
+   "language": "C",
+   "license": "GPL-3.0",
+   "size_kb": 67470,
+   "stars": 787
+  },
+  {
+   "clone_url": "https://github.com/Laxilef/OTGateway.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Laxilef/OTGateway",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 12594,
+   "stars": 474
+  },
+  {
+   "clone_url": "https://github.com/KmanOz/KmanSonoff.git",
+   "default_branch": "master",
+   "found_by": "esp8266 mqtt relay switch",
+   "full_name": "KmanOz/KmanSonoff",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 2665,
+   "stars": 284
+  },
+  {
+   "clone_url": "https://github.com/adlerre/obd2-mqtt.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "adlerre/obd2-mqtt",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 9415,
+   "stars": 278
+  },
+  {
+   "clone_url": "https://github.com/ebinf/lightbar2mqtt.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "ebinf/lightbar2mqtt",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 34,
+   "stars": 156
+  },
+  {
+   "clone_url": "https://github.com/eg321/esp32-motorized-roller-blinds.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "eg321/esp32-motorized-roller-blinds",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 8434,
+   "stars": 123
+  },
+  {
+   "clone_url": "https://github.com/dewenni/ESP_Buderus_KM271.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "dewenni/ESP_Buderus_KM271",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 42501,
+   "stars": 115
+  },
+  {
+   "clone_url": "https://github.com/Techposts/TankSync.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Techposts/TankSync",
+   "language": "C",
+   "license": "AGPL-3.0",
+   "size_kb": 74795,
+   "stars": 93
+  },
+  {
+   "clone_url": "https://github.com/genestealer/everblu-meters-esp8266-improved.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "genestealer/everblu-meters-esp8266-improved",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 10036,
+   "stars": 81
+  },
+  {
+   "clone_url": "https://github.com/shogunxam/ESP32_BLETracker.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "shogunxam/ESP32_BLETracker",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 2256,
+   "stars": 77
+  },
+  {
+   "clone_url": "https://github.com/mcer12/Ambien-ESP32.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "mcer12/Ambien-ESP32",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 1550,
+   "stars": 68
+  },
+  {
+   "clone_url": "https://github.com/Krissz55555/SIGVERN-RF.git",
+   "default_branch": "esp32-s3",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Krissz55555/SIGVERN-RF",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 5645,
+   "stars": 66
+  },
+  {
+   "clone_url": "https://github.com/ayavilevich/rinnai-wifi.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "ayavilevich/rinnai-wifi",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 177,
+   "stars": 60
+  },
+  {
+   "clone_url": "https://github.com/michaelusner/esp32-pentair-controller.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "michaelusner/esp32-pentair-controller",
+   "language": "C",
+   "license": null,
+   "size_kb": 8247,
+   "stars": 39
+  },
+  {
+   "clone_url": "https://github.com/bkpsu/NodeMCU-Home-Automation-Sensor.git",
+   "default_branch": "master",
+   "found_by": "nodemcu mqtt automation",
+   "full_name": "bkpsu/NodeMCU-Home-Automation-Sensor",
+   "language": "C++",
+   "license": null,
+   "size_kb": 202,
+   "stars": 38
+  },
+  {
+   "clone_url": "https://github.com/lkankowski/arduino-multi-relay2.git",
+   "default_branch": "master",
+   "found_by": "esp8266 mqtt relay switch",
+   "full_name": "lkankowski/arduino-multi-relay2",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 319,
+   "stars": 35
+  },
+  {
+   "clone_url": "https://github.com/Boisti13/papers3-dashboard.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Boisti13/papers3-dashboard",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 270,
+   "stars": 35
+  },
+  {
+   "clone_url": "https://github.com/AjayNaiduJami/ESP32-S3-Touch-LCD-4B.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "AjayNaiduJami/ESP32-S3-Touch-LCD-4B",
+   "language": "C",
+   "license": "NOASSERTION",
+   "size_kb": 3459,
+   "stars": 33
+  },
+  {
+   "clone_url": "https://github.com/frenck/ESP32-MQTT-LED-Controller.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "frenck/ESP32-MQTT-LED-Controller",
+   "language": "C++",
+   "license": null,
+   "size_kb": 8,
+   "stars": 32
+  },
+  {
+   "clone_url": "https://github.com/G-Two/smoke-x-receiver.git",
+   "default_branch": "dev",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "G-Two/smoke-x-receiver",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 1027,
+   "stars": 32
+  },
+  {
+   "clone_url": "https://github.com/maragelis/ParadoxMqtt32.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "maragelis/ParadoxMqtt32",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 3200,
+   "stars": 28
+  },
+  {
+   "clone_url": "https://github.com/Kustonium/esphome-wmbus-bridge-rawonly.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Kustonium/esphome-wmbus-bridge-rawonly",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 7634,
+   "stars": 28
+  },
+  {
+   "clone_url": "https://github.com/tschaban/AFE-Firmware.git",
+   "default_branch": "master",
+   "found_by": "esp8266 mqtt home automation firmware",
+   "full_name": "tschaban/AFE-Firmware",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 57223,
+   "stars": 27
+  },
+  {
+   "clone_url": "https://github.com/aldadic/esp-smartmeter-reader.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "aldadic/esp-smartmeter-reader",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 57,
+   "stars": 27
+  },
+  {
+   "clone_url": "https://github.com/giusanny/thermostat-display-mqtt.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt thermostat",
+   "full_name": "giusanny/thermostat-display-mqtt",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 34572,
+   "stars": 27
+  },
+  {
+   "clone_url": "https://github.com/pkavinash/Home-Assistant-Water-Tank-Level-Indicator-Using-Arduino-and-MQTT.git",
+   "default_branch": "master",
+   "found_by": "nodemcu mqtt automation",
+   "full_name": "pkavinash/Home-Assistant-Water-Tank-Level-Indicator-Using-Arduino-and-MQTT",
+   "language": "C++",
+   "license": null,
+   "size_kb": 1097,
+   "stars": 27
+  },
+  {
+   "clone_url": "https://github.com/vailatis/mqtt_thermostat.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt thermostat",
+   "full_name": "vailatis/mqtt_thermostat",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 11895,
+   "stars": 25
+  },
+  {
+   "clone_url": "https://github.com/muwerk/munet.git",
+   "default_branch": "master",
+   "found_by": "esp32 pubsubclient",
+   "full_name": "muwerk/munet",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 993,
+   "stars": 25
+  },
+  {
+   "clone_url": "https://github.com/N1k0droid/ESP32-Oukitel-P800-SmartUPS.git",
+   "default_branch": "main",
+   "found_by": "arduino mqtt smart home firmware",
+   "full_name": "N1k0droid/ESP32-Oukitel-P800-SmartUPS",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 9591,
+   "stars": 24
+  },
+  {
+   "clone_url": "https://github.com/ShonP40/ESPRoomba.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "ShonP40/ESPRoomba",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 2568,
+   "stars": 23
+  },
+  {
+   "clone_url": "https://github.com/levkovigor/ppposclient.git",
+   "default_branch": "main",
+   "found_by": "esp32 pubsubclient",
+   "full_name": "levkovigor/ppposclient",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 27,
+   "stars": 20
+  },
+  {
+   "clone_url": "https://github.com/botts7/esp32-wallbox.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "botts7/esp32-wallbox",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 18080,
+   "stars": 19
+  },
+  {
+   "clone_url": "https://github.com/pirsasha/esp32-midea-ac.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "pirsasha/esp32-midea-ac",
+   "language": "C++",
+   "license": "Apache-2.0",
+   "size_kb": 3514,
+   "stars": 19
+  },
+  {
+   "clone_url": "https://github.com/peteh/pacekeeper.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "peteh/pacekeeper",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 978,
+   "stars": 19
+  },
+  {
+   "clone_url": "https://github.com/cyijun/HAMqttDiscoveryHandler.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "cyijun/HAMqttDiscoveryHandler",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 65,
+   "stars": 18
+  },
+  {
+   "clone_url": "https://github.com/pkavinash/Home-Assistant-4-Channel-Relay-With-Physical-Button-Using-Arduino-and-MQTT.git",
+   "default_branch": "master",
+   "found_by": "nodemcu mqtt automation",
+   "full_name": "pkavinash/Home-Assistant-4-Channel-Relay-With-Physical-Button-Using-Arduino-and-MQTT",
+   "language": "C++",
+   "license": null,
+   "size_kb": 4127,
+   "stars": 18
+  },
+  {
+   "clone_url": "https://github.com/NickStallman/Rewired-S.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "NickStallman/Rewired-S",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 2459,
+   "stars": 17
+  },
+  {
+   "clone_url": "https://github.com/tfohlmeister/berbel-remote.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "tfohlmeister/berbel-remote",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 142,
+   "stars": 15
+  },
+  {
+   "clone_url": "https://github.com/aslak3/matrix-display.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "aslak3/matrix-display",
+   "language": "C",
+   "license": null,
+   "size_kb": 835,
+   "stars": 15
+  },
+  {
+   "clone_url": "https://github.com/prebsit/dometic-fjx7-ha.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "prebsit/dometic-fjx7-ha",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 176,
+   "stars": 15
+  },
+  {
+   "clone_url": "https://github.com/PeterkoCZ91/HLK-LD2450-security.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "PeterkoCZ91/HLK-LD2450-security",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 2085,
+   "stars": 14
+  },
+  {
+   "clone_url": "https://github.com/DocBigs-Lab/ESP32-Display-Reader.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "DocBigs-Lab/ESP32-Display-Reader",
+   "language": "C++",
+   "license": null,
+   "size_kb": 3569,
+   "stars": 13
+  },
+  {
+   "clone_url": "https://github.com/ilnix-labs/airthings-wave-mqtt-monitor.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "ilnix-labs/airthings-wave-mqtt-monitor",
+   "language": "C++",
+   "license": null,
+   "size_kb": 36,
+   "stars": 13
+  },
+  {
+   "clone_url": "https://github.com/Torxgewinde/Irrigation_Controller.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt irrigation controller",
+   "full_name": "Torxgewinde/Irrigation_Controller",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 9388,
+   "stars": 13
+  },
+  {
+   "clone_url": "https://github.com/techiesms/Home-Automation-based-on-Local-MQTT-server-using-Raspberry-Pi-and-Nodemcu-Board.git",
+   "default_branch": "master",
+   "found_by": "nodemcu mqtt automation",
+   "full_name": "techiesms/Home-Automation-based-on-Local-MQTT-server-using-Raspberry-Pi-and-Nodemcu-Board",
+   "language": "C++",
+   "license": null,
+   "size_kb": 888,
+   "stars": 13
+  },
+  {
+   "clone_url": "https://github.com/TheHolyRoger/ESP32-MQTT-AlarmKeypad.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "TheHolyRoger/ESP32-MQTT-AlarmKeypad",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 4709,
+   "stars": 12
+  },
+  {
+   "clone_url": "https://github.com/hms-homelab/hms-esp-apc.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "hms-homelab/hms-esp-apc",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 741,
+   "stars": 12
+  },
+  {
+   "clone_url": "https://github.com/hms-homelab/hms-esp-tuya-ble.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "hms-homelab/hms-esp-tuya-ble",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 57,
+   "stars": 12
+  },
+  {
+   "clone_url": "https://github.com/MoonFox2006/ESP32_MQTT.git",
+   "default_branch": "master",
+   "found_by": "esp32 pubsubclient",
+   "full_name": "MoonFox2006/ESP32_MQTT",
+   "language": "C++",
+   "license": null,
+   "size_kb": 4,
+   "stars": 11
+  },
+  {
+   "clone_url": "https://github.com/Alteriom/painlessMesh.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt sensor node",
+   "full_name": "Alteriom/painlessMesh",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 7382,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/Burnallover/frisquet-mqtt.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Burnallover/frisquet-mqtt",
+   "language": "C++",
+   "license": null,
+   "size_kb": 155,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/lapy/esp32-keyble-homeassistant.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "lapy/esp32-keyble-homeassistant",
+   "language": "C++",
+   "license": "LGPL-3.0",
+   "size_kb": 817,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/plapointe6/CustomHADevicesCollection.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "plapointe6/CustomHADevicesCollection",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 3912,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/christopher-strack/esp-simarine-home-assistant.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "christopher-strack/esp-simarine-home-assistant",
+   "language": "C++",
+   "license": null,
+   "size_kb": 145,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/Timdebruijn/heliograph.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Timdebruijn/heliograph",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 8673,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/Leonetienne/Irrigation-Computer-FreeRTOS.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Leonetienne/Irrigation-Computer-FreeRTOS",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 1398,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/abish7643/ESP32Cam-MQTT.git",
+   "default_branch": "master",
+   "found_by": "esp32 pubsubclient",
+   "full_name": "abish7643/ESP32Cam-MQTT",
+   "language": "C++",
+   "license": null,
+   "size_kb": 1048,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/Witheart/ESP32_HuaweiCloud_MQTT.git",
+   "default_branch": "main",
+   "found_by": "esp32 pubsubclient",
+   "full_name": "Witheart/ESP32_HuaweiCloud_MQTT",
+   "language": "C++",
+   "license": null,
+   "size_kb": 4,
+   "stars": 10
+  },
+  {
+   "clone_url": "https://github.com/mohsen-norouzi237/smart-greenhouse-iot-thingsboard.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "mohsen-norouzi237/smart-greenhouse-iot-thingsboard",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 3413,
+   "stars": 9
+  },
+  {
+   "clone_url": "https://github.com/erikxson/watermeter-flowiq2200.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "erikxson/watermeter-flowiq2200",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 1759,
+   "stars": 9
+  },
+  {
+   "clone_url": "https://github.com/K3nnis/IHC-Output-Bridge.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "K3nnis/IHC-Output-Bridge",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 845,
+   "stars": 9
+  },
+  {
+   "clone_url": "https://github.com/idoroseman/FreestyleLibreMonitor2.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "idoroseman/FreestyleLibreMonitor2",
+   "language": "C++",
+   "license": null,
+   "size_kb": 5,
+   "stars": 8
+  },
+  {
+   "clone_url": "https://github.com/HajjSalad/STM32-ESP32-IoT-Monitor-and-Control.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt sensor node",
+   "full_name": "HajjSalad/STM32-ESP32-IoT-Monitor-and-Control",
+   "language": "C",
+   "license": null,
+   "size_kb": 10513,
+   "stars": 8
+  },
+  {
+   "clone_url": "https://github.com/jef-sure/esp32-co2-station.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "jef-sure/esp32-co2-station",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 68212,
+   "stars": 8
+  },
+  {
+   "clone_url": "https://github.com/LaboratorioGluon/ESP32_CC1101_MQTT.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "LaboratorioGluon/ESP32_CC1101_MQTT",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 21,
+   "stars": 8
+  },
+  {
+   "clone_url": "https://github.com/achulzhanov/esp32-pool-plc.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "achulzhanov/esp32-pool-plc",
+   "language": "C++",
+   "license": "Apache-2.0",
+   "size_kb": 5589,
+   "stars": 8
+  },
+  {
+   "clone_url": "https://github.com/elvenpath/CambridgeAudioAzur351R-RS232toMqtt.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "elvenpath/CambridgeAudioAzur351R-RS232toMqtt",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 172,
+   "stars": 8
+  },
+  {
+   "clone_url": "https://github.com/jot-koehler/esp32-cc1101-fan-control.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "jot-koehler/esp32-cc1101-fan-control",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 36,
+   "stars": 8
+  },
+  {
+   "clone_url": "https://github.com/vistorx/CatWandConnect.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "vistorx/CatWandConnect",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 69684,
+   "stars": 8
+  },
+  {
+   "clone_url": "https://github.com/ramaariw/PMSV1.0-ESP32_DCSensor-PZEM004T_firmware.git",
+   "default_branch": "v1.1-platformio",
+   "found_by": "esp32 mqtt relay control",
+   "full_name": "ramaariw/PMSV1.0-ESP32_DCSensor-PZEM004T_firmware",
+   "language": "C",
+   "license": null,
+   "size_kb": 930,
+   "stars": 7
+  },
+  {
+   "clone_url": "https://github.com/opivankristovi/ESP32-Smart-WiFi-Repeater.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt sensor node",
+   "full_name": "opivankristovi/ESP32-Smart-WiFi-Repeater",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 18040,
+   "stars": 7
+  },
+  {
+   "clone_url": "https://github.com/ESDN83/esp-cyberpower-ups.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "ESDN83/esp-cyberpower-ups",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 98,
+   "stars": 7
+  },
+  {
+   "clone_url": "https://github.com/js4jiang5/Sesame2MQTT.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "js4jiang5/Sesame2MQTT",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 2764,
+   "stars": 7
+  },
+  {
+   "clone_url": "https://github.com/DocBigs-Lab/CYD-Solar-Display.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "DocBigs-Lab/CYD-Solar-Display",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 1174,
+   "stars": 7
+  },
+  {
+   "clone_url": "https://github.com/Keralots/MonitorLEDBar.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Keralots/MonitorLEDBar",
+   "language": "C++",
+   "license": null,
+   "size_kb": 6537,
+   "stars": 7
+  },
+  {
+   "clone_url": "https://github.com/paclema/MQTTClient.git",
+   "default_branch": "master",
+   "found_by": "esp32 pubsubclient",
+   "full_name": "paclema/MQTTClient",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 560,
+   "stars": 7
+  },
+  {
+   "clone_url": "https://github.com/zygios/ESP32_Paradox_controler_mqtt.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "zygios/ESP32_Paradox_controler_mqtt",
+   "language": "C++",
+   "license": null,
+   "size_kb": 237,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/PeterkoCZ91/HLK-LD2412-security.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "PeterkoCZ91/HLK-LD2412-security",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 509,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/Ahmed-YSY/FleetGuard.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "Ahmed-YSY/FleetGuard",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 1954,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/rpavlyuk/ESPRelayBoard.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt relay control",
+   "full_name": "rpavlyuk/ESPRelayBoard",
+   "language": "C",
+   "license": "GPL-3.0",
+   "size_kb": 815,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/domoticafacilconjota/panel-led-mqtt.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "domoticafacilconjota/panel-led-mqtt",
+   "language": "C++",
+   "license": null,
+   "size_kb": 2910,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/maillme/rainbird-esp32.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "maillme/rainbird-esp32",
+   "language": "C++",
+   "license": null,
+   "size_kb": 106,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/jontubs/openTAPtoX.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "jontubs/openTAPtoX",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 881,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/PeterkoCZ91/HLK-LD2412-POE-WiFi-CSI-security.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "PeterkoCZ91/HLK-LD2412-POE-WiFi-CSI-security",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 3582,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/harryzz/jura-uart-esphome.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "harryzz/jura-uart-esphome",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 90,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/davdlic/OpenLitter.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "davdlic/OpenLitter",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 479,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/thorstendjthb-glitch/ihub-pro-open.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "thorstendjthb-glitch/ihub-pro-open",
+   "language": "C",
+   "license": "GPL-3.0",
+   "size_kb": 1390,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/holoduke/JKBMS.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "holoduke/JKBMS",
+   "language": "C++",
+   "license": null,
+   "size_kb": 3793,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/PeterkoCZ91/DFR1154-ai-camera.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "PeterkoCZ91/DFR1154-ai-camera",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 7713,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/owanvik/esPriam32.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "owanvik/esPriam32",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 315,
+   "stars": 6
+  },
+  {
+   "clone_url": "https://github.com/k3ldar/PowerControlHub.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt relay control",
+   "full_name": "k3ldar/PowerControlHub",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 18832,
+   "stars": 5
+  },
+  {
+   "clone_url": "https://github.com/blchinezu/bekant-mqtt32.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "blchinezu/bekant-mqtt32",
+   "language": "C++",
+   "license": null,
+   "size_kb": 25083,
+   "stars": 5
+  },
+  {
+   "clone_url": "https://github.com/JJFourie/ESP32_MQTT_Motor_Control.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "JJFourie/ESP32_MQTT_Motor_Control",
+   "language": "C++",
+   "license": null,
+   "size_kb": 376,
+   "stars": 5
+  },
+  {
+   "clone_url": "https://github.com/TheDuffman85/reolink-esp32-chime.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "TheDuffman85/reolink-esp32-chime",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 50533,
+   "stars": 5
+  },
+  {
+   "clone_url": "https://github.com/stein155/cgo600-bridge.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "stein155/cgo600-bridge",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 718,
+   "stars": 5
+  },
+  {
+   "clone_url": "https://github.com/DocBigs-Lab/ESP-Kerberos.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "DocBigs-Lab/ESP-Kerberos",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 6925,
+   "stars": 5
+  },
+  {
+   "clone_url": "https://github.com/Mrcuve0/Raspberry-Thermostat.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt thermostat",
+   "full_name": "Mrcuve0/Raspberry-Thermostat",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 6658,
+   "stars": 5
+  },
+  {
+   "clone_url": "https://github.com/KJialun/Operating-system-security-project.git",
+   "default_branch": "main",
+   "found_by": "mqtt esp32 security system",
+   "full_name": "KJialun/Operating-system-security-project",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 12430,
+   "stars": 5
+  },
+  {
+   "clone_url": "https://github.com/schlunsen/esp32_mqtt_relay.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt relay control",
+   "full_name": "schlunsen/esp32_mqtt_relay",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 290,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/sorscode/ESP32_MQTT_JSON.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt relay control",
+   "full_name": "sorscode/ESP32_MQTT_JSON",
+   "language": "C++",
+   "license": null,
+   "size_kb": 4,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/oyvindn/garage-door-controller.git",
+   "default_branch": "master",
+   "found_by": "esp32 mqtt relay control",
+   "full_name": "oyvindn/garage-door-controller",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 131,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/jpetrocik/smart-switch-firmware.git",
+   "default_branch": "master",
+   "found_by": "esp8266 mqtt home automation firmware",
+   "full_name": "jpetrocik/smart-switch-firmware",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 114,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/faljse/iodub.git",
+   "default_branch": "master",
+   "found_by": "arduino mqtt smart home firmware",
+   "full_name": "faljse/iodub",
+   "language": "C",
+   "license": null,
+   "size_kb": 826,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/mickey9801/esp32_iot_door_lock.git",
+   "default_branch": "master",
+   "found_by": "mqtt door lock esp32",
+   "full_name": "mickey9801/esp32_iot_door_lock",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 4725,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/andrewostroumov/esp-mqtt-light.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "andrewostroumov/esp-mqtt-light",
+   "language": "C",
+   "license": null,
+   "size_kb": 43,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/ShotokuTech/ESP32_Home_Assistant_Examples.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "ShotokuTech/ESP32_Home_Assistant_Examples",
+   "language": "C++",
+   "license": null,
+   "size_kb": 4,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/DocBigs-Lab/LD2410S_C3mini-mqtt-HomeAssistant.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "DocBigs-Lab/LD2410S_C3mini-mqtt-HomeAssistant",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 6823,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/Cecilius/Temperature_sensor_ESP32_DS18B20_MQTT.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Cecilius/Temperature_sensor_ESP32_DS18B20_MQTT",
+   "language": "C",
+   "license": "GPL-3.0",
+   "size_kb": 110,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/SloPOS/free-harvest.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "SloPOS/free-harvest",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 3867,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/miroslavpetrov/ESP32-C6-Zigbee2MQTT-SHTC3-Deepsleep.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "miroslavpetrov/ESP32-C6-Zigbee2MQTT-SHTC3-Deepsleep",
+   "language": "C++",
+   "license": null,
+   "size_kb": 7,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/windgo1019/ESP_Finger_Unlock_Arduino.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "windgo1019/ESP_Finger_Unlock_Arduino",
+   "language": "C++",
+   "license": null,
+   "size_kb": 66,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/rnbennett/tipboard-esp32.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "rnbennett/tipboard-esp32",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 50416,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/1bobby-git/HA-iOS-ANCS.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "1bobby-git/HA-iOS-ANCS",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 71527,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/danmrossi/MobiusControl.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "danmrossi/MobiusControl",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 6004,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/Cian911/zimaboard-monitor.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Cian911/zimaboard-monitor",
+   "language": "C++",
+   "license": null,
+   "size_kb": 4432,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/luserv/home-asisstant.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "luserv/home-asisstant",
+   "language": "C++",
+   "license": null,
+   "size_kb": 20763,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/matthias1232/spider-farmer-homeassistant.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "matthias1232/spider-farmer-homeassistant",
+   "language": "C",
+   "license": "GPL-3.0",
+   "size_kb": 9725,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/stackzac22/mesh-cam.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "stackzac22/mesh-cam",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 16,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/sfrechette/crypto-price-cad.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "sfrechette/crypto-price-cad",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 974,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/PockyBum522/mqtt-thermostat-wt32-eth01.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt thermostat",
+   "full_name": "PockyBum522/mqtt-thermostat-wt32-eth01",
+   "language": "C++",
+   "license": null,
+   "size_kb": 39492,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/nastythermostat/NastyThermostat.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt thermostat",
+   "full_name": "nastythermostat/NastyThermostat",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 28073,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/diyless/ot-thermostat-flasher.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt thermostat",
+   "full_name": "diyless/ot-thermostat-flasher",
+   "language": "C++",
+   "license": null,
+   "size_kb": 12,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/toblum/McGarager.git",
+   "default_branch": "master",
+   "found_by": "esp8266 mqtt garage opener",
+   "full_name": "toblum/McGarager",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 1283,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/mayukhpankaj/Home-Automation.git",
+   "default_branch": "master",
+   "found_by": "nodemcu mqtt automation",
+   "full_name": "mayukhpankaj/Home-Automation",
+   "language": "C++",
+   "license": null,
+   "size_kb": 7,
+   "stars": 4
+  },
+  {
+   "clone_url": "https://github.com/askrejans/G86-info.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "askrejans/G86-info",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 260,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/syahidjohairi177/M5Stack-Dial-Backup-HMI.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt alarm",
+   "full_name": "syahidjohairi177/M5Stack-Dial-Backup-HMI",
+   "language": "C",
+   "license": null,
+   "size_kb": 892,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/ESP32Tutorials/esp32-esp-idf-mqtt-bme280.git",
+   "default_branch": "main",
+   "found_by": "esp32 mqtt sensor node",
+   "full_name": "ESP32Tutorials/esp32-esp-idf-mqtt-bme280",
+   "language": "C",
+   "license": null,
+   "size_kb": 37,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/caspercze/esp32-intexsbh20.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "caspercze/esp32-intexsbh20",
+   "language": "C++",
+   "license": "NOASSERTION",
+   "size_kb": 712,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/mortylabs/epever-modbus-mqtt-dashboard.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "mortylabs/epever-modbus-mqtt-dashboard",
+   "language": "C++",
+   "license": "Apache-2.0",
+   "size_kb": 131,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/Matrix-aas/433mhz-bridge.git",
+   "default_branch": "master",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "Matrix-aas/433mhz-bridge",
+   "language": "C++",
+   "license": "MIT",
+   "size_kb": 21,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/roygabriel/hydrabridge-esp32.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "roygabriel/hydrabridge-esp32",
+   "language": "C",
+   "license": "MIT",
+   "size_kb": 666,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/jawtech123/Home-assistant-AC-Infinity-ESP32-CC1101-.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "jawtech123/Home-assistant-AC-Infinity-ESP32-CC1101-",
+   "language": "C++",
+   "license": "GPL-3.0",
+   "size_kb": 121,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/jesus-llusia/datouboss-modbus-mqtt.git",
+   "default_branch": "main",
+   "found_by": "esp32 home assistant mqtt",
+   "full_name": "jesus-llusia/datouboss-modbus-mqtt",
+   "language": "C++",
+   "license": "Apache-2.0",
+   "size_kb": 398,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/WihoverEsal/ESP32CAM_MQTT_DHT11.git",
+   "default_branch": "master",
+   "found_by": "esp32 pubsubclient",
+   "full_name": "WihoverEsal/ESP32CAM_MQTT_DHT11",
+   "language": "C++",
+   "license": null,
+   "size_kb": 14,
+   "stars": 3
+  },
+  {
+   "clone_url": "https://github.com/theiothing/Home-Automation-Devices.git",
+   "default_branch": "master",
+   "found_by": "nodemcu mqtt automation",
+   "full_name": "theiothing/Home-Automation-Devices",
+   "language": "C++",
+   "license": null,
+   "size_kb": 1473,
+   "stars": 3
+  }
+ ],
+ "queries": [
+  "esp32 mqtt alarm",
+  "esp32 mqtt relay control",
+  "esp8266 mqtt home automation firmware",
+  "arduino mqtt smart home firmware",
+  "esp-idf mqtt client application",
+  "mqtt door lock esp32",
+  "esp32 mqtt garage door",
+  "embedded mqtt command topic firmware",
+  "esp32 mqtt switch actuator",
+  "zephyr mqtt iot firmware",
+  "esp32 mqtt sensor node",
+  "esp8266 mqtt relay switch",
+  "esp32 home assistant mqtt",
+  "mqtt firmware actuator control embedded",
+  "esp32 mqtt irrigation controller",
+  "esp32 mqtt thermostat",
+  "esp32 mqtt access control rfid",
+  "esp8266 mqtt garage opener",
+  "esp32 pubsubclient",
+  "mqtt esp32 security system",
+  "esp32 mqtt light controller",
+  "nodemcu mqtt automation"
+ ],
+ "rejected_counts": {
+  "archived": 6,
+  "duplicate": 36,
+  "fork": 0,
+  "language": 0,
+  "size": 9,
+  "stars": 437
+ }
+}
