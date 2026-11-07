@@ -23,7 +23,7 @@ RES = os.path.join(HERE, "results")
 
 MODES = ["none", "ratelimit", "token", "transport", "transport_leaked",
          "acl_shared_leaked", "acl_operator_leaked", "acl_device_leaked",
-         "hmac", "hmac_keyleaked", "acl_hmac_devicedump"]
+         "hmac", "hmac_keyleaked", "acl_hmac_devicedump", "acl_hmac_controllerdump"]
 MODE_LABEL = {
     "none": "No command defence",
     "ratelimit": "Token-bucket rate limit (5/s)",
@@ -36,6 +36,7 @@ MODE_LABEL = {
     "acl_device_leaked": "TLS + ACL, device credential leaked",
     "hmac_keyleaked": "HMAC, command key leaked",
     "acl_hmac_devicedump": "TLS + ACL + HMAC, device flash dumped",
+    "acl_hmac_controllerdump": "TLS + ACL + HMAC, controller compromised (credential + key)",
 }
 
 
@@ -145,7 +146,7 @@ def main():
     # ---- ablation
     if ab:
         L.append("## 1. Command-path design ablation\n")
-        L.append("Eleven designs, same adversary, same scenario, same seeds. The adversary floods")
+        L.append("Twelve designs, same adversary, same scenario, same seeds. The adversary floods")
         L.append("the command topic and captures the legitimate command off the wire for replay.\n")
         L.append("Availability is measured as the proportion of five operator publish attempts,")
         L.append("spaced 200 ms apart, that reach the state machine while the adversary floods at")
@@ -171,7 +172,7 @@ def main():
                 f"{s['violations']} |"
             )
         L.append("")
-        L.append("Safety latency was identical across all eleven designs "
+        L.append("Safety latency was identical across all twelve designs "
                  f"(median {ab['hmac']['safety_latency_median_ms']:.0f} ms, "
                  f"standard deviation {ab['hmac']['safety_latency_stdev_ms']:.1f} ms), which is")
         L.append("expected: the harness advances a logical clock, so there is no contention to")
@@ -266,6 +267,8 @@ def main():
                 ("hmac_keyleaked", "HMAC + counter", "controller credential and command key"),
                 ("acl_hmac_devicedump", "TLS + ACL + HMAC",
                  "device credential and command key (flash dump)"),
+                ("acl_hmac_controllerdump", "TLS + ACL + HMAC",
+                 "controller credential and command key"),
             ]
             for m, controls, secret in rows:
                 d = ab.get(m)
@@ -296,6 +299,14 @@ def main():
             L.append("  ACL and a MAC, an adversary who dumps the device gets a key it can sign")
             L.append("  with and a credential the broker will not let it publish commands under.")
             L.append("  The defence that survives in this table is layered, not cryptographic.")
+            L.append("- **The layered configuration does not survive every compromise, and an")
+            L.append("  earlier draft of this document said it did.** It survives every")
+            L.append("  single-secret compromise and it survives a device flash dump, because")
+            L.append("  the ACL refuses the device identity permission to publish commands. It")
+            L.append("  does *not* survive a compromised controller host, which yields both a")
+            L.append("  credential the ACL must permit to publish and the shared key needed to")
+            L.append("  sign: neither layer refuses, and the adversary disarms. Layering raises")
+            L.append("  the cost of an attack; it does not close the set.")
             L.append("- **Under key compromise the replay counter becomes a lockout against the")
             L.append("  owner.** This was not anticipated and was found in the data. Counters are")
             L.append("  not secret, so an adversary holding the key can sign commands with a")

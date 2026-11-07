@@ -55,10 +55,10 @@ We present an ESP32 intrusion alarm whose safety loop is pinned to the applicati
 separated from the network task by bounded, non-blocking queues and a zero-timeout status
 snapshot, with HMAC-SHA256 command authentication over a non-volatile monotonic counter. We
 specify the isolation argument in TLA+ and verify it exhaustively under a network task given no
-fairness assumption, and evaluate the system with 9{,}300 seeded adversarial trials and
+fairness assumption, and evaluate the system with 9{,}600 seeded adversarial trials and
 3{,}000{,}000 sanitizer-backed fuzzing iterations.
 
-Two inexpensive methods each found a defect that none of that detected. An ablation over eleven
+Two inexpensive methods each found a defect that none of that detected. An ablation over twelve
 configurations found a compile-time guard accepting TLS plus a broker login as sufficient
 authority for unauthenticated remote disarm. The inference is unsound---the broker terminates
 TLS and re-originates every message---and under credential compromise the alarm fires in 16.7\%
@@ -72,9 +72,11 @@ The ablation further shows that availability, integrity and the safety function 
 independently, and that broker-side authorization and application-layer authentication fail
 under \emph{different} compromises, so neither dominates: an access-control list contains a
 compromised device credential but not a compromised controller, and a message authentication
-code does the reverse. Only the layered configuration survives every case. All eight
-access-control scenarios were reproduced against a real Mosquitto broker, which agreed with the
-model throughout. Under key compromise the monotonic replay counter also locks the legitimate
+code does the reverse. Layering both raises the cost of an attack but does not close the set:
+the combined configuration withstands every single-secret compromise and a device flash dump,
+and still falls to a compromised controller host, which holds a credential the list must permit
+and the key needed to sign. All eight access-control scenarios were reproduced against a real
+Mosquitto broker, which agreed with the model throughout. Under key compromise the monotonic replay counter also locks the legitimate
 owner out, admitting 0 of 1250 commands---a negative result we did not anticipate.
 
 These results establish \emph{logical} isolation only. Physical timing invariance is a property
@@ -144,7 +146,7 @@ system it checks.
 
 Neither method we used is novel. What we report is that applying them to a system's
 \emph{assumptions}, rather than to its running behaviour, caught two defects that testing,
-fuzzing, exhaustive model checking and 9{,}300 adversarial trials all missed. A third instance
+fuzzing, exhaustive model checking and 9{,}600 adversarial trials all missed. A third instance
 turned up in our own formal work: the invariant stating that unauthenticated remote disarm
 never takes effect was vacuous in the specification we shipped, because it \emph{assumed} the
 refusal instead of deriving it---the same unsound inference the compile guard made
@@ -169,11 +171,11 @@ Decomposing the safety loop's worst-case response time shows the blocking term i
 zero by construction, the loop's own work is constant-time, and the residual is a single
 composite hardware quantity---reducing four unknowns to one and identifying exactly what a
 measurement must isolate. In doing so it exposed an unbounded drain in the safety path that had
-survived 120 host checks, 3{,}000{,}000 sanitizer-backed fuzz iterations, 9{,}300 adversarial
+survived 120 host checks, 3{,}000{,}000 sanitizer-backed fuzz iterations, 9{,}600 adversarial
 trials and exhaustive model checking (Section~\ref{sec:timing}).
 
 \item \textbf{An ablation separating three properties that are routinely conflated.} One
-adversary, one system, one seed set, eleven configurations. Availability, integrity and the
+adversary, one system, one seed set, twelve configurations. Availability, integrity and the
 safety function fail independently: a rate limiter costs 41\% of operator commands while buying
 integrity nothing, a static token does the reverse, a transport-only configuration is a strong
 baseline exactly as long as broker credentials hold, and only a counter-bound MAC provides
@@ -184,9 +186,11 @@ firmware default, which fired spuriously in 79.9\% of benign ten-minute runs
 \item \textbf{A compromise-indexed comparison of broker authorization against application-layer
 authentication, validated against a real broker.} Neither control dominates: a per-client ACL
 contains a compromised device credential and fails against a compromised controller; a MAC does
-the reverse; a shared credential collapses the ACL entirely; only the layered configuration
-survives every compromise tested. All eight scenarios were reproduced against Mosquitto 2.0.18
-with TLS and per-client ACLs, which agreed with the model in every case. The comparison also
+the reverse; a shared credential collapses the ACL entirely. Layering the two withstands every
+single-secret compromise and a device flash dump, but not a compromised controller host, which
+holds both a credential the list must permit and the key required to sign: no configuration we
+tested survives that. All eight scenarios were reproduced against Mosquitto 2.0.18 with TLS and
+per-client ACLs, which agreed with the model in every case. The comparison also
 yields a negative result we did not anticipate: under key compromise the monotonic replay
 counter locks the legitimate owner out of the system entirely
 (Sections~\ref{sec:acl} and~\ref{sec:brokerval}).
@@ -868,10 +872,10 @@ Experiment & Committed artefact & Count \\
 \midrule
 E1/E2 adversarial campaign & \texttt{summary.json} & 6{,}000 trials \\
 \quad 500 per rate $\times$ 6 rates $\times$ 2 builds & & \\
-E3 ablation & \texttt{ablation.jsonl} & 3{,}300 trials \\
-\quad 300 per configuration $\times$ 11 & & \\
+E3 ablation & \texttt{ablation.jsonl} & 3{,}600 trials \\
+\quad 300 per configuration $\times$ 12 & & \\
 \midrule
-\textbf{Total adversarial trials} & & \textbf{9{,}300} \\
+\textbf{Total adversarial trials} & & \textbf{9{,}600} \\
 \midrule
 E4 command-parser fuzzing & \texttt{fuzz.json} & 3{,}000{,}000 iterations \\
 E5 detector sensitivity & \texttt{sensitivity.jsonl} & 180 grid cells \\
@@ -880,10 +884,10 @@ E6 broker access control & \texttt{broker\_acl.jsonl} & 8 scenarios \\
 \end{tabular}
 \end{table}
 
-The eleven configurations of E3 comprise six command-path designs (Table~\ref{tab:ablation})
-and five further credential-compromise configurations (Table~\ref{tab:credential}); the
-transport arms appear in both tables, which is why the two tables together name more than
-eleven rows while the dataset holds exactly $300 \times 11$ trials.
+The twelve configurations of E3 comprise six command-path designs (Table~\ref{tab:ablation})
+and six further credential-compromise configurations (Table~\ref{tab:credential}); the
+transport and HMAC arms appear in both tables, which is why the two together name more than
+twelve rows while the dataset holds exactly $300 \times 12$ trials.
 
 \section{Results}\label{sec:results}
 
@@ -1006,6 +1010,7 @@ TLS + per-client ACL& device credential                     & no  & 300/300 & 12
 HMAC + counter      & any broker credential                 & no  & 300/300 & 1250/1250 \\
 HMAC + counter      & controller credential and command key & yes & 50/300  & \textbf{0/1250} \\
 \textbf{TLS + ACL + HMAC} & device credential and key (flash dump) & \textbf{no} & \textbf{300/300} & \textbf{1250/1250} \\
+TLS + ACL + HMAC & controller credential and command key & yes & 50/300 & \textbf{0/1250} \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1025,12 +1030,44 @@ credentials.}
 \centering
 \includegraphics[width=\textwidth]{credential_matrix.pdf}
 \caption{Safety-function activation and operator availability under each combination of
-controls and compromised secret. No single control survives every row; the layered
-configuration does.}
+controls and compromised secret. No single control survives every row, and neither does the
+layered configuration: it withstands every single-secret compromise and a device flash dump,
+and falls to a compromised controller host.}
 \label{fig:credential}
 \end{figure*}
 
-Four readings follow, and the last three cut against this work's own mechanism.
+Table~\ref{tab:withstands} states the result for the layered configuration directly, because
+an earlier draft of this paper claimed it ``survives every case'' and that was wrong. It
+survives every compromise of a \emph{single} secret, and it survives the combined compromise
+that a flash dump produces, because the access-control list denies the device identity
+permission to publish commands. It does not survive a compromised controller host.
+
+\begin{table}[t]
+\centering\small
+\caption{What the layered configuration (TLS + per-client ACL + HMAC with a counter)
+withstands. 300 trials per row.}
+\label{tab:withstands}
+\begin{tabular}{@{}llc@{}}
+\toprule
+Adversary holds & Why & Withstands \\
+\midrule
+nothing                        & refused at the broker        & yes \\
+device credential              & list denies publishing       & yes \\
+controller credential          & tag does not verify          & yes \\
+device credential + key        & list denies publishing       & yes \\
+\textbf{controller credential + key} & \textbf{neither layer refuses} & \textbf{no} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The failing row is not exotic. An authorised publisher must hold the signing key in order to
+sign, and the access-control list must permit its identity to publish commands, or the system
+cannot be commanded at all. A compromised controller host therefore yields both by
+construction, and it is at least as plausible a target as the device: it is a phone, a bridge
+or a home-automation server, not a sealed appliance. Layering raises the cost of an attack and
+narrows the set of secrets that suffice; it does not close the set.
+
+Five readings follow, and the last four cut against this work's own mechanism.
 
 First, a per-client ACL is \emph{not} a weaker substitute for application-layer authentication.
 It contains a compromise of the \emph{device's} credential completely, which matters for an
@@ -1047,8 +1084,12 @@ Third, a MAC does not survive key compromise, and on this platform the key is in
 image as the broker credentials. With the command key dumped, the signed path is defeated
 exactly as the unsigned one is. Only the combination holds: an adversary who dumps the device
 obtains a key it can sign with \emph{and} a credential the broker will not let it publish
-commands under. The configuration that survives every row of Table~\ref{tab:credential} is
-layered, not cryptographic.
+commands under. But layering raises the cost of an attack rather than closing the set. The
+final row of Table~\ref{tab:credential} is the combination that defeats it: a compromised
+controller host yields a credential the access-control list must permit to publish commands,
+because that is its purpose, together with the shared key required to sign them. Neither layer
+refuses, the adversary disarms in 234 of 300 trials, and the owner is locked out of its own
+system as well.
 
 \subsubsection{Validation against a real broker}
 \label{sec:brokerval}
@@ -1356,6 +1397,44 @@ challenge-response, or key rotation: the first requires a trusted clock the devi
 have, the second costs a round trip on an at-most-once path, and the third is a fleet-management
 concern. Adding them would raise the contribution count without evidence to support it.
 
+\subsection{Does the guard pattern occur elsewhere?}
+\label{sec:corpus}
+
+The defect of Section~\ref{sec:discussion} is one defect in one codebase, and a single
+self-reported finding is an anecdote until it is shown to generalise. We therefore built a
+corpus of 135 open-source embedded MQTT projects by fixed criteria from 22 GitHub queries,
+shallow-cloned each and recorded its commit, and ran a static rule for the guard shape: a
+preprocessor conditional naming a transport-security identifier and a privileged capability
+while not requiring application-layer authentication.
+
+\textbf{The rule found nothing.} Zero hits in 135 projects. We therefore make no claim that the
+pattern is widespread, and the finding remains a single-system case study.
+
+The rule was also wrong at first, and the zero was meaningless until that was found. Run
+against our own firmware before the repair it also returned zero, because our guard names
+\texttt{AUTH\_COMMANDS} \emph{negated} and the rule treated any mention of an authentication
+identifier as evidence that authentication was required. A negated identifier is evidence for
+the pattern, not against it. Eight controls now accompany the rule, including the real
+pre-repair guard as a positive control.
+
+The reason for the zero is itself informative. The pattern can only arise in a project that
+implements application-layer authentication as an option and then writes a build condition
+choosing between it and transport security. Only 30 of the 135 projects both subscribe to MQTT
+and contain any authentication identifier at all, and reading those shows most matches are in
+vendored code rather than in the project's own command path. \emph{The defect reported here is
+a defect of a comparatively sophisticated project}; a simpler one cannot make it, having no
+application-layer authentication to weigh against transport security.
+
+A weaker rule asked whether command authorization rests entirely on broker credentials. It
+flagged 18 projects, all of which we read: 9 were confirmed and 9 were false positives, among
+them monitoring projects the rule could not distinguish from actuators and one whose only match
+was in a bundled example sketch. The confirmed cases include a garage door opener in which a
+payload of \texttt{"trigger"} reaches \texttt{digitalWrite(RELAY\_PIN, HIGH)}, an alarm keypad,
+a heating relay and a boiler's setpoints. We report this as an existence claim and not a rate:
+the rule over-counts by about half and under-counts by an unknown amount, since three confirmed
+cases actuate through Modbus, RF or serial frames and were caught only by an incidental GPIO
+write. Full method, per-project verdicts and bias analysis are in the repository.
+
 \subsection{Relationship to prior measurement}
 
 Our work complements rather than contradicts~\cite{behnke2020}. They established that on-chip
@@ -1464,7 +1543,7 @@ separation; what it does not establish is whether the available mitigation suffi
 not examined radio-layer load, an adversarial model, or any formal treatment.
 
 We answer the logical half of the question with exhaustive model checking under a network task
-granted no fairness, with 9{,}300 seeded adversarial trials and with three million
+granted no fairness, with 9{,}600 seeded adversarial trials and with three million
 sanitizer-backed fuzzing iterations. We show through ablation that availability, integrity and
 the safety function are separable properties and that a plausible defence can satisfy one while
 failing another completely. The same ablation found a defect in our own firmware: a compile-time

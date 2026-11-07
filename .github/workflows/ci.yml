@@ -188,6 +188,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+      - name: Harness properties (metamorphic and differential)
+        run: python3 -I experiments/test_harness.py
+      - name: Guard-detector controls
+        run: python3 -I experiments/corpus/test_rule.py
+      - name: Trace conformance against the TLA+ specification
+        run: python3 -I experiments/test_conformance.py
       - name: Run a reduced ablation and sensitivity sweep
         env:
           TRIALS: "60"

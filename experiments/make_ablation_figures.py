@@ -51,6 +51,7 @@ MATRIX = [
     ("hmac",                "HMAC", "any broker\ncredential"),
     ("hmac_keyleaked",      "HMAC", "controller cred.\n+ command key"),
     ("acl_hmac_devicedump", "TLS+ACL+HMAC", "device cred.\n+ key (flash dump)"),
+    ("acl_hmac_controllerdump", "TLS+ACL+HMAC", "controller cred.\n+ command key"),
 ]
 LABEL = {
     "none": "No command\ndefence",

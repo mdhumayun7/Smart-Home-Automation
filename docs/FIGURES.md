@@ -173,7 +173,8 @@ most 1100 units wide, which is about 8 pt at a 90 mm single-column width.
 > authorization nor application-layer authentication dominates: a per-client ACL contains a
 > compromised device credential but not a compromised controller, while a MAC survives
 > credential compromise but not key compromise, and the key resides in the same flash image as
-> the device's broker credentials. Only the layered configuration survives every row. Panel (b)
+> the device's broker credentials. The layered configuration survives every single-secret
+> compromise and a device flash dump, and falls to a compromised controller host. Panel (b)
 > also shows the owner-lockout result: under key compromise the adversary advances the
 > persisted replay counter beyond the operator's range, and the operator is admitted in 0 of
 > 1250 attempts. Model-based broker admission; see `docs/SECURITY_ANALYSIS.md` §3a for what is

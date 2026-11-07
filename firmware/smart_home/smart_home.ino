@@ -664,6 +664,16 @@ static constexpr int CMD_Q_LEN = 4;
 // two cannot drift apart silently.
 static constexpr int CMD_DRAIN_PER_PASS = CMD_Q_LEN;
 
+// Deriving one from the other is not quite enough: a later change could redefine either
+// independently. The response-time bound in docs/TIMING_ANALYSIS.md holds only while the loop
+// can empty the queue in a single pass and cannot be made to run longer by a faster attacker,
+// so assert the relationship the bound depends on rather than trusting a comment.
+static_assert(CMD_DRAIN_PER_PASS == CMD_Q_LEN,
+              "the per-pass drain bound must equal the command queue capacity: smaller leaves "
+              "work queued for an unbounded number of passes, larger makes the loop's worst "
+              "case depend on arrival rate again");
+static_assert(CMD_DRAIN_PER_PASS > 0, "a non-positive drain bound would never dequeue");
+
 static void handleCommands(uint32_t now) {
   CmdMsg m;
   for (int drained = 0;

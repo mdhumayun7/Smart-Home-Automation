@@ -8,7 +8,7 @@ committed JSONL file produced by a seeded run; nothing is hand-entered.
 
 ## 1. Command-path design ablation
 
-Eleven designs, same adversary, same scenario, same seeds. The adversary floods
+Twelve designs, same adversary, same scenario, same seeds. The adversary floods
 the command topic and captures the legitimate command off the wire for replay.
 
 Availability is measured as the proportion of five operator publish attempts,
@@ -32,8 +32,9 @@ availability, and is not reported: see `docs/SECURITY_ANALYSIS.md` section 9.
 | HMAC-SHA256 + counter | 300 | 1250/1250 | 0/250 | 0 | 300/300 | 0 |
 | HMAC, command key leaked | 300 | 0/1250 | 245/250 | 234 | 50/300 | 250 |
 | TLS + ACL + HMAC, device flash dumped | 300 | 1250/1250 | 0/250 | 0 | 300/300 | 0 |
+| TLS + ACL + HMAC, controller compromised (credential + key) | 300 | 0/1250 | 245/250 | 234 | 50/300 | 250 |
 
-Safety latency was identical across all eleven designs (median 151 ms, standard deviation 0.0 ms), which is
+Safety latency was identical across all twelve designs (median 151 ms, standard deviation 0.0 ms), which is
 expected: the harness advances a logical clock, so there is no contention to
 measure. This says nothing about physical timing.
 
@@ -73,6 +74,7 @@ Admitted / attempted, over trials whose availability measurement was valid.
 | HMAC-SHA256 + counter | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
 | HMAC, command key leaked | 0/250 | 0/250 | 0/250 | 0/250 | 0/250 |
 | TLS + ACL + HMAC, device flash dumped | 250/250 | 250/250 | 250/250 | 250/250 | 250/250 |
+| TLS + ACL + HMAC, controller compromised (credential + key) | 0/250 | 0/250 | 0/250 | 0/250 | 0/250 |
 
 ### 1.2 Statistical comparison
 
@@ -102,6 +104,7 @@ down the adversary's capability, not down a ranking of mechanisms.
 | HMAC + counter | any broker credential | **no** | 300/300 | no (1250/1250 admitted) |
 | HMAC + counter | controller credential and command key | **yes** | 50/300 | **yes** (0/1250 admitted) |
 | TLS + ACL + HMAC | device credential and command key (flash dump) | **no** | 300/300 | no (1250/1250 admitted) |
+| TLS + ACL + HMAC | controller credential and command key | **yes** | 50/300 | **yes** (0/1250 admitted) |
 
 Four readings follow, and the last three cut against this project's own
 mechanism:
@@ -122,6 +125,14 @@ mechanism:
   ACL and a MAC, an adversary who dumps the device gets a key it can sign
   with and a credential the broker will not let it publish commands under.
   The defence that survives in this table is layered, not cryptographic.
+- **The layered configuration does not survive every compromise, and an
+  earlier draft of this document said it did.** It survives every
+  single-secret compromise and it survives a device flash dump, because
+  the ACL refuses the device identity permission to publish commands. It
+  does *not* survive a compromised controller host, which yields both a
+  credential the ACL must permit to publish and the shared key needed to
+  sign: neither layer refuses, and the adversary disarms. Layering raises
+  the cost of an attack; it does not close the set.
 - **Under key compromise the replay counter becomes a lockout against the
   owner.** This was not anticipated and was found in the data. Counters are
   not secret, so an adversary holding the key can sign commands with a

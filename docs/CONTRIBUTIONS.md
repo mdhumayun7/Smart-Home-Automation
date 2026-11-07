@@ -55,7 +55,9 @@ ablation, which is a reusable method rather than a one-off.
 
 Shows that neither control dominates: an ACL contains a compromised device credential and fails
 against a compromised controller; a MAC does the reverse; a shared credential collapses the ACL
-entirely; only the layered configuration survives every case. Validated against a real
+entirely; layering withstands every single-secret compromise and a device flash dump, but
+not a compromised controller host, which holds both a permitted credential and the signing
+key. Validated against a real
 Mosquitto broker, which agreed with the model in all eight scenarios. The individual facts are
 each unsurprising to a specialist; the indexed comparison, with measurements, is not something
 we found stated elsewhere.

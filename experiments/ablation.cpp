@@ -87,6 +87,10 @@ static void drainEvents() {
   Event e;
   while (xQueueReceive(eventQ, &e, 0) == pdTRUE)
     g_events.push_back(std::string(e.type) + ":" + e.src);
+    // ABLATION_TRACE dumps the raw event stream so trace conformance against the TLA+
+    // specification can be checked; see experiments/test_conformance.py.
+    if (getenv("ABLATION_TRACE"))
+      fprintf(stderr, "TRACE %s:%s\n", e.type, e.src);
 }
 
 static void tick1ms() { loop(); g_now += 1; drainEvents(); }
@@ -107,7 +111,7 @@ static std::string signWith(const char* key, const char* verb, uint32_t ctr) {
 // ---------------------------------------------------------------- defences
 enum class Mode { None, RateLimit, Token, Hmac, Transport, TransportLeaked,
                   AclSharedLeaked, AclOperatorLeaked, AclDeviceLeaked,
-                  HmacKeyLeaked, AclHmacDeviceDump };
+                  HmacKeyLeaked, AclHmacDeviceDump, AclHmacControllerDump };
 
 static Mode g_mode = Mode::None;
 
@@ -219,6 +223,13 @@ static bool defenceAllows(std::string& payload, uint32_t now) {
       // That identity is the one authorised to publish commands, so the ACL permits the
       // adversary's publish exactly as it permits the operator's.
       return true;
+    case Mode::AclHmacControllerDump:
+      // The combination the layered configuration does NOT survive, and the reason the
+      // "survives every compromise" phrasing was wrong. A compromised controller host yields
+      // both its broker credential and the shared command key, because an authorised
+      // publisher must hold the key in order to sign. The ACL permits that identity to publish
+      // commands, by design, and the signature verifies. Neither layer refuses.
+      return true;
     case Mode::AclDeviceLeaked:
     case Mode::AclHmacDeviceDump:
       // Per-client credentials, correct ACL, and the *device's* identity is compromised --
@@ -321,6 +332,7 @@ static std::string legitCommand(const char* verb, uint32_t ctr) {
     case Mode::Hmac:
     case Mode::HmacKeyLeaked:
     case Mode::AclHmacDeviceDump:
+    case Mode::AclHmacControllerDump:
       return signWith(SECRET_CMD_KEY, verb, ctr);
   }
   return verb;
@@ -536,14 +548,17 @@ int main(int argc, char** argv) {
   else if (!strcmp(modeName, "acl_device_leaked")) g_mode = Mode::AclDeviceLeaked;
   else if (!strcmp(modeName, "hmac_keyleaked")) g_mode = Mode::HmacKeyLeaked;
   else if (!strcmp(modeName, "acl_hmac_devicedump")) g_mode = Mode::AclHmacDeviceDump;
+  else if (!strcmp(modeName, "acl_hmac_controllerdump")) g_mode = Mode::AclHmacControllerDump;
   else { fprintf(stderr, "unknown --mode %s\n", modeName); return 2; }
 
   // The arms that model a flash dump or a compromised controller give the adversary the
   // command key as well as broker credentials.
-  g_attackerHasKey = (g_mode == Mode::HmacKeyLeaked || g_mode == Mode::AclHmacDeviceDump);
+  g_attackerHasKey = (g_mode == Mode::HmacKeyLeaked || g_mode == Mode::AclHmacDeviceDump ||
+                      g_mode == Mode::AclHmacControllerDump);
 
   const bool needsAuthBuild = (g_mode == Mode::Hmac || g_mode == Mode::HmacKeyLeaked ||
-                               g_mode == Mode::AclHmacDeviceDump);
+                               g_mode == Mode::AclHmacDeviceDump ||
+                               g_mode == Mode::AclHmacControllerDump);
 #if AUTH_COMMANDS
   if (!needsAuthBuild) {
     fprintf(stderr, "build has AUTH_COMMANDS=1; only the signed-command modes are meaningful\n");

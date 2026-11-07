@@ -107,7 +107,7 @@ cd experiments && ./run_ablation.sh
 ```
 
 Produces `results/ablation_summary.md` and `results/ablation_results.pdf`. Expect the
-eleven-design table, the credential-compromise matrix, the availability breakdown by attack
+twelve-design table, the credential-compromise matrix, the availability breakdown by attack
 rate, the Fisher exact comparisons and the detector sweep. Takes about 50 minutes at the
 default 300 trials per design.
 

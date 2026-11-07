@@ -24,7 +24,7 @@ g++ -O2 -std=c++17 -Wall -Wextra -Wno-unused-parameter \
     -I "$STUBS" -o ablation_tls ablation.cpp
 g++ -O2 -std=c++17 -Wall -Wextra -o sensitivity sensitivity.cpp
 
-echo "== E3: command-path ablation, 11 designs ($TRIALS trials each) =="
+echo "== E3: command-path ablation, 12 designs ($TRIALS trials each) =="
 {
   for m in none ratelimit token transport; do
     ./ablation_unauth --mode "$m" --trials "$TRIALS" --seed 2000
@@ -35,7 +35,7 @@ echo "== E3: command-path ablation, 11 designs ($TRIALS trials each) =="
     ./ablation_tls --mode "$m" --trials "$TRIALS" --seed 2000
   done
   # Signed-command builds, including the two arms in which the adversary also holds the key.
-  for m in hmac hmac_keyleaked acl_hmac_devicedump; do
+  for m in hmac hmac_keyleaked acl_hmac_devicedump acl_hmac_controllerdump; do
     ./ablation_auth --mode "$m" --trials "$TRIALS" --seed 2000
   done
 } > results/ablation.jsonl

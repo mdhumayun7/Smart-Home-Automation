@@ -392,6 +392,7 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | Publication ethics, submission inventory, cover letter, highlights and the final QA checklist |
 | [`docs/LITERATURE_LOG.md`](docs/LITERATURE_LOG.md) | Dated search log: databases, search strings, screening decisions, and the competing work that narrowed this project's claim |
 | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Every result classified by evidence category, with seeds, runs, environment and reproduction commands, plus the seven experiments not yet run |
+| [`docs/CORPUS_STUDY.md`](docs/CORPUS_STUDY.md) | Whether the compile-guard pattern occurs in 135 other open-source embedded MQTT projects. It does not, and the rule that found that had to be fixed first |
 | [`docs/REVIEWER_ASSESSMENT.md`](docs/REVIEWER_ASSESSMENT.md) | Three-reviewer simulated peer review and the consolidated editorial decision |
 | [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) | What is verified, what blocks submission, and what only the author can resolve |
 | [`docs/CONTRIBUTIONS.md`](docs/CONTRIBUTIONS.md) | Each stated contribution classified and checked against the literature; why eight became five |
@@ -405,7 +406,7 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (25 pages). `paper/paper.tex` is the short letters-format version |
 
 **Status in one line:** firmware, formal verification, response-time analysis, simulation
-campaign, the eleven-design ablation, sensitivity sweep, fuzzing, the access-control validation
+campaign, the twelve-design ablation, sensitivity sweep, fuzzing, the access-control validation
 against a real Mosquitto broker, and the full-length manuscript are complete and reproducible.
 The one claim that needs physical hardware is still unmeasured, and the manuscript says so. The physical timing measurement has **not been performed by anyone**; a complete
 framework for an independent laboratory to perform it is in [`REPRODUCTION.md`](REPRODUCTION.md),
