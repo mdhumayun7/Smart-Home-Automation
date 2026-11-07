@@ -99,8 +99,8 @@ HMAC-SHA256 + counter     & 300/300 & [98.7, 100.0] & 100.0\% & 0\% \\
 \textbf{The three properties fail independently.} This is the central result of the ablation and
 it is not what one would assume. The rate limiter preserves the safety function and replay
 resistance is unchanged at 100\% defeated, yet it costs \textbf{41\% of legitimate operator
-commands}. The static token does the reverse: availability is perfect and replay resistance is
-nil. Only the counter-bound message authentication code holds all three. A designer who treats
+commands}. The static token does the reverse: every operator command is admitted and replay
+resistance is nil. Only the counter-bound message authentication code holds all three. A designer who treats
 ``security'' as one property will choose badly here.
 
 The availability difference between the rate limiter and the others is significant at Fisher's

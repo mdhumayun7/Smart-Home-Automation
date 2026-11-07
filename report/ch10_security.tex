@@ -81,7 +81,7 @@ overstate.
 The device survives a flash dump \emph{not} because the key is protected --- it is not --- but
 because \textbf{the identity whose secrets were extracted is not authorised to issue commands.}
 The access control list is deny-by-default and grants the device identity publication rights only
-on the status topic. An adversary holding everything in the device's flash can sign a perfectly
+on the status topic. An adversary holding everything in the device's flash can sign a
 valid \code{DISARM} command and still cannot get it accepted, because the broker refuses to
 carry it.
 
