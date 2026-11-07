@@ -34,6 +34,7 @@ LINE = "#2F3A45"      # connectors and borders
 # light (#F4F6F8 ~ 96 %), mid (#DCE3EA ~ 88 %), dark (#B8C4D0 ~ 76 %).
 LIGHT, MID, DARK = "#F4F6F8", "#DCE3EA", "#B8C4D0"
 SAFETY, NETWORK = "#E9F7EF", "#E8F1FB"   # domain tints, both near-white in grey
+BAD_RED = "#C0392B"   # the one red used across the figure set
 EXTERNAL, SHARED = "#F2F4F7", "#F1EAFB"  # outside the device; internal shared state
 
 # House palette, shared with the hand-authored diagrams (architecture.svg and
@@ -525,88 +526,111 @@ def methodology():
 
 # ------------------------------------------------- 5. experimental setup -----
 def experimental_setup():
-    """Experimental setup: the simulation harness and the hardware rig."""
-    f = Fig(1100, 620, "Experimental setup")
-    f.text(550, 34, "Experimental setup", size="title", bold=True)
+    """What has been run, and what has only been specified.
 
-    # simulation side
-    f.box(50, 70, 500, 500, fill=LIGHT, sw=2.2)
-    f.text(300, 98, "A.  Simulation harness  —  USED FOR ALL COMMITTED RESULTS",
-           size="head", bold=True)
+    Panel A lists every experiment whose results appear in the paper, with the counts taken
+    from the committed artefacts in experiments/results/ and experiments/corpus/. Panel B is
+    the hardware rig: it is specified and its analysis script exists, but it has not been
+    run, and no number in the paper comes from it. The two panels are drawn differently
+    (solid against dotted) so that distinction survives greyscale printing.
+    """
+    f = Fig(1100, 660, "Experimental setup: completed evidence against the hardware rig",
+            crop_top=46)
 
-    f.box(80, 120, 440, 100, fill=MID)
-    f.text(300, 146, "Unmodified firmware logic", size="body", bold=True)
-    f.lines(300, 168, [
-        "smart_home.ino compiled against host stubs for Arduino,",
-        "FreeRTOS, WiFi, MQTT, NVS and the OLED. The firmware",
-        "source is not altered for testing.",
+    # ---------------- A: what has actually been run
+    f.box(50, 70, 500, 570, fill=LIGHT, sw=2.2)
+    f.text(300, 96, "A.  Completed evidence", size="head", bold=True)
+    f.text(300, 116, "every result reported in this paper", size="small", fill=MUTED)
+
+    f.box(80, 134, 440, 104, fill=MID)
+    f.text(300, 158, "Unmodified firmware logic", size="body", bold=True)
+    f.lines(300, 180, [
+        "smart_home.ino compiled against host stubs",
+        "for Arduino, FreeRTOS, WiFi, MQTT, NVS, OLED.",
+        "Not altered for testing.",
     ], size="small")
 
-    f.box(80, 240, 205, 120, fill=MID)
-    f.text(182, 266, "Campaign", size="body", bold=True)
-    f.lines(182, 288, [
-        "6,000 trials", "seed base 1000",
-        "rates 0 to 20,000", "msg/s", "fork() per trial",
+    for x, title, rows in (
+        (80, "Campaign (E1, E2)",
+         ["6,000 trials, seed 1000", "rates 0 to 20,000 msg/s", "fork() per trial"]),
+        (308, "Ablation (E3)",
+         ["3,600 trials, seed 2000", "12 configurations", "300 trials each"]),
+    ):
+        f.box(x, 252, 212, 96, fill=MID)
+        f.text(x + 106, 276, title, size="body", bold=True)
+        f.lines(x + 106, 296, rows, size="small")
+
+    for x, title, rows in (
+        (80, "Fuzzer (E4)",
+         ["3,000,000 iterations", "seed 7, 6 input classes", "ASan + UBSan"]),
+        (308, "Broker testbed (E6)",
+         ["real Mosquitto 2.0.18", "TLS, per-client ACLs", "8 scenarios"]),
+    ):
+        f.box(x, 364, 212, 96, fill=MID)
+        f.text(x + 106, 388, title, size="body", bold=True)
+        f.lines(x + 106, 408, rows, size="small")
+
+    f.box(80, 476, 440, 66, fill=MID)
+    f.text(300, 500, "Sensitivity sweep (E5) and corpus study", size="body", bold=True)
+    f.lines(300, 520, [
+        "180 grid cells; 135 projects, commit-pinned,",
+        "guard rule with 8 controls, 0 hits",
     ], size="small")
 
-    f.box(315, 240, 205, 120, fill=MID)
-    f.text(417, 266, "Fuzzer", size="body", bold=True)
-    f.lines(417, 288, [
-        "3,000,000 iters", "seed 7, 6 classes",
-        "ASan + UBSan", "oracle: no state", "change, no counter",
+    f.box(80, 556, 440, 78, fill=LIGHT, dash="4 3")
+    f.text(300, 578, "Limitation that defines the open step", size="body", bold=True)
+    f.lines(300, 598, [
+        "The harness advances a logical clock. No radio,",
+        "no parallelism, no contention: zero variance.",
     ], size="small")
 
-    f.box(80, 380, 440, 80, fill=LIGHT, dash="4 3")
-    f.text(300, 406, "Limitation that defines the open step", size="body", bold=True)
-    f.lines(300, 428, [
-        "The harness advances a logical clock. There is no radio, no true",
-        "parallel execution and no CPU contention, so latency variance is zero.",
-    ], size="small")
+    # ---------------- B: specified, not run
+    f.box(570, 70, 480, 570, fill=LIGHT, dash="2 4", sw=2.2)
+    f.text(810, 96, "B.  Not yet measured", size="head", bold=True)
+    f.text(810, 116, "rig specified; no result in this paper comes from it",
+           size="small", fill=BAD_RED)
 
-    f.box(80, 480, 440, 70, fill=MID)
-    f.text(300, 506, "Analysis", size="body", bold=True)
-    f.lines(300, 526, [
-        "analyse.py: aggregation, Mann-Whitney U with tie correction,",
-        "standard library only. make_figures.py: validated palette.",
-    ], size="small")
+    # A 60-unit gap, so the GPIO label sits clear of both borders rather than touching them.
+    f.box(598, 134, 188, 96, fill=MID, dash="2 4")
+    f.text(692, 160, "Device under test", size="body", bold=True)
+    f.lines(692, 180, ["ESP32 DevKit", "running v2.2.0", "unmodified"], size="small")
 
-    # hardware side
-    f.box(570, 70, 480, 500, fill=LIGHT, dash="2 4", sw=2.2)
-    f.text(810, 98, "B.  Hardware rig  —  SPECIFIED, NOT YET RUN", size="head", bold=True)
+    f.box(834, 134, 188, 96, fill=MID, dash="2 4")
+    f.text(928, 160, "Measuring board", size="body", bold=True)
+    f.lines(928, 180, ["second ESP32,", "independent clock,", "logic probe"], size="small")
+    f.arrow([(788, 186), (832, 186)], dash="2 4")
+    f.text(810, 172, "GPIO", size="small", fill=MUTED)
 
-    f.box(600, 120, 190, 90, fill=MID, dash="2 4")
-    f.text(695, 148, "Device under test", size="body", bold=True)
-    f.lines(695, 168, ["ESP32 DevKit", "running v2.2.0", "unmodified"], size="small")
-
-    f.box(830, 120, 190, 90, fill=MID, dash="2 4")
-    f.text(925, 148, "Measuring board", size="body", bold=True)
-    f.lines(925, 168, ["second ESP32,", "independent clock,", "logic probe"], size="small")
-    f.arrow([(790, 150), (830, 150)], dash="2 4")
-    f.label(810, 136, ["GPIO"])
-
-    f.box(600, 240, 420, 150, fill=LIGHT, dash="2 4")
-    f.text(810, 266, "Four conditions", size="body", bold=True)
-    for i, (c, d, rf) in enumerate([
-        ("A", "idle (control)", "no RF isolation"),
-        ("B", "legitimate network load", "no RF isolation"),
-        ("C", "command-interface stress", "no RF isolation"),
-        ("D", "radio-layer stress", "AUTHORISED ISOLATED RF ONLY"),
+    f.box(600, 256, 420, 132, fill=LIGHT, dash="2 4")
+    f.text(810, 280, "Four conditions", size="body", bold=True)
+    for i, (c, d) in enumerate([
+        ("A", "idle (control)"),
+        ("B", "legitimate network load"),
+        ("C", "command-interface stress"),
+        ("D", "radio-layer stress"),
     ]):
-        y = 290 + i * 24
+        y = 306 + i * 22
         f.text(620, y, f"{c}.", size="small", anchor="start", bold=True, fill=INK)
-        f.text(645, y, d, size="small", anchor="start", fill=INK)
-        f.text(1000, y, rf, size="small", anchor="end", fill=MUTED)
-
-    f.box(600, 410, 420, 80, fill=MID, dash="2 4")
-    f.text(810, 436, "Dependent variable", size="body", bold=True)
-    f.lines(810, 458, [
-        "Physical sensor-to-siren latency distribution, compared across",
-        "conditions with the same non-parametric test (analyse_hw.py).",
+        f.text(648, y, d, size="small", anchor="start", fill=INK)
+    # The RF caveat is a footnote rather than a per-row column: at this type size the two
+    # would collide on the longest row.
+    f.lines(810, 408, [
+        "A to C need no RF isolation.",
+        "D: authorised, isolated RF environment only.",
     ], size="small")
 
-    f.box(600, 510, 420, 40, fill=LIGHT, dash="4 3")
-    f.text(810, 535, "A to C need two boards and a probe. No attack tooling is published.",
-           size="small", bold=True)
+    f.box(600, 444, 420, 84, fill=MID, dash="2 4")
+    f.text(810, 468, "Dependent variable", size="body", bold=True)
+    f.lines(810, 490, [
+        "Physical sensor-to-siren latency distribution,",
+        "compared across conditions with analyse_hw.py.",
+    ], size="small")
+
+    f.box(600, 546, 420, 66, fill=LIGHT, dash="4 3")
+    f.lines(810, 572, [
+        "Conditions A to C need two boards and a probe.",
+        "No attack tooling is published.",
+    ], size="small", fill=INK)
     return f
 
 
