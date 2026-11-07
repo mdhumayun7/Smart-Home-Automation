@@ -18,6 +18,13 @@ manuscript/
   FINAL_MANUSCRIPT.pdf      the paper, 31 pages
   manuscript.tex            LaTeX source; the bibliography is embedded, so
                             there is no separate .bib file
+  submission_files/
+    highlights.txt                          5 bullets, max 80 chars - upload
+                                            as a separate file per the Guide
+    declaration-of-competing-interest.md    convert to .docx and upload at the
+                                            "attach/upload files" step
+    similarity/                             the PDF to screen, plus the exact
+                                            tool settings to use
 
 figures/
   COMPLETE_FIGURE_COLLECTION.zip   every figure as vector PDF, editable SVG
@@ -53,6 +60,8 @@ SUBMISSION_CHECKLIST.md     every requirement, with status
 | `HARDWARE_VALIDATION_PLAN.md` | conditions A–D: what they need and what blocks them |
 | `CONTRIBUTIONS.md` | why eight claimed contributions became five |
 | `VERSION_STRATEGY.md` | two honest framings, and which is submittable today |
+| `DECLARATIONS.md` | **sign-off sheet**: the three declarations needing the author's explicit confirmation |
+| `HARDWARE_A_TO_C_RUNBOOK.md` | the optional hardware conditions that need no permission |
 
 ## Rebuilding anything here
 
@@ -66,7 +75,9 @@ python3 tools/build_figure_preview.py         # the preview PDF
 
 ## One thing to be clear about
 
-The paper is **technically complete**, not submission-ready. The similarity report, the
-supervisor's approval, the target journal's Guide for Authors, two missing declarations and
-the hardware measurement are all outstanding, and none of them could be resolved from the
-environment this package was assembled in. `SUBMISSION_CHECKLIST.md` says which is which.
+The paper is **technically complete and format-compliant** with the Journal of Systems
+Architecture Guide for Authors, which has now been retrieved and verified. It is **not
+submission-ready**. Four things remain, all external: the institutional similarity report, the
+supervisor's approval and dissertation-overlap ruling, three declarations that need the
+author's explicit confirmation, and the corresponding author's email on the title page.
+`SUBMISSION_CHECKLIST.md` gives the status of every requirement.

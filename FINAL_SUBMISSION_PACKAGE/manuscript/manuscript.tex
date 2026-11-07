@@ -44,55 +44,33 @@ in an MQTT Alarm System}}
 
 \begin{abstract}
 \noindent
-Consumer intrusion alarms run almost entirely on single-chip Wi-Fi systems-on-chip, where the
-radio driver, the network stack and the safety application share one die, one scheduler and one
-interrupt controller. Engineers mitigate this by pinning the safety task to its own core and by
-gating risky features behind build configuration. Both are \emph{assertions}: the first asserts
-a timing property, the second a security property, and neither is checked. This paper reports
-what happens when each is falsified cheaply.
-
-We present an ESP32 intrusion alarm whose safety loop is pinned to the application core and
-separated from the network task by bounded, non-blocking queues and a zero-timeout status
-snapshot, with HMAC-SHA256 command authentication over a non-volatile monotonic counter. We
-specify the isolation argument in TLA+ and verify it exhaustively under a network task given no
-fairness assumption, and evaluate the system with 9{,}600 seeded adversarial trials and
-3{,}000{,}000 sanitizer-backed fuzzing iterations.
-
-Two inexpensive methods each found a defect that none of that detected. An ablation over twelve
-configurations found a compile-time guard accepting TLS plus a broker login as sufficient
-authority for unauthenticated remote disarm. The inference is unsound---the broker terminates
-TLS and re-originates every message---and under credential compromise the alarm fires in 16.7\%
-of trials against 100\% for an otherwise identical control. The principle is textbook and the
-attack class published, so we claim no new vulnerability; the point is that a guard encoding it
-compiles silently and costs a \emph{safety} property. Separately, a response-time decomposition
-exposed an unbounded drain in the safety path that had survived every test, fuzz iteration,
-trial and model-checking run. A third assumption failed in our own formal work: the invariant
-stating that unauthenticated remote disarm never takes effect was vacuous in the specification
-we shipped, because it assumed the refusal instead of deriving it. All three defects are the
-same shape---a claim asserted in configuration, in design, or in a specification, and never
+Consumer intrusion alarms run on single-chip Wi-Fi systems-on-chip, where the radio driver,
+the network stack and the safety application share one die, one scheduler and one interrupt
+controller. Engineers mitigate this by pinning the safety task to its own core and by gating
+risky features behind build configuration. Both are assertions, and neither is normally
 checked.
 
-The ablation further shows that availability, integrity and the safety function fail
-independently, and that broker-side authorization and application-layer authentication fail
-under \emph{different} compromises, so neither dominates: an access-control list contains a
-compromised device credential but not a compromised controller, and a message authentication
-code does the reverse. Layering both raises the cost of an attack but does not close the set:
-the combined configuration withstands every single-secret compromise and a device flash dump,
-and still falls to a compromised controller host, which holds a credential the list must permit
-and the key needed to sign. All eight access-control scenarios were reproduced against a real
-Mosquitto broker, which agreed with the model throughout. Under key compromise the monotonic replay counter also locks the legitimate
-owner out, admitting 0 of 1250 commands---a negative result we did not anticipate.
+We treat an ESP32 alarm as a case study and falsify both. Three defects emerged, each in a
+different kind of assumption, each found by a method cheaper than the system it checks. A
+compile-time guard accepted TLS plus a broker login as evidence of publisher authority: under
+one leaked credential the alarm fires in 16.7\% of 300 trials (95\% Wilson 12.9--21.3) against
+100\% for the control. A response-time decomposition exposed an unbounded command drain that
+9{,}600 adversarial trials, 3{,}000{,}000 fuzz iterations and exhaustive model checking had
+all passed. Our own invariant forbidding unauthenticated remote disarm proved vacuous in the
+specification we shipped.
 
-These results establish \emph{logical} isolation only. Physical timing invariance is a property
-of the silicon and a closed-source radio driver, and we report no latency figure we have not
-measured; in its place we supply the decomposition above, which leaves a single composite
-hardware quantity outstanding, and a public framework with which any laboratory holding two
-inexpensive boards can measure it.
+A twelve-configuration ablation shows availability, integrity and the safety function failing
+independently: a rate limiter costs 41\% of operator commands and buys integrity nothing.
+Broker access control and message authentication fail under different compromises, confirmed
+against a live Mosquitto broker. A compromised controller host holding a permitted credential
+and the command key defeats the layered configuration and locks the owner out.
+
+These results establish \emph{logical} isolation only. Physical timing invariance is a
+property of the silicon and a closed-source radio driver, and no latency figure is reported.
 \end{abstract}
 
-\noindent\textbf{Keywords:} embedded systems security; safety-critical firmware; MQTT;
-configuration defects; response-time analysis; specification mutation; formal verification;
-TLA+; IoT; ESP32
+\noindent\textbf{Keywords:} embedded systems security; MQTT; configuration defects;
+specification mutation; response-time analysis; formal verification; ESP32
 
 \section{Introduction}\label{sec:intro}
 
@@ -1645,32 +1623,51 @@ All claims are scoped to the platform tested: the dual-core Xtensa ESP32 under a
 2.0.17 and 3.3.12. The artifact is public so that the results can be reproduced and the open
 measurement completed, by us or by others.
 
-\section*{Declarations}
+% -----------------------------------------------------------------------------------
+% DECLARATIONS.  The wording below follows Elsevier's required forms, verified against
+% the Journal of Systems Architecture Guide for Authors on 7 November 2026.
+%
+% AUTHOR CONFIRMATION REQUIRED before submission on the three marked items.
+% See docs/DECLARATIONS.md for the sign-off sheet and the separate Word document that
+% Elsevier requires to be uploaded at the "attach/upload files" step.
+% -----------------------------------------------------------------------------------
 
-\noindent\textbf{Funding.} This research received no external funding.
+\section*{CRediT authorship contribution statement}
 
-\noindent\textbf{Conflicts of interest.} The author declares no conflict of interest.
+\noindent\textbf{MD Humayun:} Conceptualization, Methodology, Software, Validation, Formal
+analysis, Investigation, Data curation, Writing -- original draft, Writing -- review \&
+editing, Visualization, Project administration.
 
-\noindent\textbf{Author contributions.} MD Humayun: conceptualisation, methodology, software,
-formal analysis, investigation, data curation, writing (original draft, review and editing),
-visualisation.
+\section*{Declaration of competing interest}
 
-\noindent\textbf{Data availability.} All data reported here are generated deterministically
-from fixed seeds by scripts in the public repository. Aggregate results and the raw per-trial
-records for the ablation, sensitivity and broker access-control experiments are committed; the
-campaign's per-trial records regenerate identically by running the provided script. The broker
-testbed generates throwaway keys and a password file on each run, which are deliberately not
-committed. No third-party or human-subject data were used.
+\noindent The author declares that he has no known competing financial interests or personal
+relationships that could have appeared to influence the work reported in this paper.
 
-\noindent\textbf{Code availability.} Firmware, formal specifications, experiment harnesses,
-analysis scripts and figure sources are publicly available under the MIT licence. Continuous
-integration re-runs the formal verification and a reduced adversarial campaign on every commit.
+\section*{Funding}
 
-\noindent\textbf{Ethics.} No human or animal subjects were involved, and no third-party network,
-device or system was attacked or tested. The repository publishes no attack-generation procedure
-or tooling.
+\noindent This research did not receive any specific grant from funding agencies in the public,
+commercial, or not-for-profit sectors.
 
-\section*{Declaration of generative AI and AI-assisted technologies in the writing process}
+\section*{Data availability}
+
+\noindent All data reported here are generated deterministically from fixed seeds by scripts in
+the public repository. Aggregate results and the raw per-trial records for the ablation,
+sensitivity and broker access-control experiments are committed; the campaign's per-trial
+records regenerate identically by running the provided script. The broker testbed generates
+throwaway keys and a password file on each run, which are deliberately not committed. No
+third-party or human-subject data were used. Firmware, formal specifications, experiment
+harnesses, analysis scripts and figure sources are publicly available under the MIT licence,
+and continuous integration re-runs the formal verification and a reduced adversarial campaign
+on every commit.
+
+\section*{Ethics}
+
+\noindent No human or animal subjects were involved, and no third-party network, device or
+system was attacked or tested. The repository publishes no attack-generation procedure or
+tooling.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript
+preparation process}
 
 \noindent During the preparation of this work the author used an AI assistant for drafting
 assistance, documentation, code review and literature discovery. After using this tool the

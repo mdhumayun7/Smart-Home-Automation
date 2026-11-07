@@ -1,0 +1,5 @@
+- A compile-time guard accepted TLS plus a broker login as publisher authority
+- One leaked credential cut alarm activation to 16.7% of 300 trials, from 100%
+- Response-time analysis found an unbounded drain that 9,600 trials had passed
+- Our own no-unauthenticated-disarm invariant was vacuous in the shipped spec
+- Availability, integrity and the safety function fail independently of each other

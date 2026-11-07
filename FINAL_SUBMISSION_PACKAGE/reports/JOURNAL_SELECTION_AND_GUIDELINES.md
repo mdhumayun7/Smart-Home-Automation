@@ -1,5 +1,11 @@
 # Journal selection and author guidelines
 
+> **Updated 7 November 2026, second pass.** The Guide for Authors has since been retrieved in
+> full through a real browser and every formatting requirement below is now **verified** from
+> Elsevier's own page. Indexing is also verified. The quartile remains unverified: SCImago
+> serves a Cloudflare challenge (HTTP 403), which was not circumvented. See §2a and §4a, which
+> supersede the corresponding rows above them where they disagree.
+
 Phase 4 of the finalization task. Checked 7 November 2026.
 
 Every claim below is marked **verified** (read from the publisher's own page during this
@@ -223,3 +229,109 @@ EMSE is the better home and the reframing is worth the work.
 - [Guide for Authors — Journal of Systems Architecture](https://www.sciencedirect.com/journal/journal-of-systems-architecture/publish/guide-for-authors) (could not be retrieved during this check)
 - [ACM Transactions on Embedded Computing Systems](https://mail.acmtecs.hosting.acm.org/)
 - [Empirical Software Engineering — aims and scope](https://link.springer.com/journal/10664/aims-and-scope)
+
+---
+
+## 2a. Second pass: what is now verified
+
+Retrieved 7 November 2026 from Elsevier's own pages, read in a real browser because the
+container's network cannot reach them.
+
+### Journal facts
+
+| Item | Value | Source |
+|---|---|---|
+| Full title | Journal of Systems Architecture: Embedded Software Design | Guide for authors |
+| Print ISSN | 1383-7621 | Insights |
+| **Online ISSN** | **1873-6165** | Insights |
+| Editor-in-Chief | Zonghua Gu, Hofstra University, USA | journal home |
+| CiteScore | 9.1 | Guide / Insights |
+| Impact Factor | 5.3 | Guide / Insights |
+| **Reference year for both metrics** | **not stated anywhere on the page** | read and confirmed absent |
+| **Abstracting and indexing** | **Scopus; Science Citation Index Expanded (SCIE); SCImago Journal Rank (SJR); SNIP; Ei Compendex** | Insights |
+| Subject areas | Hardware and Architecture; Software; Computer Networks and Communications; Computer Science Applications; Control and Systems Engineering | Insights |
+| Publication model | hybrid — open access supported, subscription also available | Insights |
+| APC (open access) | USD 2,260 excluding taxes; "actual APCs may differ based on individual author circumstances"; institutional agreements may cover it | Insights |
+| Subscription route | "No publication fee charged to authors" | Insights |
+| Submission to first decision | 1 day | Insights |
+| Submission to decision after review | 43 days | Insights |
+| Submission to acceptance | 123 days | Insights |
+| Acceptance to online publication | 11 days | Insights |
+
+**SCIE indexing is the useful new fact.** It means the journal carries a Journal Citation
+Reports entry, and therefore a JCR quartile, which the author can read directly from JCR
+through the SVNIT library. Scopus indexing likewise means a SCImago quartile exists.
+
+### Quartile — still unverified, and why
+
+SCImago was reached in a real browser and returned **HTTP 403 with a Cloudflare interstitial**
+("Just a moment…"). That is bot protection and **it was not circumvented**, per the operating
+constraint on this work.
+
+**No quartile is claimed anywhere in this repository.** The author can settle it in minutes:
+
+- **JCR** (Clarivate) via the SVNIT library → gives the JCR quartile in its categories.
+- **Scopus Sources** → gives the CiteScore percentile and quartile.
+- **scimagojr.com** opened manually in an ordinary browser → gives the SJR quartile.
+
+Record the **year** beside whichever figure is used. The absence of a metric year on Elsevier's
+own page is exactly why.
+
+### Article types and length
+
+| Item | Verified requirement |
+|---|---|
+| Accepted types | Original research articles; Review articles; Short Communications |
+| This manuscript | Original research article |
+| **Page or word limit** | **none stated.** The Guide sets no length limit for research articles; the only length constraint anywhere is the abstract. |
+
+The 31-page length is therefore not a problem, which resolves the earlier open question.
+
+### Special issues
+
+Two calls were open at the time of checking, and one is close to this work but **its deadline
+has passed**: *Timing-Verifiable Intelligent Real-Time Systems* (guest editors Shuai Zhao,
+Zhuoran Song, Yue Tang), submission deadline **31 October 2026**. Today is 7 November 2026, so
+submission must go to the **regular issue**. Worth watching for a successor call, since the
+topic fit is strong.
+
+---
+
+## 4a. The nine formatting requirements, resolved
+
+Each row gives the verified requirement, what the manuscript had, and what was done.
+
+| # | Requirement (verified) | Was | Action taken | Status |
+|---|---|---|---|---|
+| 1 | **Abstract must not exceed 250 words**; must stand alone; avoid references; avoid non-standard abbreviations | **521 words** | Rewritten to **249 words**, keeping all three defects, the measured figures, the independence finding and the logical-isolation-only scope | **RESOLVED** |
+| 2 | **1 to 7 keywords**; avoid keywords using "and" or "of"; abbreviations only if firmly established | **10 keywords** | Cut to **7**: embedded systems security; MQTT; configuration defects; specification mutation; response-time analysis; formal verification; ESP32. None contains "and" or "of"; all three title nouns are represented | **RESOLVED** |
+| 3 | **Highlights**: encouraged; 3–5 bullets; **max 85 characters each including spaces**; separate editable file with "highlights" in the filename | not prepared | `paper/submission/highlights.txt` — 5 bullets, longest 80 characters, verified programmatically | **RESOLVED** |
+| 4 | **Reference style**: numbers in square brackets, numbered in order of appearance; journal names abbreviated per LTWA. *Formatting is not strictly required at submission* provided it is consistent and complete | numbered `\bibitem`, square brackets | Already conforms. 22 entries, 22 cited, none orphaned. Elsevier applies its own style at proof stage and will request missing data then — so the five absent DOIs are a proof-stage request, not a submission blocker | **RESOLVED** |
+| 5 | **Figures**: vector drawings as **EPS or PDF**, with *fonts embedded or text saved as graphics*; no Type 3; do not combine multiple graphs in one file except where they are meant to be compared | 8 vector PDFs | Verified with `pdffonts`: **every font in all eight is embedded, and none is Type 3.** Figures 3 and 5 are multi-panel, which the Guide's stated exception covers — their panels exist precisely to be compared, and each caption says so | **RESOLVED** |
+| 6 | **Declaration of competing interest**: disclose eight named categories; complete the declarations tool; upload a `.doc`/`.docx`; signatures not required | present, titled "Conflicts of interest" inside a combined Declarations section | Promoted to its own section with Elsevier's title and standard wording. `paper/submission/declaration-of-competing-interest.md` prepared for conversion to `.docx`. **Author confirmation required** — `docs/DECLARATIONS.md` §1 | **PREPARED, CONFIRM** |
+| 7 | **Funding**: disclose sources and the sponsor's role; if there was no involvement, say so; use Elsevier's standard form | present as "This research received no external funding" | Rewritten to Elsevier's standard sentence. **Author confirmation required** — `docs/DECLARATIONS.md` §2 | **PREPARED, CONFIRM** |
+| 8 | **CRediT**: corresponding author must acknowledge contributions using the listed roles | present but with lower-case ad-hoc role names | Rewritten as its own `CRediT authorship contribution statement` using the exact taxonomy names. **One open question**: sole author, or supervisor as co-author with the *Supervision* role? — `docs/DECLARATIONS.md` §3 | **PREPARED, CONFIRM** |
+| 9 | **Declaration of generative AI use**: a statement at the end, in a new section **before the reference list**; AI not listed as an author | present, titled "…in the writing process" | Retitled to the Guide's exact example — "…in the manuscript preparation process" — and sits immediately before the bibliography. AI is not an author | **RESOLVED** |
+
+### Also resolved in this pass
+
+| Requirement | Verified | Status |
+|---|---|---|
+| Numbered sections, subsections as 1.1, 1.1.1 | required; cross-reference by number, not "the text" | 14 numbered sections; no prose refers to "the text" — **conforms** |
+| Title page: title, author names, affiliation with full postal address and country, corresponding author's email | required | Title, name and affiliation present. **The corresponding author's email must be added** — `docs/DECLARATIONS.md` has it as an upload-step item |
+| Data statement | required at submission | own `Data availability` section — **conforms** |
+| Acknowledgements | separate section immediately before the reference list; **not** on the title page or in a footnote | **none present.** Only needed if someone is to be thanked — the author's decision |
+| Supplementary material | cite all supplementary files in the text; submit with the manuscript; appears exactly as received | repository and figure archive — **confirm which, if any, is uploaded as formal supplementary material** |
+| Submission system | online submission system linked from the Guide | — |
+
+### The one remaining content question
+
+The Guide repeats, in the aims and scope, the sentence that matters most here:
+
+> "Case studies are welcome but must contribute more than just a design for a particular piece
+> of software."
+
+This is now confirmed as the journal's own standing position, not an incidental line on a
+marketing page. The manuscript's answer is unchanged and is the right one: it claims no new
+mechanism and argues a transferable practice. That argument must remain prominent in the
+abstract — and the 249-word rewrite was checked to keep it.
