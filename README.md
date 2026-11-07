@@ -392,6 +392,9 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | Publication ethics, submission inventory, cover letter, highlights and the final QA checklist |
 | [`docs/LITERATURE_LOG.md`](docs/LITERATURE_LOG.md) | Dated search log: databases, search strings, screening decisions, and the competing work that narrowed this project's claim |
 | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Every result classified by evidence category, with seeds, runs, environment and reproduction commands, plus the seven experiments not yet run |
+| [`docs/REVIEWER_ASSESSMENT.md`](docs/REVIEWER_ASSESSMENT.md) | Three-reviewer simulated peer review and the consolidated editorial decision |
+| [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) | What is verified, what blocks submission, and what only the author can resolve |
+| [`docs/CONTRIBUTIONS.md`](docs/CONTRIBUTIONS.md) | Each stated contribution classified and checked against the literature; why eight became five |
 | [`docs/JOURNAL_ASSESSMENT.md`](docs/JOURNAL_ASSESSMENT.md) | Realistic venue outlook and reviewer assessment, including why the manuscript is not yet submittable and what would change that |
 | [`docs/SECURITY_ANALYSIS.md`](docs/SECURITY_ANALYSIS.md) | Root cause of the remote-disarm compile guard, what TLS does and does not protect under credential compromise, the key-management assumptions that bound the HMAC claim, and an assessment against the literature concluding that the finding is a known principle rather than a new vulnerability |
 | [`docs/Q2_GATE.md`](docs/Q2_GATE.md) | Fifteen-question reviewer gate, figure justification, and the IEEE ESL compliance checklist |
@@ -402,8 +405,9 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (25 pages). `paper/paper.tex` is the short letters-format version |
 
 **Status in one line:** firmware, formal verification, response-time analysis, simulation
-campaign, the eleven-design ablation, sensitivity sweep, fuzzing and the full-length manuscript are
-complete and reproducible. The physical timing measurement has **not been performed by anyone**; a complete
+campaign, the eleven-design ablation, sensitivity sweep, fuzzing, the access-control validation
+against a real Mosquitto broker, and the full-length manuscript are complete and reproducible.
+The one claim that needs physical hardware is still unmeasured, and the manuscript says so. The physical timing measurement has **not been performed by anyone**; a complete
 framework for an independent laboratory to perform it is in [`REPRODUCTION.md`](REPRODUCTION.md),
 and no latency figure is claimed anywhere.
 

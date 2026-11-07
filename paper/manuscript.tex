@@ -200,8 +200,8 @@ was built to support.
 \end{enumerate}
 
 The isolation design itself (core pinning, bounded non-blocking queues, a zero-timeout status
-snapshot, and the TLA+ specification of the resulting argument, mutation-tested and verified
-under a network task given no fairness assumption) is described in Sections~\ref{sec:design}
+snapshot, and the TLA+ specification of the resulting argument, verified under a network task
+given no fairness assumption and mutation-tested as described in Section~\ref{sec:vacuity}) is described in Sections~\ref{sec:design}
 and~\ref{sec:formal}. We present it as the system under study rather than as a contribution:
 each element is standard real-time practice, and prior work has already measured task lateness
 on this SoC under on-chip network load~\cite{behnke2020}.

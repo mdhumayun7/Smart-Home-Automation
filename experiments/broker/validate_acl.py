@@ -254,6 +254,12 @@ def write_summary(rows, denials):
          "therefore not evidence of delivery, and the `puback` column below shows that "
          "directly. Every scenario is decided by whether a subscriber holding the device's "
          "identity actually received the message.\n",
+         "Reproducibility differs from the simulations in this repository. Those regenerate "
+         "byte-identically from fixed seeds. This one talks to a live broker, so the log "
+         "timestamps and the randomly generated client identifiers differ on every run; the "
+         "scenario outcomes, the topics and the message sizes do not. Re-running should "
+         "reproduce every verdict in the table below and both denial lines, not the exact "
+         "bytes of this file.\n",
          "| Scenario | ACL | Adversary uses | Connected | PUBACK | Delivered | HMAC verifies |"
          " Command executes |", "|---|---|---|---|---|---|---|---|"]
     def y(v):

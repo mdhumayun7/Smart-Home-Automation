@@ -41,7 +41,7 @@ implemented it says so rather than describing an intention.
 | No event is lost without being counted | `Isolation.tla` `NoSilentLoss`; queue-race scenario | **Verified (logical)** |
 | Forged commands are rejected | 6,000-trial campaign, 0 attacker disarms; 3M fuzz iterations, 0 accepted | **Verified (simulation)** |
 | Replayed commands are rejected | `AlarmFSM.tla` `CounterMonotonic`; `auth` scenario; fuzz corpus stale-counter class | **Verified (simulation)** |
-| An unauthenticated remote command never disarms | `AlarmFSM.tla` `NoUnauthRemoteDisarm`, mutation-tested | **Verified (logical)** |
+| An unauthenticated remote command never disarms | `AlarmFSM.tla` `NoUnauthRemoteDisarm`, checked in both build configurations | **Verified (logical)**, and only since the invariant was made falsifiable; see `SECURITY_ANALYSIS.md` |
 | Command authentication preserves command availability under flood | Campaign: 3,000/3,000 hardened vs 500/3,000 baseline | **Verified (simulation)** |
 | No memory-safety or UB defects in the command parser | 3,000,000 iterations under ASan + UBSan | **Verified (simulation)** |
 | Security features cost ≈3 KB flash, ≈170 B RAM | CI compiler output, two core versions | **Verified (measured)** |
@@ -195,7 +195,8 @@ an event flood, which is the denial-of-service the bounded queue exists to preve
 ### 3.4 Invariants
 
 Checked by TLC in `formal/AlarmFSM.tla` (25 distinct states) and `formal/Isolation.tla` (660
-distinct states, depth 26). Both mutation-tested.
+distinct states, depth 26). Both mutation-tested, and `AlarmFSM` is additionally checked in
+its defective build configuration, where TLC is required to report a violation.
 
 | Invariant | Statement |
 |---|---|
@@ -331,14 +332,21 @@ compile-time guard enforces the converse — the flag cannot be enabled without 
 or TLS-plus-credentials:
 
 ```c
-#if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && (!MQTT_USE_TLS || !MQTT_HAS_LOGIN)
-#  error "ALLOW_REMOTE_DISARM needs AUTH_COMMANDS 1, or MQTT_USE_TLS 1 with broker credentials"
+#if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && !defined(ACKNOWLEDGE_UNAUTHENTICATED_DISARM)
+#  error "ALLOW_REMOTE_DISARM without AUTH_COMMANDS 1 permits anyone who can publish to the \
+command topic to switch the alarm off, and TLS plus a broker login does not prevent it"
 #endif
 ```
 
-`AlarmFSM.tla`'s `NoUnauthRemoteDisarm` is the formal statement of this rule, and mutation testing
-confirms the property has force: allowing an unauthenticated disarm in the model produces a
-violation.
+The earlier form of this guard accepted `MQTT_USE_TLS` with broker credentials as sufficient.
+That inference is unsound and `docs/SECURITY_ANALYSIS.md` measures what it cost; the guard was
+removed.
+
+`AlarmFSM.tla`'s `NoUnauthRemoteDisarm` is the formal statement of this rule. The specification
+now takes the build configuration as a parameter and is checked in both valuations: with
+unauthenticated disarm forbidden the invariant holds, and with it permitted TLC is **required**
+to produce a counterexample. Before that change the invariant was vacuous, because the flag it
+tests could never be set, which is why model checking did not catch the guard defect.
 
 ---
 

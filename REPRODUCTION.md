@@ -111,6 +111,27 @@ eleven-design table, the credential-compromise matrix, the availability breakdow
 rate, the Fisher exact comparisons and the detector sweep. Takes about 50 minutes at the
 default 300 trials per design.
 
+### E6: access control against a real Mosquitto broker
+
+The one testbed measurement in this repository. Everything else is simulation or formal
+analysis; this talks to an actual broker.
+
+```bash
+sudo apt-get install -y --no-install-recommends mosquitto mosquitto-clients
+pip3 install paho-mqtt
+./experiments/broker/run.sh
+```
+
+Produces `results/broker_acl.jsonl` and `results/broker_acl_summary.md`. It generates a private
+CA, a server certificate, a password file with three identities and two ACL variants into
+`experiments/broker/run/`, starts Mosquitto on loopback port 18883 with TLS, and runs eight
+scenarios. The generated keys are throwaway and deliberately not committed.
+
+Expect: the connection refused with no credentials; the command delivered when the stolen
+identity is the controller's or the single shared account; `Denied PUBLISH` in the broker log
+and no delivery when the stolen identity is the device's, including when the command carries a
+signature that genuinely verifies. Takes under a minute.
+
 ---
 
 ## 3. Reproducing Level 2 and performing Level 3
@@ -291,12 +312,16 @@ Honest statement of what reproducing this will and will not tell you.
   are modelled as Poisson at a stated rate because no capture of real traffic was available. The
   false-positive rates characterise the detector's logic, not any real network.
 - **The ablation's alternative designs are harness models**, not implementations of specific
-  products. The set includes transport security with and without per-client topic ACLs under
-  three credential-compromise layouts, but the broker is modelled as a per-identity permission
-  on the command topic. **No Mosquitto instance was used**, so ACL pattern syntax, wildcards,
-  bridged or clustered brokers, client-certificate identities and revocation are not modelled.
-  Validating these arms against a running broker needs a container and no hardware, and is the
-  highest-value open item that requires no equipment.
+  products. The broker is modelled as a per-identity permission on the command topic. Those
+  semantics are no longer only assumed: `experiments/broker/run.sh` reproduces all eight
+  access-control scenarios against a real Mosquitto 2.0.18 instance with TLS, password
+  authentication and per-client ACL files, and the broker agreed with the model in every case.
+  What remains unmodelled is everything outside those semantics: ACL pattern syntax, wildcards,
+  bridged or clustered brokers, client-certificate identities and revocation after a leak. The
+  testbed also runs on loopback with a private CA, so it validates policy, not networking.
+- **The broker experiment does not reproduce byte-identically**, unlike everything else here.
+  It talks to a live broker, so log timestamps and randomly generated client identifiers differ
+  on every run. The scenario verdicts, topics and message sizes do not.
 - **No runtime TLS cost is measured anywhere.** `WiFiClientSecure` is real in the firmware but a
   no-op shim in the host stubs, so no handshake latency, encryption overhead or throughput
   figure is reported from simulation. The only TLS cost reported is static flash and RAM,

@@ -642,6 +642,9 @@ static void persistCounter(uint32_t v) {
   prefs.putULong("cmdctr", v);
 }
 
+// Capacity of the command queue, and the bound on how many are drained per loop pass.
+static constexpr int CMD_Q_LEN = 4;
+
 // Drain at most CMD_DRAIN_PER_PASS commands per loop pass.
 //
 // This bound is deliberate and was added after a response-time analysis of the safety loop
@@ -655,7 +658,11 @@ static void persistCounter(uint32_t v) {
 // The bound equals the queue capacity, so a full queue still drains in a single pass; anything
 // arriving during the pass simply waits for the next one, which costs at most one loop period.
 // This mirrors the bound the network task already applied to the event queue.
-static constexpr int CMD_DRAIN_PER_PASS = 4;   // == cmdQ capacity
+// The drain bound must equal the queue's capacity: smaller leaves work queued for an
+// unbounded number of passes, larger makes the loop's worst case depend on arrival rate again,
+// which is the defect the response-time analysis found. Both are derived from CMD_Q_LEN so the
+// two cannot drift apart silently.
+static constexpr int CMD_DRAIN_PER_PASS = CMD_Q_LEN;
 
 static void handleCommands(uint32_t now) {
   CmdMsg m;
@@ -1075,7 +1082,7 @@ void setup() {
   }
 
   eventQ      = xQueueCreate(16, sizeof(Event));
-  cmdQ        = xQueueCreate(4,  sizeof(CmdMsg));
+  cmdQ        = xQueueCreate(CMD_Q_LEN, sizeof(CmdMsg));
   statusMutex = xSemaphoreCreateMutex();
 
   uint64_t mac = ESP.getEfuseMac();

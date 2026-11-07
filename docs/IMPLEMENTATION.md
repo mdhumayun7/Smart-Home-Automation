@@ -55,7 +55,7 @@ This table is the most important one in the document. Nothing elsewhere contradi
 | Firmware (v2.2.0, dual-core, hardened) | **Complete** | `firmware/smart_home/` (1,099 lines), compiles in CI for two arduino-esp32 versions |
 | ESP-NOW receiver firmware | **Complete** | `firmware/espnow_receiver/`, compiles in CI |
 | Host test suite | **Complete** | `tests/host/`, 19 scenarios, 120 checks, passing |
-| Formal verification (TLA+) | **Complete** | `formal/`, 2 models, TLC-checked in CI, mutation-tested |
+| Formal verification (TLA+) | **Complete** | `formal/`, 2 models, 3 TLC configurations in CI (one required to fail), mutation-tested |
 | Adversarial simulation campaign | **Complete** | `experiments/campaign.cpp`, 6,000 trials, results committed |
 | Command-parser fuzzing | **Complete** | `experiments/fuzz_cmd.cpp`, 3,000,000 iterations, results committed |
 | Statistical analysis and figure | **Complete** | `experiments/analyse.py`, `make_figures.py`, outputs committed |
@@ -507,14 +507,26 @@ source.
 | `RESTORE_ARMED_ON_BOOT` | 1 | Re-arm from NVS after power cut |
 | `ENABLE_LOOP_WDT` | 1 | Task watchdog on the safety loop |
 
-A compile-time guard enforces the security invariant that remote disarm cannot be enabled
-carelessly:
+Two compile-time guards enforce that remote disarm cannot be enabled carelessly and that
+authentication cannot be enabled meaninglessly:
 
 ```c
-#if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && (!MQTT_USE_TLS || !MQTT_HAS_LOGIN)
-#  error "ALLOW_REMOTE_DISARM needs AUTH_COMMANDS 1, or MQTT_USE_TLS 1 with broker credentials"
+#if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && !defined(ACKNOWLEDGE_UNAUTHENTICATED_DISARM)
+#  error "ALLOW_REMOTE_DISARM without AUTH_COMMANDS 1 permits anyone who can publish to the \
+command topic to switch the alarm off, and TLS plus a broker login does not prevent it"
+#endif
+
+#if AUTH_COMMANDS && CMD_KEY_IS_DEMO
+#  error "AUTH_COMMANDS 1 requires a real SECRET_CMD_KEY in secrets.h. The fallback key is \
+published in this repository, so a command signed with it is forgeable by any reader."
 #endif
 ```
+
+The first guard previously accepted `MQTT_USE_TLS` with broker credentials as sufficient. That
+inference is unsound, because the broker terminates TLS and re-originates every message, so an
+arriving command carries no evidence of its publisher. `docs/SECURITY_ANALYSIS.md` measures
+what it cost and records why it was removed. Three negative build checks in
+`tests/host/run_tests.sh` assert that both guards still reject the unsafe configurations.
 
 ### 6.4 Experiment parameters
 

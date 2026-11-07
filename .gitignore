@@ -42,3 +42,5 @@ experiments/results/campaign_*.jsonl
 !experiments/results/sensitivity.jsonl
 __pycache__/
 experiments/broker/run/
+formal/*_TTrace_*.tla
+formal/states/

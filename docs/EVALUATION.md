@@ -36,7 +36,10 @@ the complete state space (25 distinct states at `MaxCtr = 4`). The properties pr
 | `EntryLeadsToResolve` | An entry delay always ends in alarm or disarm (no stuck state). |
 | `AlarmReArms` | The alarm always ends in re-arm or disarm. |
 
-The spec was mutation-tested: deliberately letting an unauthenticated disarm take effect makes
+The spec is mutation-tested, though not originally in the artefact that shipped: until the
+configuration was made a parameter, `badDisarm` could never be set and the invariant was
+vacuous. The mutation had been applied to a hand-edited local copy. Today, letting an
+unauthenticated disarm take effect makes
 TLC report the `NoUnauthRemoteDisarm` violation, so the property is not vacuous.
 
 Run it with `./formal/run_tlc.sh` (also a CI job).
