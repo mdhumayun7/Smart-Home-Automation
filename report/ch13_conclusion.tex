@@ -1,0 +1,167 @@
+\chapter{Conclusion and Future Work}\label{ch:conclusion}
+
+\section{What the work set out to do, and what it found}
+
+This project began as the construction of a secure ESP32 intrusion alarm. It became a study of
+why the techniques normally relied upon to establish that such a system is secure did not
+establish it.
+
+Four defects were found \emph{in this project's own artefacts}. Each had survived the instrument
+that existed to catch it:
+
+\begin{itemize}[leftmargin=1.6em,itemsep=4pt]
+  \item A compile-time guard accepted transport security plus a broker login as evidence of
+        publisher authority. It survived code review and emitted no diagnostic. The ablation
+        found it, and measured its cost: alarm activation of 16.7\% against 100\% for the
+        control, with the adversary disarming the device in 246 of 300 trials.
+  \item A formal invariant stating that unauthenticated remote disarm never takes effect was
+        \emph{unfalsifiable by construction}. It passed continuous integration on every push.
+        It was incapable of failing.
+  \item The safety loop had no static bound on its own execution time. The defect had passed
+        9,600 adversarial trials, 3,000,000 fuzzing iterations, exhaustive model checking and 129
+        host tests. The response-time decomposition found it, because the decomposition required
+        a bound that did not exist.
+  \item Four further defects were found in the measurement infrastructure itself, two of which
+        produced results that flattered the intended conclusion.
+\end{itemize}
+
+The pattern common to all of them is a single sentence, and it is the work's central claim:
+
+\begin{quote}
+A security property asserted in build configuration, and a timing property asserted in design,
+are both unverified claims. Each can be falsified by a method that costs far less than the system
+it checks.
+\end{quote}
+
+The guard asserted authorisation in a preprocessor expression. The specification asserted a
+refusal in a comment. The loop asserted a bound nowhere at all. In each case the assertion was
+accepted because it appeared in a location where assertions are not normally examined.
+
+\section{Objectives against outcomes}
+
+\begin{longtable}{@{}p{0.05\textwidth}p{0.49\textwidth}p{0.39\textwidth}@{}}
+\toprule
+\textbf{} & \textbf{Objective} & \textbf{Outcome} \\
+\midrule
+\endhead
+O1 & Adequacy of core pinning with bounded queue discipline, and what can be settled without
+hardware & \textbf{Partially met.} Logical isolation proved exhaustively (660 states). Physical
+timing invariance not measured, and the boundary between the two is now stated precisely
+wherever the claim appears. \\
+O2 & Formally, whether a remote adversary can affect the safety function's control or data flow
+& \textbf{Met.} \code{SafetyCanAlwaysStep} holds in every reachable state under an
+unfair, unboundedly stalling, crashing network task. \\
+O3 & Which command-path defence preserves the safety function, availability and replay
+resistance & \textbf{Met.} The three properties fail independently. Only the counter-bound
+message authentication code holds all three; the rate limiter costs 41\% of operator commands.
+\\
+O4 & Where broker authorisation and application-layer authentication fail, and whether either
+dominates & \textbf{Met, with a negative result.} Neither dominates. The access control list
+contains a device compromise the signature cannot; the signature contains a controller
+compromise the list cannot. The layered build falls to E$'$. \\
+O5 & A response-time bound, separating analytical from hardware terms & \textbf{Partially met.}
+Three of four interference terms removed by construction; the fourth requires hardware. The
+derivation exposed the unbounded drain. \\
+O6 & Whether the configuration defect generalises to comparable open-source projects &
+\textbf{Attempted; null result.} Rule 1: zero hits across 135 projects. Rule 2: nine confirmed
+cases, reported as an existence claim and not a prevalence estimate. \\
+O7 & A falsifiable measurement protocol for the unresolved timing claim, published whether or not
+it can be executed & \textbf{Met.} Pre-registered before any data existed, with the test,
+sample sizes and acceptance criteria fixed in advance (Appendix~\ref{app:hardware}). \\
+\bottomrule
+\end{longtable}
+
+Six of seven objectives are met or partially met. The two partial outcomes share one cause: the
+absence of physical hardware, which is the work's principal limitation
+(Chapter~\ref{ch:limitations}).
+
+\section{What this work establishes}
+
+\begin{enumerate}[leftmargin=2.0em,itemsep=4pt]
+  \item \textbf{Security properties of a command path fail independently, and must be measured
+        separately.} Alarm activation, operator availability and replay resistance were each
+        preserved by a design that destroyed one of the others. A single-metric evaluation of
+        these six designs would have reached the wrong conclusion, and the figure reporting them
+        needs three panels for exactly that reason.
+  \item \textbf{Transport authentication is not publisher authorisation in MQTT 3.1.1.} The
+        broker re-originates messages; the protocol carries no publisher identity to the
+        subscriber. The cost of the unsound inference was measured rather than argued.
+  \item \textbf{Broker authorisation and application-layer authentication are complementary and
+        neither subsumes the other.} Established against real broker software, because scenarios
+        E and E$'$ carry the same valid signature and differ only in the transmitting identity
+        --- a distinction no amount of reasoning about the cryptography would have settled.
+  \item \textbf{A formal property must be shown to be falsifiable before its success is
+        evidence.} The repair is not a better invariant; it is a configuration whose
+        \emph{required} outcome is a violation, with the specific invariant name required in the
+        output. The same reasoning produced the negative control for trace conformance.
+  \item \textbf{Response-time analysis is a defect-finding instrument and not only a
+        certification instrument.} Four other methods had passed the firmware; deriving the bound
+        found the defect, because the derivation required a quantity the code did not have.
+  \item \textbf{Measurement infrastructure requires the same scrutiny as the artefact.} Four
+        defects were found in the harnesses, two of them flattering. Every repair is now
+        accompanied by a control that would fail if the defect recurred.
+\end{enumerate}
+
+\section{What this work does not establish}
+
+Restated compactly, because the conclusions should not be readable without it.
+
+No timing measurement of any kind was taken. Physical timing invariance is unmeasured and
+unclaimed; logical isolation does not imply it. On-device memory safety is not established, the
+fuzzing having run on a host build under sanitizers that do not exist for the Xtensa target. No
+radio-layer experiment was performed. The corpus study makes no prevalence claim. The flash-dump
+containment depends on the access control list and on the device identity lacking command write
+access, and not on the key being protected --- it is not. The layered configuration falls to a
+compromised controller host. Two design problems identified by this work remain open and
+unfixed: owner lockout under key compromise, and scenario E$'$.
+
+\section{Future work}
+
+\subsection{Immediate: execute the pre-registered hardware protocol}
+
+Conditions A--D, as specified in Appendix~\ref{app:hardware} and
+\code{docs/HARDWARE\_A\_TO\_C\_RUNBOOK.md}. The analysis plan is already fixed, so the measurement
+can confirm or falsify the timing claim without the test being chosen after the data is seen. This
+is the single highest-value next step, because it is the only one that resolves a claim the work
+currently has to leave open. Conditions A--C require an ESP32 DevKit, a logic analyser or a second
+microcontroller as a timing reference, and a controlled network; condition D additionally requires
+an RF-shielded enclosure.
+
+\subsection{Repair the two open design problems}
+
+\textbf{Owner lockout.} A counter-resynchronisation path authenticated by the local button, which
+is physically present and outside a remote adversary's reach. The obvious alternatives --- a
+resynchronisation command over MQTT, or a tolerance window on the counter --- weaken the replay
+resistance the counter exists to provide, so the design question is not trivial and the proposed
+repair needs evaluation against the same twelve-arm ablation before it can be claimed to work.
+
+\textbf{Scenario E$'$.} Mitigation requires an authority that does not reside on the controller
+host: a hardware security module, a second factor for disarm, or a physically present
+confirmation for state-changing commands. Each shifts the cost of the attack rather than
+eliminating it, and the trade-off against operator availability --- already shown to be a real
+cost --- would have to be measured.
+
+\subsection{Extend the evaluation}
+
+Flash encryption and secure boot, which would address key extraction rather than containing it.
+Other broker implementations with different authorisation models --- EMQX, HiveMQ, AWS IoT Core
+--- since scenario E's containment is contingent on Mosquitto's deny-by-default list. On-device
+fuzzing, which requires an instrumentation approach that does not depend on host sanitizers. A
+soak test for flash wear from counter commits, clock drift and fragmentation over months.
+
+\subsection{Generalise the method rather than the finding}
+
+The corpus study attempted to generalise the \emph{defect} and returned a null result. A more
+promising direction is to generalise the \emph{instrument}: a static check for the class of
+unverified configuration assumption found here, validated against a labelled set of positive and
+negative controls rather than against a star-filtered GitHub sample. The eight controls built for
+this project's rule, including its own pre-repair guard, are the starting point for such a
+labelled set.
+
+\section{Closing remark}
+
+The most useful outcome of this project is not the firmware. It is the record of four methods
+that each reported success while a defect they were meant to catch was present, and of the
+specific, testable changes that make each method capable of failing. A test that cannot fail is
+not evidence, and that applies to a build guard, a model-checked invariant, a fuzzing campaign and
+a measurement harness alike.

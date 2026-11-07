@@ -1,0 +1,253 @@
+\chapter{Introduction}\label{ch:intro}
+
+\section{Research background}
+
+A domestic intrusion alarm has one obligation. When a sensor detects an intrusion, a siren must
+sound within a bounded time. Everything else the device does — reporting state to a phone,
+accepting remote commands, logging events — is secondary, and none of it excuses a failure to
+make a noise.
+
+The hardware on which these devices are now built makes that obligation harder to meet than it
+first appears. A decade ago an alarm panel was a microcontroller with a dedicated radio module
+or a wired connection. Today the entire device is typically one inexpensive
+system-on-chip. On the Espressif ESP32, which is the platform studied here, a single die carries
+two processor cores, the 802.11 radio and its closed-source driver, the TCP/IP stack, the TLS
+implementation, the MQTT client and the alarm application itself. They share the scheduler, the
+memory bus and the interrupt controller.
+
+This matters because it creates a path from the outside world to the safety function that does
+not exist in a system with separated hardware. An attacker who cannot reach the alarm's logic
+directly may still be able to load the shared resources enough to delay it. The attacker needs
+no credentials, no access to the building and no knowledge of the application: radio-layer
+frames are processed beneath the IP stack whether or not any socket is listening.
+
+\subsection{Embedded safety firmware}
+
+The term \emph{safety firmware} is used in this report for the portion of an embedded program
+whose correct and timely execution is the reason the device exists. In an alarm this is the
+sensor-conditioning code, the state machine that decides whether the system is armed, and the
+output driver that energises the siren.
+
+Two properties distinguish safety firmware from the rest of a program. First, its obligation is
+a \emph{bound}, not an average: an alarm that usually sounds in 150\,ms and occasionally takes
+four seconds has failed, even though its mean is excellent. Second, it must continue to work
+when the rest of the system does not. A loss of network connectivity, a broker outage or a
+saturated radio must not prevent the siren from sounding, because the circumstances under which
+an alarm is most needed are precisely the circumstances in which the network is least reliable.
+
+Developers of such firmware on dual-core microcontrollers are given two standard pieces of
+advice, which this work takes as its subject:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=4pt]
+  \item \textbf{Pin the safety task to its own core}, and place everything network-facing on
+        the other, so that network work cannot delay safety work.
+  \item \textbf{Gate risky features behind build-time configuration}, so that a dangerous
+        capability is compiled out unless the build deliberately asks for it.
+\end{enumerate}
+
+Both are reasonable. Both are also \emph{assertions} about the system rather than
+demonstrated properties — the first asserts something about timing, the second something about
+security — and in ordinary practice neither is tested. That gap is the subject of this work.
+
+\subsection{MQTT-based communication}
+
+MQTT is the dominant application protocol for this class of device. It is a publish--subscribe
+protocol in which clients connect to a central broker, publish messages to topics, and
+subscribe to topics they wish to receive. Its appeal for constrained devices is real: the
+protocol is small, the client libraries are small, and a device behind a domestic router needs
+no inbound connectivity, because it establishes an outbound connection to the broker and
+receives commands over it.
+
+The architectural consequence is less often discussed, and it is central to
+Chapter~\ref{ch:security}. The broker is not a transparent pipe. It terminates each client's
+transport connection and \emph{re-originates} every message it forwards. A device receiving a
+command therefore receives it from the broker, over the device's own TLS connection to the
+broker, with no cryptographic evidence of which client originally published it. Transport
+security protects each hop; it conveys nothing about provenance across the relay. MQTT 3.1.1
+compounds this by providing no return code meaning ``refused by policy'': a broker that
+discards a publication for violating an access control list still acknowledges it, so the
+publisher cannot distinguish success from silent refusal.
+
+\subsection{Security challenges in connected IoT systems}
+
+Three difficulties recur in this device class and all three appear in the results reported
+here.
+
+\textbf{Credentials are shared with the device.} A device that authenticates to a broker must
+hold a credential, and that credential lives in flash on a physically accessible object. The
+same is true of any application-layer key. If both are in the same image, an adversary who
+extracts one extracts the other — a point that turns out to determine which of two defences
+survives which compromise (Section~\ref{sec:sec-flashdump}).
+
+\textbf{The controlling host is part of the trust boundary.} A phone or home-automation server
+that legitimately issues commands must hold whatever authority is needed to issue them. Its
+compromise therefore yields that authority, and no amount of care inside the device can prevent
+it. Chapter~\ref{ch:security} reports this as the configuration that defeats the strongest
+design evaluated here.
+
+\textbf{Availability and integrity are separate properties and trade against each other.} A
+rate limiter improves resistance to flooding and degrades legitimate availability. A static
+shared token preserves availability and provides no replay resistance. The ablation in
+Section~\ref{sec:res-ablation} measures this independence rather than assuming it.
+
+\subsection{Why reliable intrusion alarms matter}
+
+The case for taking this seriously does not rest on sophistication. These devices are cheap,
+numerous, installed by non-specialists and rarely updated. A homeowner who installs one has
+made a decision about physical security on the strength of an implicit promise about timing and
+authority. An alarm that can be silenced from outside the building by an adversary with a
+leaked credential, or delayed past the point of usefulness by radio-layer noise, has broken
+that promise in a way that is invisible until it matters.
+
+The installed base is also large enough that a defect in the standard engineering advice is
+worth more attention than a defect in any single product.
+
+\section{Motivation}
+
+The direct motivation is a measurement by Behnke et al.\ \cite{behnke2020}, who instrumented a
+periodic critical task on an ESP32 and subjected the device to IP packet load. They found
+measurable degradation: the task lost between 2.15\% and 3.8\% of its cycles for packets
+addressed to a port it was listening on, and between 3.17\% and 6.67\% for an unused port, with
+latency rising as the microcontroller saturated. Their conclusion was that command-and-control
+over IP is unsuitable for hard real-time work on devices of this kind.
+
+That result settles one question and opens three, and those three define this project.
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=4pt]
+  \item \textbf{It measures the phenomenon but does not evaluate a mitigation.} The follow-up
+        work from the same group proposes two \cite{behnke2022,behnke2023}, but neither is
+        available to a developer shipping a stock ESP32: the first was evaluated against a
+        simulated network interface and never built, and the second was prototyped on a Xilinx
+        Zynq-7000, a considerably larger platform. Notably, \cite{behnke2023} uses the ESP32's
+        second core to separate the observed process from the test harness rather than as a
+        mitigation, so \emph{core pinning is nowhere evaluated as a defence}.
+  \item \textbf{All the load in that line of work is applied at the IP layer.} The attack that
+        actually threatens a wireless alarm is deauthentication — 802.11 management frames
+        handled in the MAC layer and the radio driver, beneath the IP stack, which the device
+        must process whether or not a socket is listening. Whether this interference path
+        behaves like IP load is unknown.
+  \item \textbf{No treatment of the isolation argument is formal, and none models an
+        adversary} rather than volumetric stress.
+\end{enumerate}
+
+A second motivation emerged during the work itself and ultimately shaped the paper more than
+the first. In the course of trying to verify the two standard assertions, three defects were
+found \emph{in this project's own artefacts} — not in third-party code. Each had survived the
+techniques one would normally rely on. That experience, rather than any single finding, is what
+the research reports.
+
+\section{Research objectives}
+
+\begin{enumerate}[leftmargin=2.2em,itemsep=4pt,label=\textbf{O\arabic*.}]
+  \item Determine whether core pinning combined with bounded queue discipline is adequate as an
+        isolation mitigation on a single-chip Wi-Fi SoC, and establish precisely which part of
+        that question can be settled without physical measurement.
+  \item Establish, formally, whether an adversary with remote command-interface access can
+        affect the safety function's control or data flow.
+  \item Determine experimentally which command-path defence preserves the safety function,
+        operator availability and replay resistance, treating the three as separate properties
+        rather than as one.
+  \item Determine where broker-side authorisation and application-layer authentication fail,
+        and whether either dominates the other under credential compromise.
+  \item Derive a response-time bound for the safety loop and identify which interference terms
+        can be settled analytically and which require hardware.
+  \item Establish whether the configuration defect found in this system generalises to
+        comparable open-source projects.
+  \item Specify a measurement protocol capable of falsifying the timing claim that remains
+        unresolved, and publish it whether or not it can be executed.
+\end{enumerate}
+
+\section{Scope of the work}\label{sec:intro-scope}
+
+\subsection*{What is inside the scope}
+
+One artefact is studied: an ESP32-WROOM-32 intrusion alarm, firmware v2.2.0, whose complete
+source is in the repository. The evaluation covers its command path, its safety state machine,
+its queue discipline, its broker authorisation and its application-layer authentication. The
+evidence is of five kinds, kept separate throughout: formal verification, host simulation,
+testbed measurement against a live broker, analysis, and a static corpus study.
+
+\subsection*{What is outside the scope, and why}
+
+\textbf{Physical timing measurement.} No latency figure is reported anywhere in this report or
+in the accompanying manuscript. The simulation harness advances a logical clock, so it provides
+no information about timing whatever. The hardware protocol that would settle the question is
+specified in Appendix~\ref{app:hardware} and has not been run.
+
+\textbf{Attack tooling.} The repository publishes no procedure or tool for generating
+radio-layer attacks. This is deliberate, and it limits what can be reported about the one
+condition that would need such tooling.
+
+\textbf{Generality.} One chip, one application, two framework versions, no deployment. The
+corpus study in Section~\ref{sec:res-corpus} was the attempt to generalise and it returned
+nothing; that outcome is reported as a null result and no prevalence claim is made from it.
+
+\subsection*{Relationship to the accompanying manuscript}
+
+Two documents exist and they serve different purposes. The manuscript is prepared for journal
+submission: it is concise, confined to what is defensible before reviewers, and formatted to
+the target journal's requirements. This report documents the whole project — including the
+development environment, the implementation at module level, the experimental apparatus, and
+the defects found in the project's own measurement infrastructure along the way, which a
+journal paper has no room for. Where the two overlap, the numbers are identical, because both
+draw on the same committed records.
+
+\section{Main contributions}
+
+Eight contributions were claimed in an early draft. They were reduced to five after each was
+classified against the literature, because the evidence does not support eight. The reduction
+is recorded in \code{docs/CONTRIBUTIONS.md}.
+
+The central claim is this:
+
+\begin{quote}
+A security property asserted in build configuration, and a timing property asserted in design,
+are both unverified claims. Each can be falsified by a method that costs far less than the
+system it checks.
+\end{quote}
+
+\begin{enumerate}[leftmargin=2.2em,itemsep=5pt,label=\textbf{C\arabic*.}]
+  \item \textbf{A configuration defect that costs a safety property.} A compile-time guard
+        accepted TLS plus a broker login as evidence of publisher authority. The inference is
+        unsound because the broker re-originates messages. Under a single leaked credential the
+        alarm fired in 16.7\% of 300 trials against 100\% for the control. The guard emitted no
+        diagnostic and survived review. (Chapter~\ref{ch:security})
+  \item \textbf{A response-time decomposition that exposed an unbounded drain.} The
+        decomposition removes three of four interference terms by construction and, in doing
+        so, revealed that the safety loop had no static bound on its own execution time. The
+        defect had passed 9,600 adversarial trials, 3,000,000 fuzzing iterations, exhaustive
+        model checking and 129 host tests. (Chapter~\ref{ch:impl}, Section~\ref{sec:impl-drain})
+  \item \textbf{A disclosed vacuous invariant, and a regression test for vacuity.} The property
+        stating that unauthenticated remote disarm never takes effect was unfalsifiable in the
+        specification that was shipped and checked in CI, because it assumed the refusal rather
+        than deriving it. The model-checking runner now \emph{requires} a deliberately
+        defective configuration to fail. (Chapter~\ref{ch:formal})
+  \item \textbf{A measurement of defence independence.} A twelve-configuration ablation over
+        3,600 trials shows availability, integrity and the safety function failing
+        independently, and shows broker authorisation and message authentication failing under
+        different compromises — reproduced against a live broker.
+        (Chapter~\ref{ch:results})
+  \item \textbf{A published, falsifiable measurement protocol} for the timing question that
+        remains open, together with an honest negative generalisation result from a
+        commit-pinned corpus of 135 projects. (Appendix~\ref{app:hardware},
+        Section~\ref{sec:res-corpus})
+\end{enumerate}
+
+No new mechanism, attack, protocol or formalism is claimed. Ablation, response-time analysis
+and specification mutation are all established techniques. What the work reports is that
+applying them to a system's \emph{assumptions}, rather than to its running behaviour, caught
+three defects that testing the running behaviour did not.
+
+\section{Organisation of this report}
+
+Chapter~\ref{ch:lit} reviews the relevant literature and states the research gap.
+Chapter~\ref{ch:req} gives the requirements, system assumptions and threat model.
+Chapter~\ref{ch:arch} presents the architecture. Chapter~\ref{ch:tools} documents the
+development environment with verified versions. Chapter~\ref{ch:impl} explains the
+implementation module by module with code excerpts. Chapter~\ref{ch:method} documents the
+experimental methodology and Chapter~\ref{ch:results} the results and their statistical
+treatment. Chapter~\ref{ch:formal} covers formal verification. Chapter~\ref{ch:security}
+discusses the security evaluation. Chapter~\ref{ch:figures} catalogues the figures.
+Chapter~\ref{ch:limitations} states the limitations and threats to validity, and
+Chapter~\ref{ch:conclusion} concludes. Eleven appendices carry the inventories, commands and
+reproduction instructions.

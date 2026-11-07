@@ -1,0 +1,48 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\markboth{Abstract}{}
+
+\noindent Domestic intrusion alarms are now built almost entirely on single-chip Wi-Fi
+systems-on-chip. On the ESP32, the radio driver, the TCP/IP stack, the MQTT client and the
+alarm application share one die, one scheduler and one interrupt controller. Two pieces of
+standard engineering advice are used to contain the resulting risk: pin the safety task to its
+own core, and gate risky features behind build-time configuration. Both are assertions about
+the system, and in practice neither is checked.
+
+\vspace{6pt}
+\noindent This work treats an ESP32 intrusion alarm as a case study and sets out to falsify
+both assertions rather than to demonstrate them. Three defects were found, each residing in a
+different kind of assumption, and each exposed by a method that costs considerably less than
+the system it examines. A compile-time guard accepted the combination of TLS and a broker login
+as evidence of a publisher's authority; under a single leaked credential the alarm fired in
+only 16.7\% of 300 trials, against 100\% for the control. A response-time decomposition
+exposed an unbounded command drain in the safety loop that 9,600 adversarial trials, 3,000,000
+fuzzing iterations and exhaustive model checking had all passed over. The project's own
+temporal-logic invariant forbidding unauthenticated remote disarm proved to be vacuous in the
+specification that had been shipped and checked in continuous integration.
+
+\vspace{6pt}
+\noindent A twelve-configuration ablation over 3,600 trials shows that availability, integrity
+and the safety function fail independently of one another: a token-bucket rate limiter costs
+41\% of legitimate operator commands while contributing nothing to integrity. Broker access
+control and application-layer message authentication were found to fail under different
+compromises, a result reproduced against a live Mosquitto broker across eight scenarios. An
+adversary in possession of a compromised controller host---holding both a credential the access
+control list must permit and the command key---defeats the layered configuration and locks the
+legitimate owner out of all 1,250 attempted commands.
+
+\vspace{6pt}
+\noindent An attempt to generalise the configuration finding across 135 commit-pinned
+open-source embedded MQTT projects returned no hits for the guard pattern. That negative result
+is reported as such, and no claim is made about the prevalence of the pattern in the wider
+ecosystem.
+
+\vspace{6pt}
+\noindent The results establish \emph{logical} isolation only. Physical timing invariance is a
+property of the silicon and of a closed-source radio driver; it has not been measured, no
+latency figure is reported, and the hardware protocol that would settle the question is
+documented rather than executed.
+
+\vspace{10pt}
+\noindent\textbf{Keywords:} embedded systems security; MQTT; configuration defects;
+specification mutation; response-time analysis; formal verification; ESP32

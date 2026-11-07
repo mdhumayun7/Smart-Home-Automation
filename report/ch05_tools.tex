@@ -1,0 +1,194 @@
+\chapter{Technologies, Tools and Development Environment}\label{ch:tools}
+
+Every version in this chapter was read from the tool itself in the environment that produced
+the committed results. Where a version could not be verified, that is stated rather than
+guessed.
+
+\section{Target platform}
+
+\begin{longtable}{@{}p{0.23\textwidth}p{0.16\textwidth}p{0.55\textwidth}@{}}
+\toprule
+\textbf{Item} & \textbf{Version} & \textbf{Role and why} \\
+\midrule
+\endhead
+ESP32-WROOM-32 & DevKit v1 & The artefact under study. Chosen because it is the platform the
+research question is about: dual-core, with the radio on the same die. \\
+Xtensa LX6 cores & 2 cores & Core affinity is the only isolation primitive available; the
+whole architecture depends on there being two. \\
+arduino-esp32 & 2.0.17 and 3.3.12 & Both evaluated, because the buzzer driver API changed
+between them and the firmware must build under each. Resource cost is reported for both
+(Table~\ref{tab:rep-build}). \\
+FreeRTOS & as shipped with the above & Supplies \code{xTaskCreatePinnedToCore}, queues and
+semaphores. No version independent of the framework is pinned. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Firmware dependencies}
+
+\begin{longtable}{@{}p{0.30\textwidth}p{0.62\textwidth}@{}}
+\toprule
+\textbf{Library} & \textbf{Purpose in this firmware} \\
+\midrule
+\endhead
+\code{PubSubClient}            & MQTT 3.1.1 client: connection, subscription, publication,
+Last Will \\
+\code{WiFiClientSecure}        & TLS transport to the broker \\
+\code{Adafruit\_SSD1306}, \code{Adafruit\_GFX} & Local OLED status display \\
+\code{Preferences}             & Non-volatile storage for the armed state and the replay
+counter \\
+\code{mbedtls} (via the SDK)   & HMAC-SHA256 for command authentication \\
+\bottomrule
+\end{longtable}
+
+\section{Verification and experimentation environment}
+
+This is a separate environment from the target, and the distinction is material: every result
+reported in Chapter~\ref{ch:results} except the broker experiment was produced here, on a host,
+and not on the device.
+
+\begin{longtable}{@{}p{0.21\textwidth}p{0.17\textwidth}p{0.56\textwidth}@{}}
+\toprule
+\textbf{Tool} & \textbf{Version} & \textbf{Role and where it appears} \\
+\midrule
+\endhead
+GCC / g++ & 13.3.0 & Compiles the firmware logic against host stubs, and the harnesses in
+\code{experiments/*.cpp}. Also supplies AddressSanitizer and UndefinedBehaviorSanitizer for
+the fuzzing campaign. \\
+Python & 3.13.18 & All analysis, figure generation and verification scripts. Statistics are
+implemented with the standard library only, so no external package can alter a reported
+value. \\
+TLA+ / TLC & TLC2 2026.10.24.013619 (rev \code{2ef2af8}) & Exhaustive model checking of
+\code{formal/AlarmFSM.tla} and \code{formal/Isolation.tla}, and of the deliberately defective
+configuration that must fail. \\
+Java & OpenJDK, as installed & Runtime for \code{tla2tools.jar} (4{,}502{,}259 bytes,
+committed). \\
+Mosquitto & 2.0.18 & The live broker for experiment E6. The only component in the evaluation
+that is external software observed rather than simulated. \\
+\code{mosquitto\_passwd} & with 2.0.18 & Generates the password file for per-client
+authentication. \\
+OpenSSL & as installed & Generates the private certificate authority and server certificate
+for the broker testbed. \\
+matplotlib & 3.11.2 & Figures 3 and 5. Configured through \code{experiments/figstyle.py} with
+\code{pdf.fonttype~42}, so TrueType fonts are embedded rather than Type~3. \\
+cairosvg & current at build & Converts the generated SVG diagrams to PDF and PNG. \\
+Pillow & current at build & Measures text in the real font for the figure-fit check. \\
+pdflatex & \TeX\ Live 2024 & Builds the manuscript and this report. \\
+Pandoc & 3.1.3 & Produces the editable DOCX of this report. \\
+Git & as installed & Version control; the commit hash on the title page identifies the exact
+state. \\
+GitHub Actions & --- & Continuous integration: re-runs the formal verification and a reduced
+adversarial campaign on every push. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Why the firmware is tested against host stubs}
+
+The firmware logic is compiled for the host against a set of stub headers in
+\code{tests/host/stubs/}, which provide the Arduino, FreeRTOS, \code{WiFi}, \code{PubSubClient},
+\code{Preferences}, \code{Wire} and display interfaces.
+
+The reason is throughput. A campaign of 9,600 adversarial trials and 3,000,000 fuzzing
+iterations is not feasible on the device at any useful speed, and the sanitizers that make the
+fuzzing meaningful do not exist for the Xtensa target. Compiling for the host makes both
+possible.
+
+The cost is equally clear and is stated wherever a result from this environment is reported:
+\textbf{the host harness advances a logical clock}. There is no radio, no true parallel
+execution and no contention for shared silicon. Latency variance in this environment is
+identically zero, which is why no timing conclusion is drawn from it anywhere in this report.
+
+The firmware logic itself is \emph{not} modified for testing. The same \code{smart\_home.ino} is
+compiled; only the headers it includes differ.
+
+\section{Resource cost on the target}
+
+Measured at build time by the Arduino toolchain, for the two framework versions. This is the one
+measurement in the project taken by real tooling on the real target, and it describes the binary
+rather than the running device.
+
+\begin{table}[htbp]
+\centering
+\caption[Firmware resource cost]{Firmware resource cost, measured at build time.}
+\label{tab:rep-build}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Framework version & Flash (B) & of budget & RAM (B) & of budget \\
+\midrule
+arduino-esp32 2.0.17 & 793{,}433 & 60.5\% & 46{,}372 & 14.2\% \\
+arduino-esp32 3.3.12 & 968{,}221 & 73.9\% & 49{,}876 & 15.2\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The increase under the newer framework is substantial — roughly 175\,kB of flash — and is a
+property of the framework rather than of this firmware. It is reported because a reader
+reproducing the build will see one figure or the other depending on which version they install.
+
+\section{Simulation and modelling tools}
+
+\begin{longtable}{@{}p{0.31\textwidth}p{0.61\textwidth}@{}}
+\toprule
+\textbf{Tool} & \textbf{Role} \\
+\midrule
+\endhead
+Wokwi (\code{wokwi/diagram.json}) & Circuit definition for browser-based simulation of the
+peripherals. Used during development for wiring verification; \textbf{no reported result comes
+from it}. \\
+\code{experiments/ablation.cpp} & The twelve-configuration harness. Models broker admission and
+access control in \code{deliverGuarded}/\code{admit}. \\
+\code{experiments/campaign.cpp} & The adversarial campaign harness, E1 and E2. \\
+\code{experiments/fuzz\_cmd.cpp} & The command-parser fuzzer, run under both sanitizers. \\
+\code{experiments/sensitivity.cpp} & The detector parameter sweep. \\
+\bottomrule
+\end{longtable}
+
+\section{Code quality and verification infrastructure}
+
+A deliberate choice was made to treat the verification infrastructure as part of the artefact
+rather than as scaffolding, because four defects were found \emph{in the harnesses themselves}
+during this work — two of which produced results that flattered the intended conclusion.
+
+\begin{longtable}{@{}p{0.32\textwidth}p{0.60\textwidth}@{}}
+\toprule
+\textbf{Check} & \textbf{What it prevents} \\
+\midrule
+\endhead
+\code{tests/host/run\_tests.sh} & 129 assertions over the firmware logic, including three
+negative build-guard tests that require a defective configuration to fail to compile \\
+\code{formal/run\_tlc.sh} & Three model-checking configurations; the third \emph{must} report a
+violation, so a vacuous invariant cannot recur silently \\
+\code{experiments/test\_conformance.py} & 19,529 firmware transitions checked against the
+specification's transition relation, with a negative control \\
+\code{experiments/test\_harness.py} & Metamorphic and differential properties of the harness:
+determinism, seed sensitivity, monotone attack effort, mode separation, and agreement of the
+HMAC payload format with an independent implementation \\
+\code{experiments/corpus/test\_rule.py} & Eight controls for the static rule, including this
+project's own pre-repair guard \\
+\code{experiments/validate\_figures.py} & Recomputes every plotted value from the raw per-trial
+records, not from the derived summary \\
+\code{experiments/check\_figure\_type.py} & Fails the build if any figure label would print
+below 6\,pt \\
+\code{experiments/check\_figure\_fit.py} & Measures every label in the real font and fails on
+clipping \\
+\bottomrule
+\end{longtable}
+
+The last two exist because a defect was found that visual inspection cannot detect: every
+diagram in an earlier revision printed its smallest label at roughly 4\,pt, which is a function
+of the canvas width and the figure's scale factor rather than anything visible on screen.
+
+\section{What the environment could not do}
+
+Recorded here so that no reader infers a capability that did not exist.
+
+\begin{itemize}[leftmargin=1.6em,itemsep=4pt]
+  \item \textbf{No physical ESP32 hardware} was available in the environment that produced
+        these results. There were no serial devices, no USB, no \code{arduino-cli} and no
+        wireless interface. Appendix~\ref{app:hardware} records the probe that established
+        this.
+  \item \textbf{No RF-shielded enclosure}, which is a hard prerequisite for the radio-layer
+        condition.
+  \item \textbf{No licensed similarity-checking tool.}
+  \item \textbf{No institutional access} to Scopus or Journal Citation Reports, which is why no
+        journal quartile is asserted anywhere in this work.
+\end{itemize}

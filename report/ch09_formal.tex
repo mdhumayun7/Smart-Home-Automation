@@ -1,0 +1,262 @@
+\chapter{Formal Verification}\label{ch:formal}
+
+Two TLA+ specifications were written for this project and are checked exhaustively by TLC on
+every push. This chapter states what they establish, and — with equal emphasis — what they do
+not, because the second specification is named \code{Isolation} and that name invites a stronger
+reading than the model supports.
+
+The chapter also records a defect in the first specification. For part of this project the
+specification passed every check while being incapable of failing. That is reported here rather
+than quietly repaired, because it is the most instructive methodological result in the work.
+
+\section{Why formal methods were applied at all}
+
+The firmware's safety claim is universal: \emph{no} sequence of adversarial messages causes an
+unauthorised disarm. Testing cannot establish a universal claim over an unbounded input space;
+it can only fail to refute it. The adversarial campaign of Chapter~\ref{ch:results} ran 9,600
+trials and found no violation, which is evidence but not proof. Exhaustive model checking over
+a bounded abstraction is the complementary instrument: it enumerates every reachable state of
+the abstraction and therefore \emph{proves} the invariant within that abstraction's bounds.
+
+The two instruments fail in different directions, which is why both are used. The model may
+abstract away the very detail that breaks in reality; the experiment covers reality but only
+the paths it happened to take.
+
+\section{Specification 1: the alarm state machine}
+
+\subsection{What is modelled}
+
+\code{formal/AlarmFSM.tla} models the five-state arm/disarm machine and the authenticated
+command path, over three variables:
+
+\begin{itemize}[leftmargin=1.6em,itemsep=3pt]
+  \item \code{state} --- one of \code{Disarmed}, \code{ExitDelay}, \code{Armed},
+        \code{EntryDelay}, \code{Alarm}
+  \item \code{ctr} --- the highest accepted authenticated command counter
+  \item \code{badDisarm} --- set \code{TRUE} if an unauthenticated remote disarm ever takes
+        effect
+\end{itemize}
+
+\textbf{Time is abstract.} A delay expires as a nondeterministic step rather than by counting
+milliseconds. This is the correct level of abstraction for reasoning about \emph{which
+transitions are reachable and who may cause them}, and it is the wrong level for reasoning about
+\emph{how long} anything takes. No timing conclusion is drawn from this model anywhere in this
+report.
+
+\subsection{Properties checked}
+
+\begin{longtable}{@{}p{0.27\textwidth}p{0.11\textwidth}p{0.50\textwidth}@{}}
+\toprule
+\textbf{Property} & \textbf{Kind} & \textbf{Statement} \\
+\midrule
+\endhead
+\code{TypeOK}              & invariant & All three variables stay in their declared domains \\
+\code{NoUnauthRemoteDisarm}& invariant & \code{badDisarm = FALSE}: the system never leaves an
+armed state because of an unauthenticated remote command \\
+\code{NoAlarmWhenDisarmed} & invariant & The siren is never on while disarmed \\
+\code{CounterMonotonic}    & temporal  & $[][ctr' \geq ctr]$: the replay counter never
+decreases \\
+\code{EntryLeadsToResolve} & liveness  & An entry delay always ends in \code{Alarm} or
+\code{Disarmed}; the system cannot get stuck mid-entry \\
+\code{AlarmReArms}         & liveness  & The alarm always ends, in re-arm or disarm \\
+\bottomrule
+\end{longtable}
+
+The liveness properties require fairness on the three timed transitions
+(\code{ExitExpire}, \code{EntryExpire}, \code{AlarmExpire}), supplied by weak fairness in
+\code{Spec}. No fairness is assumed for any adversary action.
+
+\subsection{Result}
+
+With \code{MaxCtr = 4} and \code{AllowUnauthDisarm = FALSE}: \textbf{166 states generated, 25
+distinct, 0 left on queue, no error found.} The run is exhaustive over the bounded state space,
+and both temporal branches were checked over the complete space.
+
+\section{The vacuity defect, and the repair}\label{sec:formal-vacuity}
+
+\subsection{What was wrong}
+
+In the original specification the unauthenticated-command action was written as an
+unconditional refusal:
+
+\begin{lstlisting}[style=tla,caption={The defective action, as originally written (reconstructed
+from the repair commit).},label={lst:vacuous}]
+\* An UNauthenticated remote command is refused, exactly as the firmware does.
+RemoteUnauthDisarm ==
+  /\ state \in ArmedLike
+  /\ UNCHANGED <<state, ctr, badDisarm>>
+\end{lstlisting}
+
+The comment asserts the conclusion. \code{badDisarm} was initialised \code{FALSE} and left
+\code{UNCHANGED} by \emph{every} action in the specification, so no reachable behaviour could set
+it. The invariant \code{NoUnauthRemoteDisarm} was therefore \textbf{unfalsifiable by
+construction}: not proved, but incapable of failing.
+
+TLC reported success. The success meant nothing.
+
+\subsection{Why this mattered more than an ordinary bug}
+
+The firmware contained a real defect of exactly the kind this invariant was written to catch: a
+compile-time guard that admitted remote disarm without application-layer authentication. The
+ablation experiment found it. The model checker, which existed specifically to find it, could
+not have found it under any circumstances.
+
+The specification had embedded the same unverified assumption that the firmware got wrong. A
+passing formal check had been taken as evidence for a property that the check was structurally
+unable to test. This is the project's central methodological finding, generalised in
+Chapter~\ref{ch:conclusion}.
+
+\subsection{The repair}
+
+The build switch is now a model parameter rather than a hard-coded refusal:
+
+\begin{lstlisting}[style=tla,caption={The repaired action: the configuration is a parameter, so
+the violating behaviour exists and is reachable under one valuation.},label={lst:repaired}]
+RemoteUnauthDisarm ==
+  /\ state \in ArmedLike
+  /\ IF AllowUnauthDisarm
+       THEN /\ state' = "Disarmed"
+            /\ badDisarm' = TRUE
+            /\ UNCHANGED ctr
+       ELSE UNCHANGED <<state, ctr, badDisarm>>
+\end{lstlisting}
+
+\subsection{The third configuration: a check that must fail}
+
+The repair alone is not sufficient, because a future edit could reintroduce the vacuity and the
+suite would again report success. A third configuration therefore exists whose \emph{required
+outcome is a violation}.
+
+\code{AlarmFSM\_unsafe.cfg} sets \code{AllowUnauthDisarm = TRUE}, modelling the
+\code{ALLOW\_REMOTE\_DISARM} build with no application-layer authentication.
+\code{formal/run\_tlc.sh} inverts the exit condition for this run and additionally requires the
+specific string \code{Invariant NoUnauthRemoteDisarm is violated} in TLC's output:
+
+\begin{lstlisting}[style=sh,caption={The inverted check. A \emph{passing} TLC run is treated as a
+build failure.},label={lst:invertedcheck}]
+if java -cp "$JAR" tlc2.TLC -config AlarmFSM_unsafe.cfg AlarmFSM.tla > /tmp/tlc_unsafe.out 2>&1
+then
+  echo "FAIL AlarmFSM_unsafe: TLC found no violation, so the invariant is vacuous again"
+  fail=1
+elif grep -q "Invariant NoUnauthRemoteDisarm is violated" /tmp/tlc_unsafe.out; then
+  echo "PASS AlarmFSM_unsafe: TLC reports the expected NoUnauthRemoteDisarm violation"
+\end{lstlisting}
+
+Requiring the specific invariant name, rather than merely a non-zero exit, matters: a syntax
+error, a missing constant or a parse failure also produce a non-zero exit, and would otherwise be
+silently accepted as the expected violation.
+
+TLC reports the expected violation on every run. The invariant is now known to be falsifiable,
+which is what licenses reading its success in the safe configuration as evidence.
+
+\section{Specification 2: the isolation model}\label{sec:formal-isolation}
+
+\subsection{What is modelled}
+
+\code{formal/Isolation.tla} models the two-task structure over seven variables:
+\code{safetySteps}, \code{produced}, \code{queued}, \code{delivered}, \code{dropped},
+\code{netState} and \code{netOwnsState}.
+
+The network task is modelled \textbf{adversarially and with no fairness whatsoever}. It may move
+between \code{idle}, \code{busy}, \code{stalled} and \code{down}; it may stall for an unbounded
+time, as in a slow DNS, TCP or TLS call; it may fail to publish; and it may crash and restart.
+Only the safety task is given weak fairness. The question the model answers is whether the
+safety task still progresses when the network task is permitted to behave as badly as it likes
+forever.
+
+\subsection{Properties checked}
+
+\begin{longtable}{@{}p{0.26\textwidth}p{0.11\textwidth}p{0.51\textwidth}@{}}
+\toprule
+\textbf{Property} & \textbf{Kind} & \textbf{Statement} \\
+\midrule
+\endhead
+\code{TypeOK}               & invariant & All seven variables stay in their domains \\
+\code{SafetyCanAlwaysStep}  & invariant &
+$(\mathit{safetySteps} < \mathit{MaxEvents}) \Rightarrow \mathrm{ENABLED}\ \mathit{SafetyStep}$
+--- in every reachable state the safety task is enabled \\
+\code{NoNetworkWrite}       & invariant & \code{netOwnsState = FALSE}: the network task never
+writes the alarm state \\
+\code{QueueBounded}         & invariant & $\mathit{queued} \leq \mathit{QCap}$: the writer drops
+instead of blocking \\
+\code{NoSilentLoss}         & invariant &
+$\mathit{produced} = \mathit{delivered} + \mathit{queued} + \mathit{dropped}$ \\
+\code{SafetyProgress}       & liveness  &
+$\Diamond(\mathit{safetySteps} = \mathit{MaxEvents})$: the safety task is never starved \\
+\bottomrule
+\end{longtable}
+
+\code{SafetyCanAlwaysStep} is the architectural claim stated formally. Its force comes from what
+the guard of \code{SafetyStep} mentions: \code{safetySteps} and \code{produced} only, and nothing
+owned by the network side. Because the enabling condition is independent of \code{netState}, no
+network behaviour can disable it. \code{NoSilentLoss} is the drop-oldest policy stated as an
+accounting identity: an event is delivered, still queued, or counted as dropped, and never
+disappears.
+
+\subsection{Result}
+
+With \code{QCap = 16} and \code{MaxEvents = 8}: \textbf{2,686 states generated, 660 distinct, 0
+left on queue, no error found}, with the temporal property checked over the complete 660-state
+space.
+
+\subsection{What this model does and does not establish}
+
+This distinction is the most important sentence in the chapter, and it is maintained verbatim
+throughout this report and the manuscript.
+
+\textbf{What it establishes.} \emph{Logical} isolation. The safety task's enabling condition is
+independent of every network-side variable, so there exists no reachable state --- under
+unbounded stalling, flooding, publication failure or crash --- in which the network side has
+disabled the safety side. In the firmware this corresponds to the asymmetric mutex timeout: the
+safety loop calls \code{xSemaphoreTake(statusMutex, 0)}, so its blocking term is identically
+zero, by construction and not by measurement.
+
+\textbf{What it does not establish.} \emph{Physical timing invariance.} The model has no notion
+of microseconds, cache lines, bus arbitration, interrupt latency, radio duty cycle, or the
+thermal and clock behaviour of a real die. Two cores on one package contend for shared silicon
+in ways a seven-variable state machine cannot represent. Logical isolation does not imply that
+the safety loop's measured wall-clock period is invariant to network load on real hardware, and
+nothing in this project has measured whether it is.
+
+The firmware is designed so that the \emph{blocking} component of that period is zero. Whether
+the \emph{total} period is invariant is an empirical question about silicon, requiring hardware
+conditions A--D. Those were not executed; Appendix~\ref{app:hardware} records why, and the
+pre-registered analysis plan that was committed before any data existed.
+
+\section{Trace conformance: connecting the model to the code}
+
+A specification can be correct about a machine the firmware does not implement. Trace
+conformance is the bridge.
+
+\code{experiments/test\_conformance.py} parses the transition relation directly from
+\code{AlarmFSM.tla} --- rather than re-encoding it in Python, where it could drift --- and checks
+every recorded firmware state transition against it.
+
+\textbf{19,529 transitions} across three ablation modes: 7,044, 5,282 and 7,206.
+\textbf{Zero disallowed transitions.}
+
+The figure is meaningful only because of the negative control. The same checker is given a
+deliberately forbidden transition, \code{Disarmed} $\rightarrow$ \code{Alarm}, and is required to
+reject it. It does. Without that control, a checker that accepted everything would also report
+zero violations across 19,529 transitions, and the result would be indistinguishable from the
+one reported here. This is the same reasoning as the inverted TLC configuration in
+Section~\ref{sec:formal-vacuity}, applied to a different instrument.
+
+\section{Summary}
+
+\begin{longtable}{@{}p{0.23\textwidth}p{0.20\textwidth}p{0.45\textwidth}@{}}
+\toprule
+\textbf{Configuration} & \textbf{Result} & \textbf{Required outcome} \\
+\midrule
+\endhead
+\code{AlarmFSM.cfg}        & 25 distinct states, no error  & pass \\
+\code{Isolation.cfg}       & 660 distinct states, no error & pass \\
+\code{AlarmFSM\_unsafe.cfg}& \code{NoUnauthRemoteDisarm} violated &
+\textbf{violation required}; a pass is a build failure \\
+\code{test\_conformance.py}& 19,529 transitions, 0 violations & pass, with the negative control
+rejected \\
+\bottomrule
+\end{longtable}
+
+All four are re-run by continuous integration on every push, so neither the vacuity defect nor a
+silently accepting conformance checker can recur without the build failing.

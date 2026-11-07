@@ -1,0 +1,233 @@
+\chapter{System Requirements and Threat Model}\label{ch:req}
+
+\section{Functional requirements}
+
+The requirements below are those the firmware actually implements; each is traceable to the
+source file and function given in Chapter~\ref{ch:impl}.
+
+\begin{longtable}{@{}p{0.07\textwidth}p{0.60\textwidth}p{0.26\textwidth}@{}}
+\toprule
+\textbf{ID} & \textbf{Requirement} & \textbf{Where implemented} \\
+\midrule
+\endhead
+FR1 & Detect motion through a passive infrared sensor, with a warm-up period and a
+confirmation window to suppress spurious transitions & \code{readSensors()} \\
+FR2 & Detect door or window opening through a switch, debounced & \code{readSensors()} \\
+FR3 & Arm and disarm locally through a momentary button, debounced & \code{readSensors()},
+\code{stepFsm()} \\
+FR4 & Maintain a five-state alarm state machine: disarmed, exit delay, armed, entry delay,
+alarm & \code{stepFsm()} \\
+FR5 & Drive a siren, two status indicators and a local display on state change &
+\code{driveOutputs()} \\
+FR6 & Retain the armed state across a power interruption & NVS, \code{persistState()} \\
+FR7 & Accept remote commands \code{ARM}, \code{ARM\_AWAY}, \code{DISARM} and \code{STATUS}
+over MQTT & \code{handleCommands()} \\
+FR8 & Authenticate remote commands with a message authentication code over a monotonic counter
+& \code{authmac.h}, \code{handleCommands()} \\
+FR9 & Publish state and events, with a retained state topic and a periodic heartbeat &
+\code{networkTask()} \\
+FR10 & Announce unavailability through an MQTT Last Will message & \code{networkTask()} \\
+FR11 & Continue to perform FR1--FR6 with no network connectivity & core-1 loop, by
+construction \\
+\bottomrule
+\end{longtable}
+
+FR11 is the requirement that shapes the architecture. It is the reason the safety function
+cannot be permitted to depend on, wait for, or be scheduled behind any network operation.
+
+\section{Non-functional requirements}
+
+\begin{longtable}{@{}p{0.07\textwidth}p{0.42\textwidth}p{0.44\textwidth}@{}}
+\toprule
+\textbf{ID} & \textbf{Requirement} & \textbf{Status in this work} \\
+\midrule
+\endhead
+NFR1 & Sensor-to-siren latency bounded by an application deadline & bound \emph{derived}
+analytically (Section~\ref{sec:impl-rt}); \textbf{not measured} \\
+NFR2 & The safety loop never blocks indefinitely & established: zero-timeout mutex acquisition
+and a bounded drain, after the repair in Section~\ref{sec:impl-drain} \\
+NFR3 & Network load must not alter the latency distribution & \emph{logical} isolation
+established by model checking; \textbf{timing isolation not measured} \\
+NFR4 & Remote commands must resist capture and replay & established: monotonic counter
+persisted before the command is acted on \\
+NFR5 & Legitimate operator commands must survive an attack & measured: 1,250 of 1,250 admitted
+under flood with authentication \\
+NFR6 & The firmware must fit the device's flash and RAM & measured at build time
+(Section~\ref{sec:impl-cost}) \\
+NFR7 & All experimental results must be reproducible from committed artefacts & established:
+byte-identical regeneration from fixed seeds \\
+\bottomrule
+\end{longtable}
+
+NFR1 and NFR3 are the two requirements this work does \emph{not} discharge, and the distinction
+between them and the rest is maintained throughout the report.
+
+\section{System model}
+
+The device is a dual-core microcontroller with one integrated radio. Write $C_{s}$ for the core
+hosting the safety function and $C_{n}$ for the core hosting all network activity. The safety
+function is a periodic loop that samples sensors, advances a finite state machine and drives
+outputs.
+
+Let $t_{d}$ be the instant at which a physical intrusion asserts a sensor line, and $t_{a}$ the
+instant at which the siren is driven. The quantity of interest is the sensor-to-siren latency
+\begin{equation}
+L = t_{a} - t_{d},
+\label{eq:rep-latency}
+\end{equation}
+and the safety requirement is that $L \le L_{\max}$ for a deadline $L_{\max}$ fixed by the
+application.
+
+Let $\Lambda$ denote the offered load on the radio in frames per second, and $F_{\Lambda}$ the
+distribution of $L$ under that load. The isolation property one wishes to establish is
+\begin{equation}
+F_{\Lambda} \stackrel{d}{=} F_{0} \quad \text{for all } \Lambda \text{ in the operating range},
+\label{eq:rep-invariance}
+\end{equation}
+that is, that the latency distribution under load is indistinguishable from the unloaded
+control.
+
+\subsection{Two claims requiring different evidence}
+
+Equation~\eqref{eq:rep-invariance} decomposes into two claims, and keeping them apart is the
+single most important methodological decision in this work.
+
+\begin{description}[leftmargin=1.8em,itemsep=4pt]
+  \item[Logical isolation.] No control- or data-flow dependency exists by which network
+        activity can block, delay or corrupt the safety path. This is a property of the
+        \emph{program}, and it is decidable by model checking and simulation.
+  \item[Timing isolation.] Contention for shared silicon — the memory bus, caches, the
+        interrupt controller — does not shift $F_{\Lambda}$ beyond the deadline margin. This is
+        a property of the \emph{implementation on particular hardware}, and it is decidable only
+        by measurement.
+\end{description}
+
+Logical isolation is necessary but not sufficient for \eqref{eq:rep-invariance}. This project
+establishes the former and specifies, but does not execute, the experiment for the latter. Every
+claim in this report about isolation is a claim about logical isolation unless it explicitly
+states otherwise.
+
+\section{Security objectives}
+
+\begin{enumerate}[leftmargin=2.4em,itemsep=4pt,label=\textbf{SO\arabic*.}]
+  \item An adversary without credentials must not be able to change the alarm's state.
+  \item An adversary who observes a legitimate command must not be able to replay it.
+  \item An adversary must not be able to prevent a legitimate operator command from taking
+        effect.
+  \item An adversary must not be able to suppress the alarm's response to a physical intrusion.
+  \item A build configuration must not be able to enable an unauthenticated state change
+        silently.
+\end{enumerate}
+
+SO5 is unusual as a stated objective and it is stated because this project failed it. The
+defect, its measured consequence and its repair are the subject of
+Section~\ref{sec:sec-guard}.
+
+\section{Threat model}
+
+\subsection{The primary adversary}
+
+The primary adversary, designated \textbf{A}, is remote and has radio-layer access only: within
+radio range of the device, able to transmit arbitrary 802.11 frames and to publish to the broker
+as an unauthenticated client. Adversary A has \emph{no} credentials, no physical access and no
+prior knowledge of any secret.
+
+Unless a claim in this report explicitly names another scenario, it is a claim against
+adversary A.
+
+\subsection{Extended compromise scenarios}
+
+Five further scenarios are evaluated separately, as extended compromise analyses. They are
+reported in their own right and are never used to support a claim about the design.
+
+\begin{table}[htbp]
+\centering
+\caption[Adversary scenarios]{Adversary scenarios. A is the primary threat model; B through
+E$'$ are extended compromise analyses. The \emph{Access} column is load-bearing: E is the only
+scenario requiring physical access to the device, and it is the one the layered configuration
+survives. E$'$ requires none, and it is the one it does not.}
+\label{tab:rep-threats}
+\begin{tabular}{@{}llll@{}}
+\toprule
+& Additional capability & Access & Evaluated in \\
+\midrule
+A    & none (radio range only)             & remote            & throughout \\
+B    & one shared broker credential        & remote            & Ch.~\ref{ch:security} \\
+C    & controller credential               & remote            & Ch.~\ref{ch:security} \\
+D    & device credential                   & remote            & Ch.~\ref{ch:security} \\
+E    & device credential + command key     & \textbf{physical} & Ch.~\ref{ch:security} \\
+E$'$ & controller credential + command key & \textbf{remote}   & Ch.~\ref{ch:security} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{E and E$'$: why the distinction decides the result}
+
+Two of the five are easily conflated, and the project's central access-control result turns on
+the difference between them.
+
+\textbf{Scenario E is a device flash dump.} It yields the device's broker credential and the
+command key together, because both reside in the same flash image. Obtaining it requires
+\emph{physical} access to the hardware — the adversary must hold the device.
+
+\textbf{Scenario E$'$ is a compromised controller host} — the phone, the hub or the server that
+legitimately issues commands. It yields a credential that the access control list \emph{must}
+permit, together with the same command key, and it requires no physical access at all.
+
+The layered configuration withstands E and falls to E$'$. The scenario that is cheaper for an
+adversary to reach is therefore the one that defeats it. This is reported in
+Section~\ref{sec:sec-eprime} and was found by measuring an arm that an earlier draft of the
+work had not run; that earlier draft claimed the layered configuration ``survives every case'',
+and the claim was wrong.
+
+\subsection{Trust boundaries}
+
+Four boundaries are relevant, and the architecture in Chapter~\ref{ch:arch} draws all four.
+
+\begin{enumerate}[leftmargin=1.8em,itemsep=4pt]
+  \item \textbf{Between the two cores.} The safety core trusts nothing the network core
+        produces beyond a well-formed, authenticated command delivered through a bounded queue.
+  \item \textbf{Between the device and the broker.} The device trusts the broker to deliver
+        messages and \emph{not} to attest their origin. This is the boundary the configuration
+        defect misread.
+  \item \textbf{Between the broker and publishing clients.} The broker's access control list is
+        the only mechanism distinguishing one authenticated client from another.
+  \item \textbf{Between the device and its own flash.} An adversary with physical access
+        crosses this boundary, which is what makes scenario E a physical-access scenario.
+\end{enumerate}
+
+\subsection{Authentication and authorisation assumptions}
+
+\begin{itemize}[leftmargin=1.6em,itemsep=4pt]
+  \item \textbf{Transport.} TLS is assumed to protect each hop against observation and
+        modification. It is \emph{not} assumed to convey provenance across the broker, because
+        the broker re-originates every message.
+  \item \textbf{Broker authentication.} Clients present credentials from a password file.
+        Possession of a valid credential establishes identity to the broker and nothing more.
+  \item \textbf{Broker authorisation.} A deny-by-default access control list grants each
+        identity specific publish and subscribe permissions per topic. An identity that must
+        publish commands cannot be prevented from publishing commands.
+  \item \textbf{Application-layer authentication.} A command is acted on only if its
+        HMAC-SHA256 tag verifies under a shared secret and its counter exceeds the value
+        persisted in non-volatile storage.
+  \item \textbf{Key distribution is out of scope.} How the command key reaches the device and
+        the controller is not addressed. This is a genuine limitation, not an oversight.
+\end{itemize}
+
+\subsection{Limitations of the threat model}
+
+Four limitations should be read alongside every security claim in this report.
+
+\begin{enumerate}[leftmargin=1.8em,itemsep=4pt]
+  \item \textbf{No side-channel or fault-injection adversary is modelled.} Power analysis,
+        electromagnetic analysis, glitching and similar techniques are entirely outside the
+        model.
+  \item \textbf{The broker itself is assumed honest.} A malicious or compromised broker can
+        drop, delay or reorder messages. Message authentication prevents it forging a valid
+        command, but availability is not protected against it.
+  \item \textbf{Supply-chain compromise is not modelled.} The firmware, the toolchain and the
+        libraries are assumed to be what they claim to be.
+  \item \textbf{Denial of service at the radio layer is acknowledged but unmeasured.} The one
+        adversary capability the model takes most seriously is the one whose consequence this
+        work could not measure. Chapter~\ref{ch:limitations} does not minimise this.
+\end{enumerate}

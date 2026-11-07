@@ -1,0 +1,369 @@
+% =====================================================================================
+% APPENDICES A - K
+% The bodies of A, B, G and H are written by tools/build_report_data.py directly from the
+% repository, so their counts and file lists cannot drift from the artefacts they describe.
+% =====================================================================================
+
+\chapter{Repository Structure}\label{app:tree}
+
+The repository at commit \repohead{} (\repohashfull). Directory listing to two levels; generated
+output, build artefacts and the model-checker's trace files are omitted.
+
+\input{generated/appA_tree}
+
+\chapter{Source Code Inventory}\label{app:inventory}
+
+Every source file in the repository with its language, total lines and non-comment,
+non-blank lines. \textbf{\srcfiles{} files, \srccode{} lines of code.} The firmware itself is a
+minority of the total; the verification and experimental infrastructure is the larger part, which
+is a deliberate consequence of treating that infrastructure as part of the artefact
+(Chapter~\ref{ch:tools}).
+
+The complete source is distributed as
+\code{FINAL\_SUBMISSION\_PACKAGE/source\_code/COMPLETE\_SOURCE\_CODE\_AND\_EXPERIMENTS.zip}, which
+preserves the directory structure and contains no credentials, keys or environment-specific
+files. The repository's only key material is the published demonstration string in
+\code{secrets.example.h}, which the build explicitly refuses to accept as a real key.
+
+\input{generated/appB_inventory}
+
+\chapter{Firmware Configuration Reference}\label{app:config}
+
+\section{Build-time switches}
+
+\begin{longtable}{@{}p{0.34\textwidth}p{0.10\textwidth}p{0.47\textwidth}@{}}
+\toprule
+\textbf{Macro} & \textbf{Default} & \textbf{Effect} \\
+\midrule
+\endhead
+\code{AUTH\_COMMANDS}      & 0 & Requires an HMAC-SHA256 tag and a strictly increasing counter on
+every remote command. \textbf{A deployment should set this to 1.} \\
+\code{ALLOW\_REMOTE\_DISARM}& 0 & Permits remote disarm. Combined with
+\code{AUTH\_COMMANDS~0} it is rejected at compile time unless the acknowledgement macro below is
+defined. \\
+\code{ACKNOWLEDGE\_UNAUTHENTICATED\_DISARM} & undefined & The deliberate escape hatch. Named for
+what the builder is accepting. Exists only so the research baseline stays reproducible. \\
+\code{MQTT\_USE\_TLS}      & --- & TLS transport to the broker. \\
+\code{SECRET\_CMD\_KEY}    & demo & A public demonstration string. A build enabling
+\code{AUTH\_COMMANDS} without overriding it is rejected at compile time, because authentication
+against a published key is not authentication. \\
+\bottomrule
+\end{longtable}
+
+\section{Compile-time constants}
+
+\begin{longtable}{@{}p{0.30\textwidth}p{0.12\textwidth}p{0.49\textwidth}@{}}
+\toprule
+\textbf{Constant} & \textbf{Value} & \textbf{Why this value} \\
+\midrule
+\endhead
+\code{CMD\_Q\_LEN}            & 4        & Command queue depth. Two \code{static\_assert}s tie it
+to the drain bound. \\
+\code{CMD\_DRAIN\_PER\_PASS}  & 4        & Equal to \code{CMD\_Q\_LEN}, which is what makes the
+loop's execution time statically bounded (Section~\ref{sec:impl-drain}). \\
+Event queue depth             & 16       & Drop-oldest. The queue never blocks the safety task.
+\\
+\code{AUTH\_TAG\_BYTES}       & 16       & 128-bit truncated HMAC-SHA256 tag. \\
+\code{DEAUTH\_THRESHOLD}      & 12       & Raised from 8 after the sensitivity sweep showed the
+original value firing in 79.9\% of benign runs. \\
+Detection window              & 2000\,ms & Held fixed while the threshold was swept. \\
+Exit / entry delay            & 10\,s    & \\
+Alarm duration                & 30\,s    & \\
+\bottomrule
+\end{longtable}
+
+\section{Command wire format}
+
+\begin{lstlisting}[style=sh,caption={The authenticated command format. The counter is committed to
+non-volatile storage \emph{before} the command is acted upon.}]
+VERB:CTR:hex(HMAC-SHA256(key, "VERB:CTR")[0:16])
+\end{lstlisting}
+
+Committing the counter before acting is deliberate: a reset between acting and committing would
+otherwise leave the counter below a value already used, reopening the replay window.
+
+\chapter{Formal Specification Listings}\label{app:formal}
+
+The complete text of \code{formal/AlarmFSM.tla} and \code{formal/Isolation.tla} is in the
+repository and in the source archive. This appendix records the configurations and their required
+outcomes; Chapter~\ref{ch:formal} discusses them.
+
+\begin{longtable}{@{}p{0.23\textwidth}p{0.26\textwidth}p{0.20\textwidth}p{0.22\textwidth}@{}}
+\toprule
+\textbf{Configuration} & \textbf{Constants} & \textbf{Result} & \textbf{Required} \\
+\midrule
+\endhead
+\code{AlarmFSM.cfg} & \code{MaxCtr~=~4}, \code{AllowUnauthDisarm~=~FALSE} & 166 generated, 25
+distinct, no error & pass \\
+\code{Isolation.cfg} & \code{QCap~=~16}, \code{MaxEvents~=~8} & 2,686 generated, 660 distinct, no
+error & pass \\
+\code{AlarmFSM\_unsafe.cfg} & \code{MaxCtr~=~4}, \code{AllowUnauthDisarm~=~TRUE} &
+\code{NoUnauthRemoteDisarm} violated & \textbf{violation}; a pass fails the build \\
+\bottomrule
+\end{longtable}
+
+All three are re-run by \code{formal/run\_tlc.sh} on every push. The third requires the specific
+string \code{Invariant NoUnauthRemoteDisarm is violated} in TLC's output, not merely a non-zero
+exit, so that a syntax error or a missing constant cannot be mistaken for the expected violation.
+
+\chapter{Test Suite Reference}\label{app:tests}
+
+\begin{longtable}{@{}p{0.33\textwidth}p{0.17\textwidth}p{0.42\textwidth}@{}}
+\toprule
+\textbf{Suite} & \textbf{Scale} & \textbf{What it would catch} \\
+\midrule
+\endhead
+\code{tests/host/run\_tests.sh} & 129 assertions & Firmware logic defects. Includes three
+\emph{negative build} tests that require a defective configuration to fail to compile; a
+successful build is a test failure. \\
+\code{formal/run\_tlc.sh} & 3 configurations & A vacuous invariant recurring silently. \\
+\code{experiments/test\_conformance.py} & 19,529 transitions & The firmware diverging from the
+specification. Includes a negative control that must be rejected. \\
+\code{experiments/test\_harness.py} & metamorphic and differential properties & Harness defects:
+determinism, seed sensitivity, monotone attack effort, mode separation, and agreement of the HMAC
+payload format with an independent implementation. \\
+\code{experiments/corpus/test\_rule.py} & 8 controls & A static rule whose polarity is wrong.
+Includes this project's own pre-repair guard as a positive control and its repaired guard as a
+negative control. \\
+\code{experiments/validate\_figures.py} & 59 assertions & A figure drifting from the raw records,
+or a baked-in cross-reference. \\
+\code{experiments/check\_figure\_type.py} & all figures & A label printing below 6\,pt. \\
+\code{experiments/check\_figure\_fit.py} & all labels & A clipped label, measured in the real
+font. \\
+\bottomrule
+\end{longtable}
+
+All suites pass at commit \repohead{}.
+
+\chapter{Build and Deployment Instructions}\label{app:build}
+
+\section{Prerequisites}
+
+\code{arduino-cli} with the \code{esp32:esp32} core; the \code{Adafruit SSD1306},
+\code{Adafruit GFX} and \code{PubSubClient} libraries; GCC 13 or later for the host tests; Python
+3.11 or later; Java for \code{tla2tools.jar}; Mosquitto 2.0.x and OpenSSL for the broker
+experiment; and \TeX{} Live for the documents.
+
+\section{Firmware}
+
+\begin{lstlisting}[style=sh]
+cp firmware/smart_home/secrets.example.h firmware/smart_home/secrets.h
+# Edit secrets.h: set Wi-Fi credentials and REPLACE the demonstration keys.
+# The build refuses AUTH_COMMANDS=1 with the published demonstration key.
+
+arduino-cli compile --fqbn esp32:esp32:esp32 firmware/smart_home \
+  --build-property "compiler.cpp.extra_flags=-DAUTH_COMMANDS=1"
+arduino-cli upload  --fqbn esp32:esp32:esp32 -p /dev/ttyUSB0 firmware/smart_home
+\end{lstlisting}
+
+\section{Verification and experiments}
+
+\begin{lstlisting}[style=sh]
+bash tests/host/run_tests.sh          # 129 assertions, incl. negative build tests
+bash formal/run_tlc.sh                # 3 configurations; the third must report a violation
+bash experiments/run.sh               # E1, E2: the adversarial campaign
+bash experiments/run_ablation.sh      # E3: 12 configurations, 3,600 trials
+bash experiments/broker/setup.sh      # E6: CA, certificates, password and ACL files
+bash experiments/broker/run.sh        # E6: 8 scenarios against Mosquitto
+python3 experiments/validate_figures.py
+\end{lstlisting}
+
+\section{Documents}
+
+\begin{lstlisting}[style=sh]
+cd paper  && pdflatex manuscript.tex   # three passes
+cd report && pdflatex report.tex       # three passes, for the ToC, LoF and LoT
+\end{lstlisting}
+
+\section{Deployment guidance}
+
+A deployment should set \code{AUTH\_COMMANDS~1} with a key that is not the published default,
+use per-client broker credentials with a deny-by-default access control list that does
+\emph{not} grant the device identity write access on the command topic, and enable flash
+encryption and secure boot --- which this firmware does not. The two open design problems of
+Section~\ref{ch:limitations} apply to any such deployment and are not fixed.
+
+\chapter{Experiment Catalogue}\label{app:experiments}
+
+Every experiment with its evidence class, artefact and scale. The evidence class is the
+distinction maintained throughout this report: a formal result and a simulated result support
+different claims, and the hardware conditions support none because they produced no data.
+
+\input{generated/appG_experiments}
+
+\chapter{Figure Index}\label{app:figures}
+
+Every figure with its title, file and the script that generates it. No figure was drawn by hand.
+
+\input{generated/appH_figures}
+
+\chapter{Hardware Validation Protocol}\label{app:hardware}
+
+\textbf{This protocol was not executed. No hardware data exists.} It is published so that the
+timing claim left open by this work is falsifiable by someone else, and so that the analysis
+cannot be chosen after the data is seen.
+
+\section{The probe that established hardware was unavailable}
+
+Recorded so that the absence is a finding rather than an assertion. In the environment that
+produced the committed results there were no \code{/dev/ttyUSB*} or \code{/dev/ttyACM*} devices,
+no USB subsystem, no \code{arduino-cli} on the path, no Python \code{serial} module, and the only
+network interfaces present were \code{eth0}, \code{ifb0} and \code{lo} --- no wireless interface
+of any kind. An RF-shielded enclosure, a hard prerequisite for condition D, was likewise
+unavailable.
+
+\section{The rig}
+
+A device under test and a separate probe microcontroller. The device under test raises a GPIO pin
+on sensor confirmation and again on siren assertion; the probe watches both and timestamps them
+with its own hardware timer, so the measurement does not depend on the device under test's own
+clock or on its serial output.
+
+\textbf{The two boards must share a common ground.} Without it they have no shared reference and
+the readings are meaningless. This is the most common way this rig is got wrong.
+
+\section{The four conditions}
+
+\begin{longtable}{@{}p{0.09\textwidth}p{0.29\textwidth}p{0.11\textwidth}p{0.42\textwidth}@{}}
+\toprule
+\textbf{Cond.} & \textbf{Setup} & \textbf{Shielding} & \textbf{What it would establish} \\
+\midrule
+\endhead
+A --- idle & Wi-Fi connected, broker reachable, no other traffic & none & The control
+distribution and the probe's own noise floor. Everything else is compared against this. \\
+B --- legitimate load & Frequent status publication, large retained payloads & none & Whether
+ordinary operation perturbs the safety path. \textbf{A difference here would be the most damaging
+result for the design}, because it needs no adversary. \\
+C --- command stress & High-rate publication on the device's own command topic & none & The
+hardware counterpart of the simulated flood: where the isolation claim is actually tested. \\
+D --- radio stress & 802.11 deauthentication and disassociation frames & \textbf{required} &
+The central open question: whether the mitigation holds under load on the radio itself rather
+than on the IP path. \\
+\bottomrule
+\end{longtable}
+
+\textbf{The device must not be reflashed between conditions.} The firmware must be byte-identical
+across all four, or the comparison is between two systems rather than two load levels.
+
+\section{The pre-registered analysis}
+
+Committed before any data existed, and \textbf{not to be substituted after seeing the data}.
+
+Two-sided Mann--Whitney $U$ test with tie correction, each condition against condition A.
+$\alpha = 0.05$, power $0.80$, equal $n$ per group. The planned sample size is
+\textbf{$n = 200$ per condition}, which detects a shift of 0.29 standard deviations --- 29\,\textmu s
+at an idle spread of 100\,\textmu s, 52\,\textmu s at 180\,\textmu s, 87\,\textmu s at
+300\,\textmu s. The effect size is expressed in standard deviations because the idle spread is
+unknown until condition A is run.
+
+\begin{longtable}{@{}rrrrrr@{}}
+\toprule
+$n$ per cond. & $A = P(X>Y)$ & Shift (SD) & sd $=100$\,\textmu s & sd $=180$\,\textmu s &
+sd $=300$\,\textmu s \\
+\midrule
+\endhead
+30  & 0.709 & 0.78 & 78 & 140 & 233 \\
+50  & 0.662 & 0.59 & 59 & 106 & 177 \\
+100 & 0.614 & 0.41 & 41 & 74  & 123 \\
+\textbf{200} & \textbf{0.581} & \textbf{0.29} & \textbf{29} & \textbf{52} & \textbf{87} \\
+400 & 0.557 & 0.20 & 20 & 37  & 61 \\
+\bottomrule
+\end{longtable}
+
+A non-parametric test is pre-registered rather than a $t$-test because interrupt-driven latency
+distributions are routinely skewed with a long upper tail, and because the 95th percentile and
+maximum matter more for a safety function than the mean.
+
+\section{Status of the tooling}
+
+\begin{longtable}{@{}p{0.40\textwidth}p{0.50\textwidth}@{}}
+\toprule
+\textbf{Component} & \textbf{Status} \\
+\midrule
+\endhead
+\code{experiments/hardware/latency\_probe/} & Probe firmware, written, not flashed \\
+\code{experiments/hardware/collect.py} & Serial collection, written, appends across conditions \\
+\code{experiments/hardware/analyse\_hw.py} & Summary statistics, the pre-registered
+Mann--Whitney $U$, and the box plot. \textbf{Verified end to end on explicitly synthetic input},
+labelled as a script self-test. The synthetic file was deliberately not committed, so that no
+reader can mistake it for data. \\
+\code{results\_hw\_TEMPLATE.csv} & Schema only:
+\code{condition,index,latency\_us}. \textbf{Contains no rows.} \\
+\code{docs/HARDWARE\_A\_TO\_C\_RUNBOOK.md} & Step-by-step procedure for A--C, executable by
+someone else \\
+\bottomrule
+\end{longtable}
+
+Conditions A--C require an ESP32 DevKit, a logic analyser or a second microcontroller as a timing
+reference, and a controlled network. Condition D additionally requires an RF-shielded enclosure
+and the appropriate permission; the repository publishes no attack tooling for it.
+
+\chapter{Journal Submission Status}\label{app:journal}
+
+Recorded as status rather than as achievement. The manuscript has \textbf{not} been submitted to
+any journal.
+
+\begin{longtable}{@{}p{0.31\textwidth}p{0.17\textwidth}p{0.44\textwidth}@{}}
+\toprule
+\textbf{Requirement} & \textbf{Status} & \textbf{Evidence or action needed} \\
+\midrule
+\endhead
+Guide for Authors obtained & verified & Retrieved from the publisher's own site \\
+Page and reference limits & verified & 31 pages, 22 references, 0 dangling \\
+Abstract length & verified & 249 words, within the stated limit \\
+Keywords & verified & 7, within the stated limit \\
+Structured declarations & verified & Present in the publisher's named sections \\
+Highlights & verified & 5 bullets, longest 80 of 85 characters \\
+Figure format and font embedding & verified & All 8 fully embedded, 0 Type~3 \\
+Journal quartile and metric years & \textbf{unverified} & The ranking source returned an
+automated challenge. \textbf{Not circumvented}; no quartile is asserted anywhere in this work. \\
+Competing-interest declaration & \textbf{author confirmation required} & Drafted; must not be
+declared on the authors' behalf \\
+Funding declaration & \textbf{author confirmation required} & Drafted; no funding is invented \\
+Authorship contribution statement & \textbf{author confirmation required} & The sole-author
+versus supervisor-co-author question is the author's to settle \\
+Corresponding author's email and postal address & \textbf{required} & Not present on the title
+page \\
+Institutional similarity report & \textbf{outstanding} & No licensed tool was available.
+\textbf{No similarity percentage is claimed, official or otherwise.} \\
+Supervisor approval & \textbf{outstanding} & Not obtained \\
+Dissertation-overlap ruling & \textbf{outstanding} & Not made \\
+Five missing DOIs & \textbf{outstanding} & \code{mcreview2026}, \code{espwn2023},
+\code{mqtttls2026}, \code{zeghida2024}, and an ISBN for \code{lamport2002} \\
+\bottomrule
+\end{longtable}
+
+\chapter{Reproducibility Record}\label{app:repro}
+
+\section{What was re-verified during the preparation of this report}
+
+\begin{itemize}[leftmargin=1.6em,itemsep=4pt]
+  \item \textbf{Every reported count against its raw artefact.} 6,000 campaign trials; 3,600
+        ablation trials (9,600 adversarial trials in total); 3,000,000 fuzz iterations; 180
+        sensitivity cells; 8 broker scenarios; 135 corpus projects; 19,529 trace transitions.
+  \item \textbf{Both Fisher $p$-values recomputed} from the raw records:
+        $3.53\times10^{-184}$ and $9.83\times10^{-119}$.
+  \item \textbf{The Wilson interval recomputed:} [12.9, 21.3].
+  \item \textbf{All three TLC configurations re-run:} 25 and 660 distinct states, and the
+        required violation in the third.
+  \item \textbf{The broker experiment re-run} against a freshly installed Mosquitto 2.0.18 in a
+        clean environment. All eight verdicts identical; only log timestamps and random client
+        identifiers differed.
+  \item \textbf{Every figure regenerated.} All SVGs byte-identical; the PDFs differ only in
+        embedded creation timestamps.
+  \item \textbf{The full test suite:} 129 host assertions, 8 corpus controls, the harness
+        metamorphic and differential properties, and 59 figure assertions. All pass.
+\end{itemize}
+
+\section{Determinism}
+
+Seeds are fixed at 1000, 2000 and 7. The ablation harness forks per trial, so one trial cannot
+influence the next through accumulated state. All statistics are implemented with the Python
+standard library only, so no external package version can alter a reported value.
+
+\section{What cannot be reproduced}
+
+The hardware conditions, because they were never run. The corpus study depends on the state of
+third-party repositories at fetch time and on the GitHub search API, so a re-fetch will not
+return the same 135 projects; the fetched corpus and the rejection counts are committed for this
+reason, and the eight rule controls are reproducible independently of the corpus.

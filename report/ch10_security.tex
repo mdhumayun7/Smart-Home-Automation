@@ -1,0 +1,227 @@
+\chapter{Security Evaluation}\label{ch:security}
+
+This chapter evaluates the system against the threat model of Chapter~\ref{ch:req} and
+reports two results that the project did not set out to find: that the layered configuration
+fails under one specific compromise, and that the mechanism defending against replay can lock out
+the legitimate owner. Both are reported as findings about this design rather than as
+limitations of the evaluation.
+
+\section{The threat model, restated with outcomes}
+
+Each scenario is defined by \emph{what the adversary holds}, not by what mechanism is deployed.
+The access column is material: it separates a scenario requiring physical possession of the
+device from one that can be mounted from anywhere on the network.
+
+\begin{longtable}{@{}p{0.05\textwidth}p{0.26\textwidth}p{0.13\textwidth}p{0.42\textwidth}@{}}
+\toprule
+\textbf{ID} & \textbf{Adversary holds} & \textbf{Access} & \textbf{Outcome against the layered
+build} \\
+\midrule
+\endhead
+A & nothing                     & remote   & Refused at the broker; the connection is not
+established \\
+B & the one shared credential   & remote   & \textbf{Defeats} a shared-credential deployment;
+refused by per-client authorisation \\
+C & controller broker credential& remote   & Delivered; refused by the message authentication
+code \\
+D & device broker credential    & remote   & Refused by the access control list; the device
+identity may not publish commands \\
+E & device credential + command key & \textbf{physical} & \textbf{Survived}: refused by the
+access control list despite a valid signature \\
+E$'$ & controller credential + command key & \textbf{remote} & \textbf{Defeats the layered
+build}: neither layer refuses it \\
+\bottomrule
+\end{longtable}
+
+\subsection{Why E and E$'$ are the decisive pair}\label{sec:sec-eprime}
+
+Scenarios E and E$'$ carry \emph{the same cryptographically valid signature}. They differ only in
+the broker identity that transmits it.
+
+Under E the signature arrives from the device identity. The access control list grants that
+identity \code{read} on \code{home/alarm/+/cmd} and \code{write} on \code{home/alarm/+/stat};
+it does not grant \code{write} on the command topic. The broker refuses the publication, so the
+valid signature never reaches the device.
+
+Under E$'$ the same signature arrives from the controller identity, which must hold
+\code{write} on the command topic for the system to function at all. The broker delivers it, and
+the message authentication code verifies --- correctly, because the signature is valid. The
+command executes.
+
+\textbf{What stops scenario E is therefore the access control list and not the signature.} This
+cannot be established by reasoning about the cryptography, and it is the result that justified
+running experiment E6 against real broker software rather than modelling broker behaviour. Both
+scenarios were executed against Mosquitto 2.0.18 over TLS 1.2 with a private certificate
+authority; the verdicts in Section~\ref{sec:res-broker} are the broker's own.
+
+\subsection{An asymmetry in cost}
+
+E requires physical possession of the device and a flash dump. E$'$ requires compromise of the
+controller host --- a general-purpose machine, typically a Raspberry Pi or a server, reachable
+over the network and administered by software with its own vulnerability history.
+
+The layered configuration therefore \textbf{survives the expensive attack and falls to the cheap
+one.} That is the opposite of the ordering a defender would choose, and it is stated plainly
+because an earlier draft of this work did not state it.
+
+\section{Flash extraction and what is actually protected}\label{sec:sec-flashdump}
+
+\subsection{The threat}
+
+The ESP32's SPI flash can be read over the serial interface with standard vendor tooling unless
+flash encryption and secure boot are enabled. This firmware does not enable them. Anyone with
+physical possession of the device can therefore recover the entire image, which contains both the
+device's broker credential and \code{SECRET\_CMD\_KEY}.
+
+\subsection{Why the device survives it anyway}
+
+This is a genuine positive result and is worth stating precisely, because it is easy to
+overstate.
+
+The device survives a flash dump \emph{not} because the key is protected --- it is not --- but
+because \textbf{the identity whose secrets were extracted is not authorised to issue commands.}
+The access control list is deny-by-default and grants the device identity publication rights only
+on the status topic. An adversary holding everything in the device's flash can sign a perfectly
+valid \code{DISARM} command and still cannot get it accepted, because the broker refuses to
+carry it.
+
+This is a defence-in-depth result in the strict sense: a complete failure of secret
+confidentiality at one layer is contained by authorisation at another.
+
+\subsection{What it does not mean}
+
+It does not mean key extraction is harmless. It means key extraction \emph{from the device} is
+contained. Key extraction from the controller host is scenario E$'$, which is not contained. The
+protection comes from \emph{which} identity holds the key, not from the key being hard to obtain.
+
+Three consequences follow and are recorded in Chapter~\ref{ch:limitations}: a deployment that
+issues one credential to both parties collapses E$'$ and E into the same scenario and loses the
+protection entirely; a deployment whose access control list grants the device identity write
+access on the command topic, for convenience during commissioning, loses it as well; and flash
+encryption with secure boot would address the extraction itself rather than only containing it.
+
+\section{The compile-time guard}\label{sec:sec-guard}
+
+\subsection{The original defect}
+
+The firmware originally admitted remote disarm when the build had transport security and a
+broker login, on the reasoning that a client which has authenticated to the broker over TLS is
+trustworthy. That reasoning is wrong for a specific and documented reason: in MQTT 3.1.1 the
+broker \emph{re-originates} messages. The subscriber receives a message from the broker, not from
+the publisher, and the protocol carries no publisher identity to the subscriber. Transport
+authentication tells the broker who connected; it tells the device nothing about who authored a
+command.
+
+Broker credentials are bearer tokens. One leaked credential makes the adversary a legitimate
+client, and the ablation measured the consequence: alarm activation falls from 300/300 to 50/300,
+with the adversary disarming the device in 246 of 300 trials
+(Section~\ref{sec:res-ablation}).
+
+\subsection{The repair, and why it is a build-time error}
+
+The defective configuration is now rejected at compile time:
+
+\begin{lstlisting}[style=cpp,caption={The build guard. The configuration cannot be built
+accidentally.},label={lst:sec-guard}]
+#ifndef ALLOW_REMOTE_DISARM
+#  define ALLOW_REMOTE_DISARM 0
+#endif
+#if ALLOW_REMOTE_DISARM && !AUTH_COMMANDS && !defined(ACKNOWLEDGE_UNAUTHENTICATED_DISARM)
+#  error "ALLOW_REMOTE_DISARM without AUTH_COMMANDS 1 permits anyone who can publish to the \
+command topic to switch the alarm off, and TLS plus a broker login does not prevent it (see \
+docs/SECURITY_ANALYSIS.md). Set AUTH_COMMANDS 1, or define \
+ACKNOWLEDGE_UNAUTHENTICATED_DISARM to accept that risk deliberately."
+#endif
+\end{lstlisting}
+
+Three design decisions in that guard are deliberate.
+
+\textbf{It is an error, not a warning.} A warning in an Arduino build is lost in several hundred
+lines of framework output.
+
+\textbf{The escape hatch is named for what it concedes.} The macro is
+\code{ACKNOWLEDGE\_UNAUTHENTICATED\_DISARM}, not \code{FORCE} or \code{OVERRIDE}. A builder who
+defines it has written the concession into their build command.
+
+\textbf{The escape hatch exists.} The defective configuration must remain buildable, because it
+is the research baseline. Deleting it would make the measured comparison irreproducible. This is
+the one place in the firmware where a known-insecure configuration is retained on purpose, and
+the reason is recorded next to it.
+
+\subsection{A second guard: the published key}
+
+A related defect was found and guarded during the same review. Authentication that verifies
+against a published key is not authentication. The repository's \code{SECRET\_CMD\_KEY} default
+is a public demonstration string, so a build enabling \code{AUTH\_COMMANDS} without overriding it
+would log every command as authenticated while any reader of the repository could forge one. That
+configuration is now also rejected at build time.
+
+Three negative build tests in \code{tests/host/run\_tests.sh} require each defective
+configuration to \emph{fail to compile}. A build that succeeds is a test failure.
+
+\section{Availability as a security property}
+
+The ablation treats operator availability as a measured security property rather than a
+usability concern, and two arms show why.
+
+\textbf{The rate limiter.} A token bucket on the command path preserves the safety function and
+leaves replay resistance unchanged, and costs \textbf{41\% of legitimate operator commands}
+(737 of 1,250 admitted, Fisher exact $p = 3.5 \times 10^{-184}$). An alarm that refuses two in
+five owner commands is not a secure alarm; it is a denial of service the defender installed.
+
+\textbf{Owner lockout under key compromise.} Two configurations admit \textbf{0 of 1,250}
+operator commands. The adversary signs commands with a counter far above the operator's; the
+device persists that counter, as replay resistance requires; every subsequent legitimate command
+then carries a lower counter and is correctly rejected as a replay.
+
+The mechanism behaved exactly as specified. The specification was incomplete: it did not
+consider that an adversary who can advance the counter can also exhaust the operator's ability
+to use it. This was not predicted, and the authors have not found it reported for counter-based
+replay protection in embedded command paths. It is reported as a negative result about a design
+decision made in this project, and a candidate repair --- a counter-resynchronisation path
+authenticated by the local button, which is physically present and outside the adversary's reach
+--- is identified in Chapter~\ref{ch:limitations} as future work. It has not been implemented or
+evaluated.
+
+\section{Properties established, and by which instrument}
+
+\begin{longtable}{@{}p{0.31\textwidth}p{0.19\textwidth}p{0.42\textwidth}@{}}
+\toprule
+\textbf{Property} & \textbf{Evidence} & \textbf{Scope of the claim} \\
+\midrule
+\endhead
+No unauthorised disarm with command authentication & 6,000 trials + exhaustive model checking
+& Within the harness's adversary model and the model's bounds \\
+Replay resistance                  & 3,600 trials, 0 successes & Against capture-and-replay of
+observed ciphertext \\
+Memory safety of the parser        & 3,000,000 fuzz iterations under both sanitizers & Host
+build; not the Xtensa target \\
+Flash dump contained               & live broker, scenario E & Contingent on per-client
+authorisation and on the device identity lacking command write access \\
+Logical isolation of the safety task & exhaustive model checking, 660 states & Logical only;
+\textbf{no physical timing claim} \\
+Specification conformance          & 19,529 transitions, 0 violations & Three ablation modes,
+with a negative control \\
+\bottomrule
+\end{longtable}
+
+\section{Properties explicitly not established}
+
+\begin{itemize}[leftmargin=1.6em,itemsep=4pt]
+  \item \textbf{Physical timing invariance.} Not measured. Hardware conditions A--D were not
+        executed (Appendix~\ref{app:hardware}). Every isolation claim in this work is logical.
+  \item \textbf{On-device memory safety.} The fuzzing campaign ran against a host build with
+        AddressSanitizer and UndefinedBehaviorSanitizer, neither of which exists for the Xtensa
+        target. Memory safety of the compiled Xtensa binary is not established.
+  \item \textbf{Resistance to radio-layer attack.} No RF-shielded enclosure was available, so no
+        deauthentication or jamming experiment was performed against real hardware.
+  \item \textbf{Resistance to side-channel or fault-injection attack.} Out of scope; no
+        equipment.
+  \item \textbf{Prevalence of the guard defect in deployed systems.} The corpus study returned
+        zero hits for the precise rule and nine confirmed cases for the looser one. That is an
+        existence claim over a biased 135-project sample, not a prevalence estimate
+        (Section~\ref{sec:res-corpus}).
+  \item \textbf{Security of the controller host.} Treated as trusted infrastructure throughout.
+        Scenario E$'$ is precisely what happens when that assumption fails, and the layered build
+        does not survive it.
+\end{itemize}

@@ -1,0 +1,17 @@
+\begin{longtable}{l p{0.30\textwidth} p{0.15\textwidth} p{0.17\textwidth} p{0.20\textwidth}}
+\toprule
+\textbf{ID} & \textbf{Experiment} & \textbf{Evidence class} & \textbf{Artefact} & \textbf{Scale} \\
+\midrule
+\endhead
+\texttt{E1} & Adversarial campaign, baseline build & Simulation & \texttt{\footnotesize summary.json} & 3{,}000 trials \\
+\texttt{E2} & Adversarial campaign, hardened build & Simulation & \texttt{\footnotesize summary.json} & 3{,}000 trials \\
+\texttt{E3} & Command-path ablation & Simulation & \texttt{\footnotesize ablation.jsonl} & 3{,}600 trials, 12 configurations \\
+\texttt{E4} & Host-build fuzzing under ASan/UBSan & Simulation & \texttt{\footnotesize fuzz.json} & 3{,}000{,}000 iterations \\
+\texttt{E5} & Detector parameter sensitivity sweep & Simulation & \texttt{\footnotesize sensitivity.jsonl} & 180 grid cells \\
+\texttt{E6} & Access control against a live broker & Testbed measurement & \texttt{\footnotesize broker\_acl.jsonl} & 8 scenarios \\
+\texttt{E7} & Open-source corpus study & Corpus study & \texttt{\footnotesize corpus/corpus.json} & 135 projects \\
+\texttt{E8} & Trace conformance against the TLA+ relation & Formal + simulation & \texttt{\footnotesize test\_conformance.py} & 19{,}529 transitions \\
+\texttt{E9} & Model checking, three configurations & Formal & \texttt{\footnotesize formal/} & 25 and 660 distinct states \\
+\texttt{---} & Hardware conditions A--D & \emph{not executed} & \texttt{\footnotesize ---} & \emph{no data exists} \\
+\bottomrule
+\end{longtable}

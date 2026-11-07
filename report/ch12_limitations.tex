@@ -1,0 +1,211 @@
+\chapter{Limitations and Threats to Validity}\label{ch:limitations}
+
+This chapter is written to be read before the conclusions rather than after them. Each limitation
+states what was not established, why, and what would be required to establish it. Nothing here is
+hedging language around a result claimed elsewhere; where a limitation contradicts a stronger
+reading of a result, the limitation is correct.
+
+\section{The central limitation: no hardware measurement}
+
+\textbf{No physical ESP32 was available in the environment that produced these results.} The
+probe that established this is recorded in Appendix~\ref{app:hardware}: there were no serial
+devices, no USB subsystem, no \code{arduino-cli}, no Python \code{serial} module, and the only
+network interfaces present were \code{eth0}, \code{ifb0} and \code{lo}.
+
+Four consequences follow, and they are the four most significant limitations of this work.
+
+\textbf{No timing claim of any kind is supported.} The host harness advances a logical clock. The
+safety latency is the same constant --- 151\,ms --- in every trial, by construction. Latency
+variance in this environment is identically zero, which is not a finding about the firmware but a
+property of the simulator.
+
+\textbf{Logical isolation does not imply physical timing invariance.} This distinction is
+maintained throughout the report and is restated here as a limitation rather than a nuance. The
+model establishes that the safety task's enabling condition is independent of every network-side
+variable, so no network behaviour can \emph{block} it. The firmware's asymmetric mutex timeout
+makes the blocking component of the loop period zero by construction. Whether the \emph{total}
+loop period is invariant to network load on real silicon is an empirical question about cache
+contention, bus arbitration, interrupt latency, radio duty cycle and thermal behaviour, and it has
+not been answered. Panel B of Figure~\ref{fig:setup} is labelled as not yet measured for this
+reason and that label must not be removed until data exists.
+
+\textbf{On-device memory safety is not established.} The three million fuzzing iterations ran
+against a host build under AddressSanitizer and UndefinedBehaviorSanitizer. Neither sanitizer
+exists for the Xtensa target. Compiler and architecture differences --- alignment requirements,
+integer width, stack layout --- mean a host-clean parser is evidence for, but not proof of, an
+Xtensa-clean parser.
+
+\textbf{No radio-layer experiment was performed.} The deauthentication detector's parameters were
+swept in simulation only. An RF-shielded enclosure is a hard prerequisite for a real
+deauthentication experiment, both for validity and for legality, and none was available.
+
+The pre-registered analysis plan for conditions A--D --- the Mann--Whitney U test, the sample
+sizes, the acceptance criteria --- was committed \emph{before any data existed} and is reproduced
+in Appendix~\ref{app:hardware}. Its purpose is that the test cannot be chosen after seeing the
+measurements. The runbook in \code{docs/HARDWARE\_A\_TO\_C\_RUNBOOK.md} specifies the procedure in
+enough detail to be executed by someone else.
+
+\section{Threats to internal validity}
+
+\subsection{The harness is not the firmware}
+
+The firmware logic is compiled against stub headers in \code{tests/host/stubs/}. The logic itself
+is unmodified --- the same \code{smart\_home.ino} is compiled, and only the headers it includes
+differ --- but the environment around it is a model. There is no radio, no true parallel
+execution, no contention for shared silicon and no real clock.
+
+\subsection{Four defects were found in the measurement infrastructure itself}
+
+This is reported as a threat to validity because two of the four produced results that flattered
+the intended conclusion, and because it bears on how much confidence the remaining results
+deserve.
+
+\begin{enumerate}[leftmargin=1.8em,itemsep=4pt]
+  \item \textbf{Unattributable availability.} The harness recorded that a command failed without
+        recording why, so a refusal by policy and a refusal by rate limit were indistinguishable.
+  \item \textbf{A token-bucket refill introduced by the first repair.} The repair to the above
+        changed the arrival pattern, altering the quantity being measured.
+  \item \textbf{A single-attempt measurement that measured bucket phase.} One attempt per trial
+        measured where in the refill cycle the attempt landed rather than the admission rate.
+        This is why the availability denominator is 1,250 rather than 300: multiple attempts per
+        trial are required for the measurement to mean what it claims.
+  \item \textbf{A 40\,ms button hold against a 40\,ms debounce.} A boundary condition that made
+        the legitimate local path unreliable in the harness and had nothing to do with the
+        firmware.
+\end{enumerate}
+
+A fifth defect, in the corpus rule, is described in Section~\ref{sec:res-corpus}: the rule
+returned zero against this project's \emph{own} pre-repair guard, because it treated any mention
+of the authentication identifier as evidence that authentication was required, and in the
+defective guard that identifier appears negated.
+
+Each repair is accompanied by a control that would fail if the defect recurred. That is the only
+reason the remaining results are reported with confidence: not because the harness is assumed
+correct, but because specific, named ways in which it was wrong are now tested against.
+
+\subsection{The vacuous invariant}
+
+For part of this project the formal specification passed every check while being structurally
+incapable of failing (Section~\ref{sec:formal-vacuity}). A passing formal check was taken as
+evidence for a property the check could not test. The repair, and the inverted configuration that
+must report a violation, are described in Chapter~\ref{ch:formal}. The episode is a limitation of
+the original method, not of the tool.
+
+\subsection{No multiplicity correction}
+
+Twelve ablation configurations are compared and two Fisher tests are reported. No correction for
+multiple comparisons is applied, on the grounds that every arm is a fixed, pre-declared
+configuration rather than a selected subset. This is stated so that a reader can judge the
+decision rather than infer it. Both reported $p$-values are smaller than
+$10^{-100}$ and would survive any correction, but that is a property of these particular results
+and not a general defence of the choice.
+
+\section{Threats to external validity}
+
+\subsection{A single system}
+
+This is a case study of one firmware artefact on one microcontroller with one broker. The defects
+found are defects in this system. The \emph{categories} of defect --- an unverified configuration
+assumption, a vacuous specification, an unbounded drain --- are argued to generalise; the specific
+instances are not claimed to.
+
+\subsection{The corpus is biased by construction}
+
+The 135-project corpus was assembled from 22 fixed GitHub queries with a minimum of three stars
+and an 80\,MB size cap, excluding archived repositories and forks. The criteria and rejection
+counts are recorded in \code{corpus.json}.
+
+GitHub projects with stars are not deployed products. The sample over-represents educational and
+hobby code and under-represents commercial firmware, which is largely not public. \textbf{The
+18-of-135 figure is not a prevalence estimate and must not be read as one}: rule 2
+over-counts monitoring projects by roughly half, as the manual reading of all 18 showed, and
+under-counts non-GPIO actuation by an unknown amount --- three of the nine confirmed cases actuate
+through Modbus, RF or serial frames and were caught only by an incidental GPIO write.
+
+Rule 1 returned \textbf{zero} hits. That is reported as a zero, and \textbf{no claim is made that
+the guard pattern is widespread}.
+
+\subsection{One broker, one version, one configuration}
+
+Experiment E6 ran against Mosquitto 2.0.18 over TLS 1.2 with a private certificate authority.
+Scenario E's containment depends on the access control list being deny-by-default and on the
+device identity lacking write access on the command topic. A different broker, a different
+version, or a permissive list would change the result. Other broker implementations ---
+EMQX, HiveMQ, VerneMQ, AWS IoT Core --- were not tested, and their authorisation models differ.
+
+\subsection{One framework, two versions}
+
+Resource cost was measured under arduino-esp32 2.0.17 and 3.3.12, which differ by roughly 175\,kB
+of flash. Behaviour under the ESP-IDF directly, or under other framework versions, was not
+evaluated.
+
+\section{Threats to construct validity}
+
+\textbf{Alarm activation is not security.} In the \code{none}, \code{ratelimit} and \code{token}
+arms the alarm fires in all 300 trials, and all three are completely defeated by
+capture-and-replay. A single-metric evaluation would have concluded that no command defence
+performs as well as a message authentication code. Three metrics are reported for this reason.
+
+\textbf{Zero forgeries is not evidence of soundness.} Three million fuzz iterations producing no
+accepted input is the expected outcome against a 128-bit tag whether the implementation is sound
+or not, since a chance forgery has probability $2^{-128}$. The campaign is evidence of memory
+safety and parser robustness, and is not independent evidence of authentication soundness.
+
+\textbf{Simulated latency measures the simulator.} Stated above and repeated here because it is
+the most likely misreading of Chapter~\ref{ch:results}.
+
+\section{Scope exclusions}
+
+\begin{itemize}[leftmargin=1.6em,itemsep=4pt]
+  \item \textbf{Side-channel and fault-injection attack.} Out of scope; no equipment. Power
+        analysis against the HMAC computation is a known attack class against embedded
+        cryptography and was not evaluated.
+  \item \textbf{Flash encryption and secure boot.} Not enabled. Section~\ref{sec:sec-flashdump}
+        contains the flash-dump threat through authorisation rather than preventing extraction.
+  \item \textbf{Over-the-air update security.} No update mechanism is implemented, so its
+        security is neither claimed nor evaluated.
+  \item \textbf{The controller host.} Treated as trusted infrastructure throughout. Scenario
+        E$'$ is what happens when that assumption fails, and the layered build does not survive
+        it.
+  \item \textbf{Long-term operation.} No soak test. Flash wear from counter commits, clock drift,
+        and memory fragmentation over months of operation were not evaluated.
+  \item \textbf{Usability.} No human-factors study. The 41\% command-refusal rate under the token
+        bucket is reported as a measured proportion; no claim is made about how users would
+        respond to it.
+\end{itemize}
+
+\section{Known unresolved design problems}
+
+Two problems were identified by this work and are \emph{not} fixed in the artefact. They are
+recorded here rather than in future work, because a reader of the code should know they are open.
+
+\textbf{Owner lockout under key compromise.} Two configurations admit 0 of 1,250 operator
+commands, because the adversary advances the persisted replay counter beyond the operator's reach.
+A candidate repair is a counter-resynchronisation path authenticated by the local button, which is
+physically present and outside a remote adversary's reach. It has not been implemented or
+evaluated, and the obvious alternatives --- a resynchronisation command over MQTT, or a counter
+window --- weaken the replay resistance that the counter exists to provide.
+
+\textbf{Scenario E$'$.} The layered configuration falls to a compromised controller host and
+survives a device flash dump, which is the opposite of the cost ordering a defender would choose.
+Mitigation requires an authority that does not reside on the controller --- a hardware security
+module, a second factor for disarm, or a physically present confirmation --- and none is
+implemented.
+
+\section{Items requiring confirmation by the author or supervisor}
+
+Recorded here so that no reader mistakes an unverified item for a verified one.
+
+\begin{itemize}[leftmargin=1.6em,itemsep=4pt]
+  \item The declaration, certificate and acknowledgement pages are unsigned drafts. The
+        certificate page is explicitly marked as a template and carries no approval.
+  \item \textbf{No supervisor approval has been obtained}, and no dissertation-overlap ruling has
+        been made.
+  \item \textbf{No institutional similarity screening report exists.} No similarity percentage is
+        claimed anywhere in this report, official or otherwise.
+  \item The competing-interest, funding and authorship-contribution declarations require explicit
+        author confirmation before submission.
+  \item No journal quartile is asserted anywhere in this work, because the ranking source could
+        not be reached without circumventing bot protection, which was not attempted.
+  \item Five references lack DOIs and require confirmation.
+\end{itemize}

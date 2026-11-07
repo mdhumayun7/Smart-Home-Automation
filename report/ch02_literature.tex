@@ -1,0 +1,196 @@
+\chapter{Literature Review and Research Gap}\label{ch:lit}
+
+This chapter reviews the work this project builds on and states precisely where it stops. The
+emphasis is on what each line of work establishes and what it leaves unresolved, because the
+gap this project addresses is defined by the second of those more than the first.
+
+All twenty-two references cited here are the ones carried by the accompanying manuscript. No
+reference has been added for this report without its bibliographic details being checked
+against the publisher, proceedings or preprint record.
+
+\section{Real-time degradation from on-chip network activity}
+
+The closest prior work, and the direct motivation for this project, is the study by Behnke et
+al.\ \cite{behnke2020}. They instrumented a periodic critical task on an ESP32 and applied IP
+packet load while measuring the task's lateness. The degradation they report is modest in
+percentage terms but unambiguous: between 2.15\% and 3.8\% of cycles lost for traffic addressed
+to a listened port, and between 3.17\% and 6.67\% for an unused port, with latency rising as
+the microcontroller approached saturation. Their conclusion is that command-and-control over IP
+is unsuitable for hard real-time work on this class of device.
+
+Two aspects of that result deserve attention. The first is that interference is higher for the
+\emph{unused} port than for the listened one, which is counter-intuitive until one notices that
+it is consistent with cost being incurred below the application: the device pays for frame
+reception and demultiplexing whether or not anything is waiting for the data. The second is
+that the authors are explicit about the limits of their own mitigations, and it is that honesty
+that makes the gap visible.
+
+The same group proposed two mitigations in follow-up work. The first is a priority-aware
+multiqueue network interface with per-flow interrupt moderation \cite{behnke2022}; the second is
+driver-level early demultiplexing \cite{behnke2023}. Neither is available to a developer
+shipping a stock ESP32 today. The multiqueue design was evaluated against a \emph{simulated}
+network interface and was never built. The demultiplexing work was prototyped on a Xilinx
+Zynq-7000 — a platform an order of magnitude larger than an ESP32 — with measurements taken on
+a single core.
+
+The detail that matters most for this project appears in \cite{behnke2023}: the ESP32's second
+core is used there to separate the observed processes from the test harness, not as a
+mitigation. \textbf{Core pinning is therefore nowhere evaluated as a defence} in this line of
+work, despite being the mitigation that developers of these devices are actually told to use.
+
+Fischer et al.\ \cite{fischer2020} examine industrial device architectures under
+denial-of-service conditions and reach a compatible conclusion at a coarser granularity: device
+architecture, rather than protocol choice, determines whether real-time behaviour survives
+network stress. Their analysis is architectural rather than experimental at the task level, so
+it frames the problem without constraining the answer for any specific chip.
+
+\section{Timing isolation on larger platforms}
+
+A substantial body of work addresses timing isolation where the hardware offers the means to
+achieve it. Meszlényi et al.\ \cite{timingiso2025} develop timing isolation for
+mixed-criticality communication, and Hoornaert et al.\ \cite{mcti2024} present task-based
+isolation for mixed-criticality workloads. Burns and Davis's review \cite{mcreview2026}, now in
+its fourteenth edition, surveys the field as a whole.
+
+The common prerequisite in this literature is hardware support: memory-bandwidth regulation,
+cache partitioning, interrupt steering, or a hypervisor. None of these exists on an ESP32. The
+platform offers core affinity and the scheduler's priority mechanism, and nothing else. The
+mixed-criticality literature is therefore highly relevant as a statement of what adequate
+isolation requires, and inapplicable as a source of techniques for this device class. That
+mismatch — a well-developed theory whose preconditions the hardware does not satisfy — is part
+of why the standard advice for the ESP32 remains unverified rather than merely weak.
+
+\section{Radio-layer attacks on this device class}
+
+The attack that threatens a wireless alarm is not IP flooding. It is deauthentication: 802.11
+management frames handled in the MAC layer and the radio driver, below the IP stack, which the
+device must process regardless of what any application is doing.
+
+Kremser and Graffi \cite{deauther2026} evaluate the ESP32-S3 for Wi-Fi penetration testing and
+demonstrate that the hardware is itself a capable attack platform, which establishes that the
+capability required is cheap and widely available. Cayre et al.\ \cite{espwn2023} examine the
+ESP32's own wireless stack offensively, finding vulnerabilities at the system-on-chip level.
+Mudraje et al.\ \cite{esp32c3re2025} reverse-engineer the ESP32-C3's Wi-Fi drivers, work
+undertaken precisely because the driver is closed source — a fact with direct consequences for
+this project, since an unanalysable driver is why one interference term in
+Chapter~\ref{ch:impl}'s response-time decomposition cannot be settled analytically.
+
+Carbajal and Jodeiri Akbarfam \cite{carbajal2026} provide a software-defined testbed for
+quantifying deauthentication resilience. Their work is methodologically the nearest to the
+hardware protocol specified in Appendix~\ref{app:hardware}, and it reinforces a constraint
+observed here: experiments of this kind require an isolated radio environment, which is an
+institutional rather than a technical prerequisite.
+
+What this literature establishes is that the radio-layer attack path is real, cheap to mount
+and distinct from the IP path. What it does not do is measure the \emph{safety} consequence on
+a device whose safety task is pinned to a separate core. That is the question this project set
+out to answer and, as Chapter~\ref{ch:limitations} states plainly, could not answer by
+measurement.
+
+\section{Finding defects in embedded firmware}
+
+Yun et al.\ \cite{fuzzsurvey2022} survey fuzzing for embedded systems and identify the
+recurring obstacle: embedded firmware is difficult to execute outside its target hardware, so
+fuzzing campaigns must either run on the device, at low throughput, or rehost the firmware,
+with fidelity loss.
+
+Two recent systems address rehosting directly. Bley et al.\ \cite{pemu2025} present
+protocol-aware firmware rehosting for fuzzing embedded network stacks; Tharindu et al.\
+\cite{sysfuss2026} combine system-level firmware fuzzing with selective symbolic execution.
+Both are substantially more capable than the approach taken here, and the comparison is worth
+stating honestly: the fuzzing in this project compiles the parser \emph{for the host} and
+exercises it under sanitizers. That is appropriate for the question asked — whether the command
+parser mishandles malformed input — and it is explicitly \emph{not} firmware rehosting. It
+says nothing about faults depending on the Xtensa toolchain's code generation, on the real
+memory map, or on the radio driver's own parsing. Chapter~\ref{ch:limitations} records this as a
+limitation rather than leaving it implicit.
+
+The more important point for this work, however, is one the fuzzing literature does not
+address. All of these techniques test a \emph{running system}. None of them tests the
+\emph{assumptions a system was built on}. A build condition that encodes an unsound security
+inference will compile, run, and pass every dynamic test, because dynamic testing exercises the
+build that was produced rather than questioning whether that build should have been permitted.
+The unbounded drain reported in Section~\ref{sec:impl-drain} makes the same point from the
+timing side: it survived 3,000,000 fuzzing iterations because every one of those iterations
+exercised a path that terminated.
+
+\section{Security and verification on the ESP32 application stack}
+
+Azhar et al.\ \cite{mqtttls2026} analyse the performance and security of MQTT over TLS on
+ESP32-based systems, establishing the cost of the transport protection this project assumes as
+a baseline. Ieropoulos et al.\ \cite{ondevice2026} place intrusion detection on constrained
+devices, which is a different architectural answer to a related problem.
+
+On the MQTT protocol itself, Zeghida et al.\ \cite{zeghida2024} give an overview of security
+issues, and Alsabbagh et al.\ \cite{pirates2024} demonstrate the attack class that this
+project's configuration defect exposes: a rogue client with valid broker credentials raiding
+industrial IoT systems. This citation matters for the integrity of the present work's claims.
+\textbf{The attack class is published and the underlying principle is textbook}, so this project
+claims no new vulnerability. Its contribution is narrower: that a \emph{compile-time guard} can
+encode the unsound inference, emit no diagnostic, and thereby cost a safety property.
+
+Two 2026 papers approach the same problem from the design side. Amirkhanova et al.\
+\cite{amirkhanova2026} build an end-to-end encrypted data pipeline for industrial IoT, and Yu
+et al.\ \cite{mqttl2026} propose MQTT-L, a lightweight end-to-end secure protocol using
+renewable hash chains. Both confirm, from the direction of protocol design, the principle this
+project confirms from the direction of failure analysis: end-to-end authentication is required
+because the broker is a relay and transport security does not survive it.
+
+On formal methods, Krichen's survey \cite{krichen2023} covers verification and validation for
+the Internet of Things, including model checking, abstract interpretation and deductive
+methods. Lamport \cite{lamport2002} is the reference for the specification language used here.
+Neither addresses the failure mode reported in Chapter~\ref{ch:formal} — a specification that
+assumes the property it claims to establish — which is a known hazard in the formal-methods
+community but, as far as this review found, is rarely disclosed in applied papers.
+
+\section{Research gap}
+
+Five gaps follow from the review above, and they map onto the objectives in
+Section~\ref{sec:intro-scope}.
+
+\begin{enumerate}[leftmargin=1.8em,itemsep=5pt]
+  \item \textbf{Core pinning has never been evaluated as an isolation defence on this
+        hardware.} It is measured as an experimental convenience in \cite{behnke2023} and
+        recommended universally in practice, but not tested as a mitigation.
+  \item \textbf{Radio-layer interference has not been related to safety outcomes.} The
+        degradation literature applies IP load; the attack literature demonstrates radio-layer
+        capability; nobody connects the two to a safety function's deadline.
+  \item \textbf{The isolation argument has not been treated formally, and no work models an
+        adversary} rather than volumetric stress.
+  \item \textbf{Mixed-criticality isolation techniques presuppose hardware the ESP32 lacks},
+        so the gap cannot be closed by importing them.
+  \item \textbf{Existing defect-finding techniques test running systems, not design and
+        configuration assumptions.} This is the gap the project's central claim addresses, and
+        it emerged from the work rather than preceding it.
+\end{enumerate}
+
+\section{How this work differs}
+
+\begin{longtable}{@{}p{0.27\textwidth}p{0.33\textwidth}p{0.33\textwidth}@{}}
+\toprule
+\textbf{Aspect} & \textbf{Prior work} & \textbf{This work} \\
+\midrule
+\endhead
+Object of study & the phenomenon of degradation \cite{behnke2020} & the \emph{mitigation} that
+developers are told to use \\
+Load applied & IP layer: UDP, MODBUS/TCP & command interface, and radio layer in the
+specified-but-unexecuted protocol \\
+Adversary & volumetric stress & an explicit adversary model, scenarios A--E$'$ \\
+Isolation argument & informal & TLA+ specification, exhaustively checked, with trace
+conformance to the implementation \\
+Isolation technique & requires bandwidth regulation, cache partitioning or a hypervisor
+\cite{timingiso2025,mcti2024} & core affinity and bounded queues, which is all the hardware
+offers \\
+Defect finding & fuzzing and rehosting of running firmware
+\cite{pemu2025,sysfuss2026} & falsification of build-time, design-time and specification
+assumptions \\
+MQTT security & protocol design \cite{amirkhanova2026,mqttl2026} & where an existing
+configuration guard encodes an unsound inference \\
+Timing claim & measured on hardware & \textbf{not measured}; protocol published instead \\
+\bottomrule
+\end{longtable}
+
+The last row is the one to read carefully. On the question that motivated the project, prior
+work has measurements and this work does not. What this work contributes on that question is a
+bound, a decomposition that identifies the single term requiring hardware, and a protocol
+capable of falsifying the claim. Chapter~\ref{ch:limitations} does not soften this.
