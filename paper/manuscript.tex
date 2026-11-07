@@ -409,16 +409,28 @@ This is adversary~A, and it is the \emph{primary} threat model: every claim this
 about the design, including the isolation property~\eqref{eq:invariance} and the formal results
 of Section~\ref{sec:formal}, is a claim against adversary~A unless explicitly stated otherwise.
 
-Sections~\ref{sec:acl} and~\ref{sec:brokerval} additionally evaluate four \emph{extended
+Sections~\ref{sec:acl} and~\ref{sec:brokerval} additionally evaluate five \emph{extended
 compromise} scenarios. These are not part of the primary model. They exist because a comparison
 of command-path defences is uninformative unless one asks what each defence costs when its own
 assumption fails, and because omitting them would leave the ablation resting on a transport
 baseline whose security we had never tested. Table~\ref{tab:threats} states them.
 
+Two of the five deserve separating here, because they are easily conflated and the paper's
+central access-control result turns on the difference. \textbf{E} is a device flash dump: it yields
+the device's broker credential and the command key together, but obtaining it requires
+\emph{physical} access to the hardware. \textbf{E}$'$ is a compromised controller host --- the phone,
+the hub or the server that legitimately issues commands: it yields a credential the
+access-control list must permit together with the same command key, and requires no physical
+access at all. The layered configuration withstands E and falls to E$'$, so the scenario that is
+cheaper for an adversary to reach is the one that defeats it.
+
 \begin{table}[htbp]
 \centering\small
-\caption{Adversary scenarios. A is the primary threat model; B through E are extended
-compromise analyses reported separately and never used to support a claim about the design.}
+\caption{Adversary scenarios. A is the primary threat model; B through E$'$ are extended
+compromise analyses, reported separately and never used to support a claim about the design.
+The \emph{Access} column is load-bearing: E is the only scenario requiring physical access to
+the device, and it is the one the layered configuration survives. E$'$ requires none, and it is
+the one it does not.}
 \label{tab:threats}
 \begin{tabular}{@{}llll@{}}
 \toprule
@@ -429,6 +441,7 @@ B & one shared broker credential & remote   & \S\ref{sec:acl}, \S\ref{sec:broker
 C & controller credential        & remote   & \S\ref{sec:acl}, \S\ref{sec:brokerval} \\
 D & device credential            & remote   & \S\ref{sec:acl}, \S\ref{sec:brokerval} \\
 E & device credential + command key & \textbf{physical} & \S\ref{sec:acl}, \S\ref{sec:brokerval} \\
+E$'$ & controller credential + command key & \textbf{remote} & \S\ref{sec:acl}, \S\ref{sec:brokerval} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1251,6 +1264,13 @@ iterations under AddressSanitizer and UndefinedBehaviorSanitizer the fuzzer foun
 error, no undefined behaviour, and no input that changed state or advanced the counter. We read
 this as evidence of memory safety and parser robustness rather than of authentication soundness:
 against a 128-bit tag, zero forgeries is the expected outcome and is not independent evidence.
+
+The fuzzer exercises the parser \emph{compiled for the host}, not the binary running on the
+device. That is what makes the sanitizers usable, and it is also the limit of the result: it
+says nothing about faults that depend on the Xtensa toolchain's code generation, on the real
+memory map, or on the closed-source radio driver's own parsing, none of which the host build
+contains. This is host fuzzing, not firmware rehosting, and the two are not interchangeable
+(cf.\ Bley et al.~\cite{pemu2025}).
 
 One episode is worth recording as a methodological caution. An early run reported an accepted
 input. Investigation showed the mutation had flipped the case of a hexadecimal digit, which
