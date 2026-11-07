@@ -135,6 +135,161 @@ class Fig:
         )
 
 
+def architecture():
+    """System architecture: the two cores, the queues between them, and what is outside.
+
+    Every pin number, timeout and queue depth is taken from
+    firmware/smart_home/smart_home.ino and nothing is drawn that the firmware does not
+    implement. This replaces a hand-authored SVG that carried its own six-size type scale and
+    printed its smallest label at 4.9 pt. Core 0 is blue and core 1 green here exactly as in
+    the command-flow figure, so the two read as one set.
+    """
+    OUTPUT = "#FFF4E0"   # amber, not the red that means "unsafe" elsewhere in the set
+    f = Fig(1100, 1190, "System architecture: safety core, network core and the queues "
+                        "between them")
+    f.lines(550, 28, [
+        "ESP32 firmware v2.2.0: the safety logic runs on core 1, all networking on core 0.",
+        "The two share nothing but two bounded queues.",
+    ], size="small")
+
+    # ---------------- sensing
+    f.box(36, 70, 1028, 140, fill=MID, dash="4 3")
+    f.text(50, 94, "SENSING (inputs)", size="head", anchor="start", bold=True)
+    for x, title, rows in (
+        (60, "PIR motion sensor",
+         ["HC-SR501, OUT on GPIO 13", "10 s warm-up, 150 ms confirm"]),
+        (392, "Door / window switch",
+         ["reed or slide switch, GPIO 14", "internal pull-up; HIGH = open"]),
+        (724, "ARM / DISARM button",
+         ["momentary, GPIO 27", "internal pull-up; LOW = pressed"]),
+    ):
+        f.box(x, 108, 316, 86, fill="#FFFFFF")
+        f.text(x + 158, 134, title, size="body", bold=True)
+        f.lines(x + 158, 156, rows, size="small")
+    for x in (218, 550, 882):
+        f.arrow([(x, 194), (x, 230)])
+
+    # ---------------- the chip
+    f.box(36, 230, 1028, 560, fill=LIGHT, sw=2.2)
+    f.text(50, 256, "ESP32 DevKit  \u2014  dual core, FreeRTOS", size="head", anchor="start",
+           bold=True)
+
+    # core 1
+    f.box(48, 270, 556, 512, fill=SAFETY, dash="7 5")
+    f.text(62, 294, "Core 1: safety loop (Arduino loop task)", size="body", anchor="start",
+           bold=True)
+    f.text(62, 314, "never blocks, watchdog-supervised, works offline",
+           size="small", anchor="start", fill=MUTED)
+    f.box(60, 328, 532, 88, fill="#FFFFFF")
+    f.text(326, 352, "1. Input conditioning", size="body", bold=True)
+    f.lines(326, 374, ["debounce 40 ms on the door and the button",
+                       "PIR: 10 s warm-up, 150 ms confirm"], size="small")
+    f.box(60, 432, 532, 154, fill="#FFFFFF")
+    f.text(326, 456, "2. State machine", size="body", bold=True)
+    f.lines(326, 478, [
+        "DISARMED \u2192 EXIT_DELAY 10 s \u2192 ARMED",
+        "ARMED + motion or door \u2192 ENTRY_DELAY 10 s",
+        "ENTRY_DELAY expires \u2192 ALARM 30 s \u2192 ARMED",
+        "button arms and disarms; remote: ARM, DISARM, STATUS",
+        "armed state kept in NVS across power cuts",
+    ], size="small")
+    f.box(60, 602, 532, 88, fill="#FFFFFF")
+    f.text(326, 626, "3. Output driver", size="body", bold=True)
+    f.lines(326, 648, ["buzzer tone 2.7 kHz, two LEDs,",
+                       "OLED refresh every 250 ms (4 Hz)"], size="small")
+
+    # the two queues: the only shared state
+    f.box(618, 400, 124, 76, fill=SHARED)
+    f.text(680, 424, "Command", size="body", bold=True)
+    f.lines(680, 446, ["queue", "4 deep"], size="small")
+    f.box(618, 520, 124, 96, fill=SHARED)
+    f.text(680, 544, "Event", size="body", bold=True)
+    f.lines(680, 566, ["queue", "16 deep", "drop oldest"], size="small")
+    f.arrow([(756, 438), (744, 438)], sw=2.2)
+    f.arrow([(616, 438), (604, 438)], sw=2.2)
+    f.arrow([(604, 568), (616, 568)], sw=2.2)
+    f.arrow([(744, 568), (756, 568)], sw=2.2)
+
+    # core 0
+    f.box(756, 270, 296, 512, fill=NETWORK, dash="7 5")
+    f.text(770, 294, "Core 0: network task", size="body", anchor="start", bold=True)
+    f.lines(770, 314, ["slow DNS or TCP can never", "stall the alarm"],
+            size="small", anchor="start")
+    f.box(768, 346, 272, 86, fill="#FFFFFF")
+    f.text(904, 370, "Wi-Fi manager", size="body", bold=True)
+    f.lines(904, 392, ["retry every 15 s", "NTP clock (IST)"], size="small")
+    f.box(768, 446, 272, 126, fill="#FFFFFF")
+    f.text(904, 470, "MQTT client", size="body", bold=True)
+    f.lines(904, 492, ["Last Will \u201coffline\u201d", "reconnect every 5 s",
+                       "subscribes to .../cmd", "Home Assistant discovery"], size="small")
+    f.box(768, 586, 272, 126, fill="#FFFFFF")
+    f.text(904, 610, "Event publisher", size="body", bold=True)
+    f.lines(904, 632, ["JSON events, sequence no.", "oldest first", "retained state,",
+                       "heartbeat every 30 s"], size="small")
+
+    # ---------------- local outputs
+    f.arrow([(326, 690), (326, 822)], sw=2.2)
+    f.box(36, 822, 596, 168, fill=OUTPUT, dash="4 3")
+    f.text(50, 846, "LOCAL OUTPUTS", size="head", anchor="start", bold=True)
+    for x, title, rows in (
+        (48, "Buzzer", ["passive piezo", "GPIO 23", "2.7 kHz"]),
+        (244, "Status LEDs", ["green GPIO 26", "red GPIO 25"]),
+        (440, "OLED SSD1306", ["I2C 0x3C", "GPIO 21 / 22"]),
+    ):
+        f.box(x, 860, 184, 112, fill="#FFFFFF")
+        f.text(x + 92, 886, title, size="body", bold=True)
+        f.lines(x + 92, 908, rows, size="small")
+
+    # ---------------- outside the device
+    f.arrow([(904, 790), (904, 860)], sw=2.2)
+    f.text(904, 812, "Wi-Fi, MQTT 1883 / 8883 TLS", size="small", fill=MUTED)
+    f.box(652, 822, 412, 346, fill=EXTERNAL, dash="2 4")
+    f.text(666, 846, "NETWORK AND USER SIDE", size="head", anchor="start", bold=True)
+    f.box(664, 860, 388, 132, fill="#FFFFFF")
+    f.text(858, 884, "MQTT broker", size="body", bold=True)
+    f.lines(858, 906, [
+        "default: public test broker",
+        "evaluated against a private broker",
+        "with TLS, per-client ACLs, credentials",
+        "topics: availability, state, event, cmd",
+    ], size="small")
+    f.arrow([(820, 992), (820, 1032)])
+    f.arrow([(896, 1032), (896, 992)])
+    f.text(806, 1018, "state, events", size="small", anchor="end", fill=MUTED)
+    f.text(910, 1018, "commands", size="small", anchor="start", fill=MUTED)
+    f.box(664, 1032, 388, 124, fill="#FFFFFF")
+    f.text(858, 1056, "Homeowner clients", size="body", bold=True)
+    f.lines(858, 1078, [
+        "Home Assistant / Node-RED / dashboard",
+        "phone MQTT app: alert on an alarm event",
+    ], size="small")
+
+    # ---------------- legend
+    f.box(36, 1002, 596, 166, fill="#FFFFFF", dash="4 3")
+    f.text(50, 1026, "LEGEND", size="head", anchor="start", bold=True)
+    # Each swatch repeats its band's border style as well as its fill: two of the tints are
+    # close in greyscale, and the border is what actually separates them on the page.
+    for i, (fill, label, dash) in enumerate((
+        (MID, "Sensing", "4 3"),
+        (SAFETY, "Safety core (core 1)", "7 5"),
+        (NETWORK, "Network core (core 0)", "7 5"),
+        (SHARED, "Shared queues", None),
+        (OUTPUT, "Local outputs", "4 3"),
+        (EXTERNAL, "Network and user side", "2 4"),
+    )):
+        y = 1040 + i * 21
+        f.box(56, y, 28, 15, fill=fill, rx=3, dash=dash)
+        f.text(94, y + 13, label, size="small", anchor="start")
+    f.lines(316, 1052, [
+        "Events raised while offline wait in",
+        "the queue (up to 16) and are sent on",
+        "reconnect. A remote DISARM needs a",
+        "valid HMAC tag over a fresh,",
+        "NVS-persisted counter.",
+    ], size="small", anchor="start")
+    return f
+
+
 # ------------------------------------------------- 1. command execution ------
 def command_flow():
     """Command path, showing which core performs each stage."""
@@ -905,6 +1060,7 @@ def acl_architecture():
 
 # ---------------------------------------------------------------- driver -----
 FIGS = {
+    "architecture": architecture,
     "command_flow": command_flow,
     "command_sequence": command_sequence,
     "deployment": deployment,
@@ -932,11 +1088,14 @@ def main():
         cairosvg.svg2png(url=sp, write_to=os.path.join(out, name + ".png"), scale=2.5)
         print(f"  {name}: svg + pdf + png")
 
-    # Re-export the hand-authored diagrams. BOTH pdf and png: the README embeds the
-    # png, so exporting only the pdf leaves an edited svg invisible on GitHub. That
-    # happened once -- a correction to state_machine.svg never reached its png, and
-    # the repository kept showing the old text.
-    for name in ("architecture", "state_machine", "event_sequence", "circuit_wiring"):
+    # Re-export the remaining hand-authored diagrams. BOTH pdf and png: the README embeds
+    # the png, so exporting only the pdf leaves an edited svg invisible on GitHub. That
+    # happened once -- a correction to state_machine.svg never reached its png, and the
+    # repository kept showing the old text.
+    #
+    # architecture is no longer in this list: it is generated above, because the hand-drawn
+    # version had its own type scale and printed its smallest label at 4.9 pt.
+    for name in ("state_machine", "event_sequence", "circuit_wiring"):
         sp = os.path.join(out, name + ".svg")
         if os.path.exists(sp):
             cairosvg.svg2pdf(url=sp, write_to=os.path.join(out, name + ".pdf"))
