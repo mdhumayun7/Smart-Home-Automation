@@ -1,5 +1,13 @@
 # Q2 reviewer gate, figure justification and journal compliance
 
+
+> **Superseded.** This assessment was written against the 3,300-trial, eleven-arm campaign
+> and before the real-broker validation. The campaign is now 3,600 trials over twelve
+> configurations (9,600 adversarial trials in total), and the ACL arms were reproduced
+> against a live Mosquitto 2.0.18 instance, so the model-validity caveat recorded in row 7
+> is discharged. See [CONTRIBUTIONS.md](CONTRIBUTIONS.md) and
+> [JOURNAL_ASSESSMENT.md](JOURNAL_ASSESSMENT.md) for the current position.
+
 Parts E, F and G of the publication directives. Assessed 6 November 2026 at commit `a3ac427`.
 
 **Headline verdict: the manuscript is NOT ready for submission.** One central claim remains

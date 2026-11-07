@@ -1,5 +1,10 @@
 # Venue assessment and realistic reviewer outlook
 
+
+> **Count correction.** Written when the ablation held 3,300 trials over eleven arms. It is
+> now 3,600 over twelve, giving 9,600 adversarial trials in total; the conclusions below are
+> unaffected.
+
 Written after the corrected 3,300-trial campaign and the access-control arms. It supersedes the
 venue discussion in `JOURNAL_TARGETS.md` where the two disagree.
 

@@ -1121,8 +1121,15 @@ message, which is also how the real firmware would learn of it, namely not at al
 
 \begin{table}[htbp]
 \centering\small
-\caption{Access-control scenarios against Mosquitto 2.0.18 with TLS and per-client ACLs.
-Testbed measurement. Scenario letters match the threat model in Section~\ref{sec:model}.}
+\caption{All eight access-control scenarios run against Mosquitto 2.0.18 with TLS 1.2 and a
+private certificate authority. Testbed measurement, not simulation; outcomes are from
+\texttt{broker\_acl.jsonl}. Scenario letters match the threat model in
+Section~\ref{sec:model}. The upper block uses per-client ACLs and the lower block the
+single-credential ACL, each with its own legitimate control. E$'$ is the decisive comparison:
+the same valid signature as E, carried by the controller identity instead of the device
+identity, is delivered --- so what stops E is the access-control list, not the signature.
+``Delivered'' means a subscriber holding the device identity received the message; a PUBACK
+does not establish it, because MQTT 3.1.1 has no return code meaning ``refused by policy''.}
 \label{tab:broker}
 \begin{tabular}{@{}llccc@{}}
 \toprule
@@ -1134,7 +1141,9 @@ C & controller credential   & yes & yes & \textbf{yes} \\
 D & device credential       & yes & \textbf{no}  & no \\
 E & device credential + key & yes & \textbf{no}  & no \\
 E$'$ & controller credential + key & yes & yes & \textbf{yes} \\
-B & shared credential (shared ACL) & yes & yes & \textbf{yes} \\
+\midrule
+control & controller, shared ACL & yes & yes & yes \\
+B & shared credential, shared ACL & yes & yes & \textbf{yes} \\
 \bottomrule
 \end{tabular}
 \end{table}

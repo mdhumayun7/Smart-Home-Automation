@@ -31,7 +31,7 @@ good practice, not novelty.
 **Class: EXP. Strong.**
 
 No individual mechanism in the ablation is new. What is new is the controlled separation: one
-adversary, one system, one seed set, eleven configurations, showing that a rate limiter buys
+adversary, one system, one seed set, twelve configurations, showing that a rate limiter buys
 integrity nothing while costing 41 % of operator commands, a static token does the reverse, and
 only a counter-bound MAC does both. Practitioners conflate these routinely. Searched against
 the MQTT security literature through 6 November 2026, we found no comparable controlled
@@ -91,7 +91,7 @@ intended conclusion.
 
 Response-time analysis is classical and the decomposition itself is standard. But it **found a
 real defect that nothing else did**: an unbounded drain that survived 120 host checks,
-3,000,000 fuzz iterations, 9,300 adversarial trials and exhaustive model checking. That is the
+3,000,000 fuzz iterations, 9,600 adversarial trials and exhaustive model checking. That is the
 single most persuasive argument in the paper for doing the analysis at all, and it is currently
 buried.
 
@@ -134,7 +134,7 @@ Two independent instances support it, and they are the paper's two best results:
 1. A compile-time guard encoded an unsound security inference. An **ablation with a fair
    baseline** falsified it, and the cost was a safety property, not merely a security one.
 2. A command drain was assumed bounded. A **response-time decomposition** falsified it, after
-   testing, fuzzing, model checking and 9,300 adversarial trials had all passed.
+   testing, fuzzing, model checking and 9,600 adversarial trials had all passed.
 
 Neither method is novel. The claim is that applying them to the *assumptions* rather than to
 the running system is what caught two defects that every other technique in the project missed,

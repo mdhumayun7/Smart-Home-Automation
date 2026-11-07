@@ -13,7 +13,7 @@ one missing experiment rather than anything that can be edited.
 | Every reference cited | 22 references, none orphaned | `\cite` against `\bibitem` |
 | Citation fields verified | All 22, from publisher, proceedings, institutional repository or OpenAlex | see below |
 | Headline statistics | All recomputed from committed data | recomputation script, cell by cell |
-| Trial counts reconciled | 6,000 + 3,300 = 9,300; table in the manuscript names each artefact | derived from raw files |
+| Trial counts reconciled | 6,000 + 3,600 = 9,600; table in the manuscript names each artefact | derived from raw files |
 | Results reproduce | Byte-identical from a clean build | full pipeline re-run, `diff` |
 | Formal verification | 3 TLC configurations, one required to fail | `formal/run_tlc.sh` |
 | Host tests | 123 checks across 2 core versions and 3 clock offsets | `tests/host/run_tests.sh` |
