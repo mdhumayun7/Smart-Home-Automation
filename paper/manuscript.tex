@@ -44,53 +44,44 @@ Measurement Protocol}}
 
 \begin{abstract}
 \noindent
-Consumer intrusion alarms are built almost entirely on single-chip Wi-Fi systems-on-chip, where
-the radio driver, the network stack and the safety application share one die, one RTOS scheduler
-and one interrupt controller. The standard engineering mitigation is to pin the safety task to
-its own core. Behnke et al.\ have shown that this is not sufficient on an ESP32: under IP-layer
-load, with the network server already on the other core, a periodic critical task lost
-2.15--3.8\% of its cycles and lateness grew with packet rate. What remains unknown is whether
-pinning combined with queue discipline is an adequate \emph{mitigation}, which that work does not
-evaluate; whether 802.11 management-frame load, handled below the IP stack, behaves differently
-from IP load; and whether the isolation argument can be established formally rather than
-empirically. We address all three. We present an ESP32 intrusion alarm whose safety loop is
-pinned to the application core and separated from the network task by bounded, non-blocking
-queues and a zero-timeout status snapshot, hardened with HMAC-SHA256 command authentication over
-a non-volatile monotonic counter. We specify the isolation argument in TLA+ and verify it
-exhaustively with TLC under a network task given no fairness assumption, and we mutation-test
-both specifications to show the verified properties are not vacuous. We evaluate the design with
-9{,}300 seeded adversarial trials and 3{,}000{,}000 sanitizer-backed fuzzing iterations. An
-ablation over eleven command-path and credential-compromise configurations shows that availability, integrity and the safety
-function are separable properties: a rate limiter cannot distinguish a legitimate command from a
-flood and so admits only 59.0\% of operator commands while leaving integrity untouched, and a
-static shared token leaves availability intact yet is defeated by capture-and-replay. Two
-transport arms, compiled identically and differing only in whether the adversary holds a valid
-broker credential, isolate the single configuration in which the safety function itself fails:
-a compile-time guard that accepted TLS plus a broker login as sufficient for unauthenticated
-remote disarm, under which a credential-holding adversary disarms the system and the alarm fires
-in 16.7\% of trials against 100\% for the control. We claim no new vulnerability---the
-underlying principle and the attack class are both established---but report the guard as a
-configuration-logic defect that converts a known security principle into the loss of a safety
-property, and we remove it. Five further arms vary the broker's per-client access-control list
-and which secret the adversary holds, and show that broker-side authorization and
-application-layer authentication fail under \emph{different} compromises, so neither dominates:
-an ACL contains a compromised device credential but not a compromised controller, a MAC
-survives credential compromise but not key compromise, and only the layered configuration
-survives every case. We also report an unanticipated negative result: under key compromise the
-monotonic replay counter becomes a lockout against the legitimate owner, who is admitted in 0
-of 1250 attempts.
-A parameter sweep of the deauthentication detector revealed that our own initial threshold fired
-spuriously in 79.9\% of benign ten-minute runs, and we revised the firmware accordingly. We are
-explicit that these results establish \emph{logical} isolation only. Physical timing invariance
-is a property of the silicon and the closed-source radio driver; we specify the measurement
-protocol and instrumentation in full, and report no latency figure we have not measured. In its place we contribute two things that
-reduce the gap: a response-time decomposition proving that the blocking term is identically zero
-by construction and that the loop's own work is constant-time, leaving a single composite
-hardware quantity to be measured; and a complete, public validation framework---instrument
-firmware, wiring, conditions, scripts, pre-registered statistics and falsification
-criteria---with which any laboratory holding two inexpensive boards can perform and report the
-measurement. The decomposition also exposed a latent defect in the safety path that no other
-method we applied could detect.
+Consumer intrusion alarms run almost entirely on single-chip Wi-Fi systems-on-chip, where the
+radio driver, the network stack and the safety application share one die, one scheduler and one
+interrupt controller. Engineers mitigate this by pinning the safety task to its own core and by
+gating risky features behind build configuration. Both are \emph{assertions}: the first asserts
+a timing property, the second a security property, and neither is checked. This paper reports
+what happens when each is falsified cheaply.
+
+We present an ESP32 intrusion alarm whose safety loop is pinned to the application core and
+separated from the network task by bounded, non-blocking queues and a zero-timeout status
+snapshot, with HMAC-SHA256 command authentication over a non-volatile monotonic counter. We
+specify the isolation argument in TLA+ and verify it exhaustively under a network task given no
+fairness assumption, and evaluate the system with 9{,}300 seeded adversarial trials and
+3{,}000{,}000 sanitizer-backed fuzzing iterations.
+
+Two inexpensive methods each found a defect that none of that detected. An ablation over eleven
+configurations found a compile-time guard accepting TLS plus a broker login as sufficient
+authority for unauthenticated remote disarm. The inference is unsound---the broker terminates
+TLS and re-originates every message---and under credential compromise the alarm fires in 16.7\%
+of trials against 100\% for an otherwise identical control. The principle is textbook and the
+attack class published, so we claim no new vulnerability; the point is that a guard encoding it
+compiles silently and costs a \emph{safety} property. Separately, a response-time decomposition
+exposed an unbounded drain in the safety path that had survived every test, fuzz iteration,
+trial and model-checking run.
+
+The ablation further shows that availability, integrity and the safety function fail
+independently, and that broker-side authorization and application-layer authentication fail
+under \emph{different} compromises, so neither dominates: an access-control list contains a
+compromised device credential but not a compromised controller, and a message authentication
+code does the reverse. Only the layered configuration survives every case. All eight
+access-control scenarios were reproduced against a real Mosquitto broker, which agreed with the
+model throughout. Under key compromise the monotonic replay counter also locks the legitimate
+owner out, admitting 0 of 1250 commands---a negative result we did not anticipate.
+
+These results establish \emph{logical} isolation only. Physical timing invariance is a property
+of the silicon and a closed-source radio driver, and we report no latency figure we have not
+measured; in its place we supply the decomposition above, which leaves a single composite
+hardware quantity outstanding, and a public framework with which any laboratory holding two
+inexpensive boards can measure it.
 \end{abstract}
 
 \noindent\textbf{Keywords:} embedded systems security; real-time task isolation; formal
@@ -143,74 +134,73 @@ rather than volumetric stress.
 
 \subsection{Contributions}
 
-We make the following contributions, each stated with the evidence that supports it and the
-limits of that evidence.
+This paper's central claim follows from two such cases, found in our own system:
+
+\begin{quote}
+A security property asserted in build configuration, and a timing property asserted in design,
+are both unverified claims. Each can be falsified by a method that costs far less than the
+system it checks.
+\end{quote}
+
+Neither method we used is novel. What we report is that applying them to a system's
+\emph{assumptions}, rather than to its running behaviour, caught two defects that testing,
+fuzzing, exhaustive model checking and 9{,}300 adversarial trials all missed. We make the
+following contributions in support of that claim, each stated with the evidence behind it and
+the limits of that evidence. We claim no new mechanism, attack, protocol or formalism.
 
 \begin{enumerate}[leftmargin=1.4em,itemsep=0.25em]
-\item \textbf{A deployable isolation design, formally verified.} We combine core pinning with
-bounded non-blocking queues and a zero-timeout status snapshot, and specify the resulting
-isolation argument in TLA+. TLC verifies exhaustively that the safety step remains enabled, that
-the network side never writes alarm state, that the queue stays bounded and that no event is lost
-without being counted, under a network task given \emph{no fairness assumption} and free to stall
-indefinitely, flood, fail or crash. Both specifications are mutation-tested
-(Section~\ref{sec:formal}).
-
-\item \textbf{An ablation over command-path designs that separates three properties commonly
-conflated.} Running one adversary against eleven configurations on identical seeds shows that
-availability, integrity and the safety function fail independently: a token-bucket rate limiter cannot distinguish a legitimate
-command from a flood and so drops both while leaving integrity untouched, a static shared token
-leaves availability intact but is defeated the moment one legitimate command is captured, and a
-transport-only configuration is a strong baseline exactly as long as broker credentials hold
-(Section~\ref{sec:results}).
-
-\item \textbf{A configuration-logic defect found by that ablation, and its removal.} A
-compile-time guard permitted unauthenticated remote disarm whenever TLS and a broker login were
-configured. The inference is unsound: the broker terminates TLS and re-originates every message,
-so an arriving command carries no evidence of its publisher. Under credential compromise the
-alarm fires in 16.7\% of trials against 100\% for the otherwise identical control. The principle
-is textbook and the attack class is published~\cite{pirates2024}, so we claim no new
-vulnerability; the contribution is that a guard encoding this inference passes review silently
-and costs a \emph{safety} property, and that it is detectable by ablation
+\item \textbf{A configuration-logic defect, found by ablation, that costs a safety property.}
+A compile-time guard permitted unauthenticated remote disarm whenever TLS and a broker login
+were configured. The inference is unsound: the broker terminates TLS and re-originates every
+message, so an arriving command carries no evidence of its publisher. Under credential
+compromise the alarm fires in 16.7\% of trials against 100\% for the otherwise identical
+control. The principle is textbook and the attack class is published~\cite{pirates2024}, so we
+claim no new vulnerability. The contribution is that a guard encoding this inference compiles
+silently, emits no diagnostic, survives review, and costs a \emph{safety} rather than merely a
+security property---and that an ablation with a fair baseline is sufficient to find it
 (Sections~\ref{sec:results} and~\ref{sec:discussion}).
 
-\item \textbf{A compromise-indexed comparison of broker-side authorization against
-application-layer authentication.} Five arms vary the per-client ACL and the secret the
-adversary holds. Neither control dominates: the ACL contains a compromised device credential
-and fails against a compromised controller, the MAC does the reverse, a shared credential
-collapses the ACL to the no-ACL case, and only the layered configuration survives every
-compromise tested. The comparison also yields a negative result we did not anticipate---under
-key compromise the replay counter locks the legitimate owner out entirely
-(Section~\ref{sec:acl}).
+\item \textbf{A response-time decomposition that found a defect nothing else could.}
+Decomposing the safety loop's worst-case response time shows the blocking term is identically
+zero by construction, the loop's own work is constant-time, and the residual is a single
+composite hardware quantity---reducing four unknowns to one and identifying exactly what a
+measurement must isolate. In doing so it exposed an unbounded drain in the safety path that had
+survived 120 host checks, 3{,}000{,}000 sanitizer-backed fuzz iterations, 9{,}300 adversarial
+trials and exhaustive model checking (Section~\ref{sec:timing}).
 
-\item \textbf{A parameter sensitivity analysis that corrected our own design.} Sweeping the
-deauthentication detector's threshold and window against a model of benign management-frame
-traffic showed that our initial threshold of eight fired spuriously in 79.9\% of benign
-ten-minute runs at a realistic busy-network rate. We revised the firmware default to twelve,
-which reduces this to 0.25\% while still detecting every attack rate swept
+\item \textbf{An ablation separating three properties that are routinely conflated.} One
+adversary, one system, one seed set, eleven configurations. Availability, integrity and the
+safety function fail independently: a rate limiter costs 41\% of operator commands while buying
+integrity nothing, a static token does the reverse, a transport-only configuration is a strong
+baseline exactly as long as broker credentials hold, and only a counter-bound MAC provides
+both. Sweeping the deauthentication detector over the same harness also corrected our own
+firmware default, which fired spuriously in 79.9\% of benign ten-minute runs
 (Section~\ref{sec:results}).
 
-\item \textbf{A complete, reproducible artifact.} Firmware, specifications, harnesses, analysis
-scripts and figure sources are public. Results regenerate byte-identically from committed seeds,
-and continuous integration re-runs the formal verification and a reduced adversarial campaign on
-every commit.
+\item \textbf{A compromise-indexed comparison of broker authorization against application-layer
+authentication, validated against a real broker.} Neither control dominates: a per-client ACL
+contains a compromised device credential and fails against a compromised controller; a MAC does
+the reverse; a shared credential collapses the ACL entirely; only the layered configuration
+survives every compromise tested. All eight scenarios were reproduced against Mosquitto 2.0.18
+with TLS and per-client ACLs, which agreed with the model in every case. The comparison also
+yields a negative result we did not anticipate: under key compromise the monotonic replay
+counter locks the legitimate owner out of the system entirely
+(Sections~\ref{sec:acl} and~\ref{sec:brokerval}).
 
-\item \textbf{A response-time decomposition that bounds three of four interference
-terms by construction.} We decompose the safety loop's worst-case response time into its own
-computation, blocking, interrupt interference and memory contention, and show that the blocking
-term is identically zero because the safety loop acquires its only shared resource with a zero
-timeout, that the loop's own work is constant-time, and that the residual is a single composite
-hardware quantity. This reduces the open question from four unknowns to one, and identifies
-exactly what a measurement must isolate (Section~\ref{sec:timing}). The analysis also exposed a
-latent defect invisible to every other method we applied: an unbounded drain loop in the safety
-path, now fixed.
-
-\item \textbf{A complete, independently executable validation framework for the one claim that
-requires silicon.} Physical sensor-to-siren latency under radio-layer load cannot be established
-in simulation. We provide the instrument firmware, wiring, conditions, collection and analysis
-scripts, pre-registered statistics, and falsification criteria, so that any laboratory with two
-inexpensive boards can perform and report the measurement (Section~\ref{sec:hw}). We report no
-measured latency, because we have not measured one.
+\item \textbf{A reproducible artifact with an explicit evidence taxonomy.} Firmware,
+specifications, harnesses, analysis scripts and figure sources are public, and results
+regenerate byte-identically from committed seeds. Every number is labelled by evidence category,
+no physical quantity is reported that was not measured, and we document four harness defects
+that produced plausible but wrong numbers---two of which flattered the conclusion the experiment
+was built to support.
 \end{enumerate}
+
+The isolation design itself (core pinning, bounded non-blocking queues, a zero-timeout status
+snapshot, and the TLA+ specification of the resulting argument, mutation-tested and verified
+under a network task given no fairness assumption) is described in Sections~\ref{sec:design}
+and~\ref{sec:formal}. We present it as the system under study rather than as a contribution:
+each element is standard real-time practice, and prior work has already measured task lateness
+on this SoC under on-chip network load~\cite{behnke2020}.
 
 \subsection{Scope and honesty of claims}
 
@@ -273,6 +263,26 @@ measures whether the victim's \emph{application} continues to meet its deadline.
 et al.~\cite{esp32c3re2025} reverse-engineer the closed-source ESP32-C3 Wi-Fi driver for static
 worst-case \emph{energy} analysis, confirming that the driver is opaque and analysable only with
 substantial effort, but do not address timing or task interference.
+
+\subsection{Finding defects in embedded firmware}
+
+Fuzzing is the dominant automated technique for embedded firmware, and Yun et
+al.~\cite{fuzzsurvey2022} survey the field. The hard problem is execution: firmware expects
+peripherals that a fuzzer does not have, so recent work concentrates on rehosting. Bley et
+al.~\cite{pemu2025} deduce the protocols a firmware image speaks and synthesise well-formed
+packets so that fuzzing reaches past the parser into deeper logic, and Tharindu et
+al.~\cite{sysfuss2026} fuzz at the system level rather than per-peripheral. Our fuzzing is far
+more modest: a single command parser, exercised under sanitizers against host stubs, with no
+rehosting at all. We report it as a check on the parser rather than as a contribution to
+fuzzing.
+
+The relevance here is negative, and it motivates Section~\ref{sec:timing}. Three million
+sanitizer-backed iterations over that parser found nothing, and neither did the test suite, the
+adversarial campaign or exhaustive model checking---yet an unbounded drain sat in the safety
+path throughout. Techniques that execute the system can only find defects the system's own
+execution exposes. The two defects reported in this paper were found instead by examining the
+system's \emph{assumptions}: one by response-time decomposition, one by ablation against a fair
+baseline.
 
 \subsection{Security and verification on the ESP32 application stack}
 
@@ -779,6 +789,10 @@ The campaign and fuzzing pipeline has been verified to regenerate its summary fi
 byte-identically from the committed seeds.
 
 \subsection{Metrics}
+
+Table~\ref{tab:metrics} defines every metric reported in Section~\ref{sec:results}. Two of them
+changed during this work after the harness defects described in Section~\ref{sec:threats}, so
+we state their definitions precisely rather than relying on their names.
 
 \begin{table}[t]
 \centering\small
@@ -1457,11 +1471,12 @@ measurement completed, by us or by others.
 formal analysis, investigation, data curation, writing (original draft, review and editing),
 visualisation.
 
-\noindent\textbf{Data availability.} All data reported here are generated deterministically from
-fixed seeds by scripts in the public repository. Aggregate results and the raw per-trial records
-for the ablation and sensitivity experiments are committed; the campaign's per-trial records
-regenerate identically by running the provided script. No third-party or human-subject data were
-used.
+\noindent\textbf{Data availability.} All data reported here are generated deterministically
+from fixed seeds by scripts in the public repository. Aggregate results and the raw per-trial
+records for the ablation, sensitivity and broker access-control experiments are committed; the
+campaign's per-trial records regenerate identically by running the provided script. The broker
+testbed generates throwaway keys and a password file on each run, which are deliberately not
+committed. No third-party or human-subject data were used.
 
 \noindent\textbf{Code availability.} Firmware, formal specifications, experiment harnesses,
 analysis scripts and figure sources are publicly available under the MIT licence. Continuous
@@ -1471,13 +1486,15 @@ integration re-runs the formal verification and a reduced adversarial campaign o
 device or system was attacked or tested. The repository publishes no attack-generation procedure
 or tooling.
 
-\section*{Acknowledgements}
+\section*{Declaration of generative AI and AI-assisted technologies in the writing process}
 
-\noindent\textbf{Use of AI-assisted tools.} An AI assistant was used for drafting assistance,
-documentation, code review and literature discovery. All research claims, experimental designs,
-results and conclusions are the author's own. Every result reported here was produced by the
-committed scripts and verified by the author, and every reference was checked against its
-publisher or preprint record.
+\noindent During the preparation of this work the author used an AI assistant for drafting
+assistance, documentation, code review and literature discovery. After using this tool the
+author reviewed and edited the content as needed and takes full responsibility for the content
+of the publication. All research claims, experimental designs, results and conclusions are the
+author's own; every result reported here was produced by the committed scripts and verified by
+the author, and every reference was checked against its publisher, proceedings or preprint
+record.
 
 \begin{thebibliography}{99}
 \small
