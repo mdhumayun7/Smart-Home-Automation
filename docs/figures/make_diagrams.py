@@ -149,7 +149,7 @@ def architecture():
                         "between them")
     f.lines(550, 28, [
         "ESP32 firmware v2.2.0: the safety logic runs on core 1, all networking on core 0.",
-        "The two share nothing but two bounded queues.",
+        "They share only two bounded queues and one mutex-guarded status snapshot.",
     ], size="small")
 
     # ---------------- sensing
@@ -175,40 +175,48 @@ def architecture():
            bold=True)
 
     # core 1
-    f.box(48, 270, 556, 512, fill=SAFETY, dash="7 5")
+    f.box(48, 270, 532, 512, fill=SAFETY, dash="7 5")
     f.text(62, 294, "Core 1: safety loop (Arduino loop task)", size="body", anchor="start",
            bold=True)
     f.text(62, 314, "never blocks, watchdog-supervised, works offline",
            size="small", anchor="start", fill=MUTED)
-    f.box(60, 328, 532, 88, fill="#FFFFFF")
-    f.text(326, 352, "1. Input conditioning", size="body", bold=True)
-    f.lines(326, 374, ["debounce 40 ms on the door and the button",
+    f.box(60, 328, 508, 88, fill="#FFFFFF")
+    f.text(314, 352, "1. Input conditioning", size="body", bold=True)
+    f.lines(314, 374, ["debounce 40 ms on the door and the button",
                        "PIR: 10 s warm-up, 150 ms confirm"], size="small")
-    f.box(60, 432, 532, 154, fill="#FFFFFF")
-    f.text(326, 456, "2. State machine", size="body", bold=True)
-    f.lines(326, 478, [
+    f.box(60, 432, 508, 154, fill="#FFFFFF")
+    f.text(314, 456, "2. State machine", size="body", bold=True)
+    f.lines(314, 478, [
         "DISARMED \u2192 EXIT_DELAY 10 s \u2192 ARMED",
         "ARMED + motion or door \u2192 ENTRY_DELAY 10 s",
         "ENTRY_DELAY expires \u2192 ALARM 30 s \u2192 ARMED",
         "button arms and disarms; remote: ARM, DISARM, STATUS",
         "armed state kept in NVS across power cuts",
     ], size="small")
-    f.box(60, 602, 532, 88, fill="#FFFFFF")
-    f.text(326, 626, "3. Output driver", size="body", bold=True)
-    f.lines(326, 648, ["buzzer tone 2.7 kHz, two LEDs,",
+    f.box(60, 602, 508, 88, fill="#FFFFFF")
+    f.text(314, 626, "3. Output driver", size="body", bold=True)
+    f.lines(314, 648, ["buzzer tone 2.7 kHz, two LEDs,",
                        "OLED refresh every 250 ms (4 Hz)"], size="small")
 
     # the two queues: the only shared state
-    f.box(618, 400, 124, 76, fill=SHARED)
-    f.text(680, 424, "Command", size="body", bold=True)
-    f.lines(680, 446, ["queue", "4 deep"], size="small")
-    f.box(618, 520, 124, 96, fill=SHARED)
-    f.text(680, 544, "Event", size="body", bold=True)
-    f.lines(680, 566, ["queue", "16 deep", "drop oldest"], size="small")
-    f.arrow([(756, 438), (744, 438)], sw=2.2)
-    f.arrow([(616, 438), (604, 438)], sw=2.2)
-    f.arrow([(604, 568), (616, 568)], sw=2.2)
-    f.arrow([(744, 568), (756, 568)], sw=2.2)
+    f.box(594, 400, 152, 76, fill=SHARED)
+    f.text(670, 424, "Command", size="body", bold=True)
+    f.lines(670, 446, ["queue, 4 deep"], size="small")
+    f.box(594, 520, 152, 96, fill=SHARED)
+    f.text(670, 544, "Event", size="body", bold=True)
+    f.lines(670, 566, ["queue, 16 deep", "drop oldest"], size="small")
+    # The third shared object. The asymmetric mutex timeout is the isolation mechanism: the
+    # safety loop takes it with timeout 0 and gives up rather than wait, so the network task
+    # can never hold it long enough to delay the alarm.
+    f.box(594, 652, 152, 96, fill=SHARED)
+    f.text(670, 676, "Status", size="body", bold=True)
+    f.lines(670, 698, ["snapshot 500 ms", "safety: 0 ms", "network: 10 ms"], size="small")
+    f.arrow([(756, 438), (748, 438)], sw=2.2)
+    f.arrow([(592, 438), (580, 438)], sw=2.2)
+    f.arrow([(580, 568), (592, 568)], sw=2.2)
+    f.arrow([(748, 568), (756, 568)], sw=2.2)
+    f.arrow([(580, 700), (592, 700)], sw=2.2)
+    f.arrow([(748, 700), (756, 700)], sw=2.2)
 
     # core 0
     f.box(756, 270, 296, 512, fill=NETWORK, dash="7 5")
@@ -228,7 +236,7 @@ def architecture():
                        "heartbeat every 30 s"], size="small")
 
     # ---------------- local outputs
-    f.arrow([(326, 690), (326, 822)], sw=2.2)
+    f.arrow([(314, 690), (314, 822)], sw=2.2)
     f.box(36, 822, 596, 168, fill=OUTPUT, dash="4 3")
     f.text(50, 846, "LOCAL OUTPUTS", size="head", anchor="start", bold=True)
     for x, title, rows in (
@@ -242,7 +250,7 @@ def architecture():
 
     # ---------------- outside the device
     f.arrow([(904, 790), (904, 860)], sw=2.2)
-    f.text(904, 812, "Wi-Fi, MQTT 1883 / 8883 TLS", size="small", fill=MUTED)
+    f.text(892, 812, "Wi-Fi, MQTT 1883 / 8883 TLS", size="small", anchor="end", fill=MUTED)
     f.box(652, 822, 412, 346, fill=EXTERNAL, dash="2 4")
     f.text(666, 846, "NETWORK AND USER SIDE", size="head", anchor="start", bold=True)
     f.box(664, 860, 388, 132, fill="#FFFFFF")
@@ -462,11 +470,11 @@ def command_sequence():
          'tag = HMAC-SHA256(K, msg)[0:16]')
     step(2, 300, "MQTT broker", "networkTask", "deliver on  .../cmd")
 
-    selfnote(xs["networkTask"], 318, 76, "parse and verify   (core 0)",
-             ["parse <VERB>:<ctr>:<hex-tag>",
-              "recompute tag, compare ct_equal"], "network")
+    selfnote(xs["networkTask"], 318, 76, "verify on core 0",
+             ["parse VERB:ctr:tag",
+              "recompute tag, ct_equal"], "network")
 
-    selfnote(xs["networkTask"], 410, 76, "rejected here, never enqueued",
+    selfnote(xs["networkTask"], 410, 76, "rejected, not enqueued",
              ["bad tag -> cmd_badmac", "unsigned -> cmd_unauth",
               "malformed -> dropped silently"], "output", dash="5 4")
 
@@ -475,16 +483,16 @@ def command_sequence():
     step(4, 575, "cmdQ", "safety loop", "xQueueReceive(cmdQ, &m, 0)",
          "zero timeout: never waits")
 
-    selfnote(xs["safety loop"], 600, 58, "freshness:  1001 > cmdCounter ?",
-             ["else cmd_replay, no state change"], "safety")
+    selfnote(xs["safety loop"], 600, 58, "fresh: ctr > counter",
+             ["else cmd_replay"], "safety")
 
     step(5, 695, "safety loop", "NVS", "persistCounter(1001)",
          "committed BEFORE acting")
     step(6, 756, "NVS", "safety loop", "committed", dash="4 3")
 
     selfnote(xs["safety loop"], 778, 76, "authorise and execute",
-             ["m.authed is true -> disarm()",
-              "state := DISARMED, 150 ms beep"], "safety")
+             ["m.authed -> disarm()",
+              "DISARMED, 150 ms beep"], "safety")
 
     step(7, 876, "safety loop", "networkTask", "event: disarmed  (via eventQ)", dash="4 3")
     step(8, 916, "networkTask", "MQTT broker", "publish event + retained state", dash="4 3")
@@ -554,16 +562,17 @@ def deployment():
     f.box(60, 370, 400, 110, fill=MID)
     f.text(260, 396, "Peripherals", size="head", bold=True)
     f.lines(260, 418, [
-        "PIR HC-SR501 (GPIO 13)  ·  door reed switch (GPIO 14)  ·  button (GPIO 27)",
-        "buzzer (GPIO 23)  ·  LEDs (GPIO 25, 26)  ·  SSD1306 OLED (I2C 21/22)",
-        "LD2410 mmWave radar (GPIO 33) — optional, fusion modes only",
+        "PIR HC-SR501 (GPIO 13)  ·  door reed (GPIO 14)",
+        "button (GPIO 27)  ·  buzzer (GPIO 23)",
+        "LEDs (GPIO 25, 26)  ·  OLED (I2C 21/22)",
+        "LD2410 radar (GPIO 33): optional, fusion only",
     ], size="small")
 
     # broker + HA
     f.box(540, 90, 250, 120, fill=NETWORK)
     f.text(665, 118, "MQTT broker", size="head", bold=True)
     f.lines(665, 140, [
-        "events, commands,", "Last Will, retained state", "OPTIONAL: alarm works offline",
+        "events, commands,", "Last Will, retained state", "alarm works offline",
     ], size="small")
 
     f.box(540, 240, 250, 110, fill=NETWORK)
@@ -628,7 +637,7 @@ def methodology():
     f.box(60, 90, 220, 90, fill=MID)
     f.text(170, 118, "Research question", size="head", bold=True)
     f.lines(170, 138, [
-        "Does core pinning isolate", "the safety function when the",
+        "Does core pinning isolate", "the safety function if the",
         "on-die radio is attacked?",
     ], size="small")
 
@@ -644,19 +653,19 @@ def methodology():
     routes = [
         ("Formal", ["2 TLA+ models, TLC", "25 and 660 states", "mutation-tested"], "COMPLETE", MID),
         ("Simulation", ["6,000 seeded trials", "0 attacker disarms", "0 violations"], "COMPLETE", MID),
-        ("Fuzzing", ["3,000,000 iterations", "ASan + UBSan", "0 accepted inputs"], "COMPLETE", MID),
-        ("Hardware", ["Conditions A-D", "latency distributions", "apparatus built"], "NOT RUN", LIGHT),
+        ("Fuzzing", ["3,000,000 runs", "ASan + UBSan", "0 accepted"], "COMPLETE", MID),
+        ("Hardware", ["Conditions A-D", "latency spread", "apparatus built"], "NOT RUN", LIGHT),
     ]
     for i, (name, rows, status, fill) in enumerate(routes):
-        x = 350 + i * 185
+        x = 346 + i * 185
         dash = "6 4" if status == "NOT RUN" else None
-        f.box(x, 150, 165, 140, fill=fill, dash=dash)
-        f.text(x + 82, 178, name, size="head", bold=True)
-        f.lines(x + 82, 200, rows, size="small")
-        f.text(x + 82, 268, status, size="small", bold=True)
+        f.box(x, 150, 175, 140, fill=fill, dash=dash)
+        f.text(x + 87, 178, name, size="head", bold=True)
+        f.lines(x + 87, 200, rows, size="small")
+        f.text(x + 87, 268, status, size="small", bold=True)
         # The four routes are INDEPENDENT, not sequential: the gap fans out to each
         # via a shared bus, so no arrow ever runs from one route to the next.
-        f.arrow([(315, 240), (315, 120), (x + 82, 120), (x + 82, 150)], dash=dash)
+        f.arrow([(315, 240), (315, 120), (x + 87, 120), (x + 87, 150)], dash=dash)
     f.arrow([(280, 240), (315, 240)], head=False)
 
     f.box(350, 330, 710, 90, fill=LIGHT)
@@ -669,11 +678,12 @@ def methodology():
     f.arrow([(617, 290), (617, 330)])
     f.arrow([(802, 290), (802, 330)])
 
-    f.box(350, 450, 710, 80, fill=LIGHT, dash="6 4")
+    f.box(350, 450, 710, 100, fill=LIGHT, dash="6 4")
     f.text(705, 478, "What remains open", size="head", bold=True)
     f.lines(705, 500, [
-        "TIMING isolation: a property of the silicon, the interrupt controller and the closed-source",
-        "radio driver. It cannot be simulated, and no latency number is claimed anywhere.",
+        "TIMING isolation: a property of the silicon, the interrupt",
+        "controller and the closed-source radio driver. It cannot be",
+        "simulated, and no latency number is claimed anywhere.",
     ], size="small")
     f.arrow([(987, 290), (987, 450)], dash="6 4")
     return f
@@ -717,7 +727,7 @@ def experimental_setup():
 
     for x, title, rows in (
         (80, "Fuzzer (E4)",
-         ["3,000,000 iterations", "seed 7, 6 input classes", "ASan + UBSan"]),
+         ["3,000,000 runs", "seed 7, 6 input classes", "ASan + UBSan"]),
         (308, "Broker testbed (E6)",
          ["real Mosquitto 2.0.18", "TLS, per-client ACLs", "8 scenarios"]),
     ):

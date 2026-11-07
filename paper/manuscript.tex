@@ -323,7 +323,7 @@ passes review without warning, and converts the known principle into the loss of
 \emph{safety} property in a system whose central claim is that the safety function stays live
 under attack.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{Positioning against the closest work. Deadline degradation on this chip family has
 already been measured; what remains open is whether the only mitigation available on stock
@@ -410,7 +410,7 @@ of command-path defences is uninformative unless one asks what each defence cost
 assumption fails, and because omitting them would leave the ablation resting on a transport
 baseline whose security we had never tested. Table~\ref{tab:threats} states them.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{Adversary scenarios. A is the primary threat model; B through E are extended
 compromise analyses reported separately and never used to support a claim about the design.}
@@ -468,13 +468,15 @@ meaning $L \le L_{\max}$; and the delivery of notifications, which is best-effor
 The design places the safety function on $C_{s}$ and all network activity on $C_{n}$, and permits
 exactly three channels between them. Figure~\ref{fig:arch} shows the arrangement.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{architecture.pdf}
 \caption{System architecture. The safety domain on core~1 owns the state machine, sensing and
 actuation; the network domain on core~0 owns Wi-Fi, MQTT and command authentication. The two
-communicate only through two bounded queues and a status snapshot guarded by a zero-timeout
-mutex.}
+communicate only through two bounded queues and a status snapshot guarded by a mutex that the
+safety loop takes with a zero timeout and the network task with a 10\,ms timeout, so the
+network side can never hold it long enough to delay the alarm. Every pin, timeout and queue
+depth shown is transcribed from \texttt{smart\_home.ino}.}
 \label{fig:arch}
 \end{figure}
 
@@ -527,7 +529,7 @@ In the chosen order the worst case is that a counter value is consumed without t
 executing, which fails safe: a legitimate sender increments and retries, while an adversary gains
 nothing.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{command_flow.pdf}
 \caption{Command execution across the two cores. Parsing and tag verification complete on core~0,
@@ -676,7 +678,7 @@ asserted for the safety step alone:
 Table~\ref{tab:properties} lists the verified properties. TLC explored 2{,}686 states, 660 of
 them distinct, to a graph depth of 26, with no violation.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{Properties verified by TLC. Both specifications are mutation-tested; see
 Section~\ref{sec:vacuity} for a property that was vacuous in the shipped specification.}
@@ -769,7 +771,7 @@ framework versions. The security features added in the hardened configuration co
 approximately 3\,kB of flash and 170\,bytes of RAM. We emphasise that this is a static measure:
 no CPU-time or energy cost has been measured, and both remain open.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{Build cost, as reported by the compiler in continuous integration. Static sizes only;
 no run-time or energy cost has been measured.}
@@ -827,7 +829,7 @@ Table~\ref{tab:metrics} defines every metric reported in Section~\ref{sec:result
 changed during this work after the harness defects described in Section~\ref{sec:threats}, so
 we state their definitions precisely rather than relying on their names.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{Evaluation metrics and their definitions.}
 \label{tab:metrics}
@@ -861,7 +863,7 @@ Table~\ref{tab:accounting} reconciles every count reported in this paper against
 raw data, so that a reader can check the totals rather than take them on trust. Each row names
 the file the count is derived from.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{Trial accounting. Every figure is derived from the named committed artefact; no count
 in this paper is stated independently of these files.}
@@ -941,16 +943,17 @@ TLS, credentials leaked        & 1250/1250        & 250/250        & 246        
 \end{tabular}
 \end{table*}
 
-\begin{figure*}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{ablation_results.pdf}
 \caption{Command-path ablation across the three properties it separates. (a) The safety function
 holds in every design except the leaked-credential arm; bars give the point estimate and whiskers
 the 95\,\% Wilson interval. (b) Only the rate limiter harms operator availability. (c)
 Capture-and-replay defeats every design except TLS with credentials held and the MAC with a
-monotonic counter.}
+monotonic counter. Six designs, 300 trials each on identical seeds; $n = 300$ per bar in (a)
+and (c), and 1{,}250 operator attempts per bar in (b).}
 \label{fig:ablation}
-\end{figure*}
+\end{figure}
 
 The result separates three properties that are easily conflated. A rate limiter cannot
 distinguish a legitimate command from a flood, so it discards both: it admits 59.0\,\% of
@@ -1015,18 +1018,22 @@ TLS + ACL + HMAC & controller credential and command key & yes & 50/300 & \textb
 \end{tabular}
 \end{table*}
 
-\begin{figure*}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{acl_architecture.pdf}
-\caption{Per-client topic permissions as modelled, and which compromise each control contains.
-Some identity must hold write on the command topic or the alarm cannot be commanded, so which
-identity the adversary steals decides the outcome. The MAC fails under the one compromise the
-ACL survives, because the command key resides in the same flash image as the device's broker
-credentials.}
+\caption{Per-client topic permissions, and which compromise each control contains. The matrix
+is the one the ablation models and the one written as a Mosquitto \texttt{acl\_file} for the
+broker experiment of Section~\ref{sec:brokerval}; the broker usernames there are
+\texttt{operator} and \texttt{device}. Some identity must hold write on the command topic or
+the alarm cannot be commanded, so which identity the adversary steals decides the outcome. The
+two controls fail in opposite directions: a flash dump yields the device credential and the
+command key together and the access-control list still refuses that identity, while a
+compromised controller host yields a credential the list must permit together with the key, and
+neither layer refuses it.}
 \label{fig:aclarch}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{credential_matrix.pdf}
 \caption{Safety-function activation and operator availability under each combination of
@@ -1034,7 +1041,7 @@ controls and compromised secret. No single control survives every row, and neith
 layered configuration: it withstands every single-secret compromise and a device flash dump,
 and falls to a compromised controller host.}
 \label{fig:credential}
-\end{figure*}
+\end{figure}
 
 Table~\ref{tab:withstands} states the result for the layered configuration directly, because
 an earlier draft of this paper claimed it ``survives every case'' and that was wrong. It
@@ -1042,7 +1049,7 @@ survives every compromise of a \emph{single} secret, and it survives the combine
 that a flash dump produces, because the access-control list denies the device identity
 permission to publish commands. It does not survive a compromised controller host.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{What the layered configuration (TLS + per-client ACL + HMAC with a counter)
 withstands. 300 trials per row.}
@@ -1107,7 +1114,7 @@ that---every denied publish in Table~\ref{tab:broker} was acknowledged. Each sce
 decided instead by whether a subscriber holding the device's identity actually received the
 message, which is also how the real firmware would learn of it, namely not at all.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{Access-control scenarios against Mosquitto 2.0.18 with TLS and per-client ACLs.
 Testbed measurement. Scenario letters match the threat model in Section~\ref{sec:model}.}
@@ -1170,7 +1177,7 @@ normal operation during roaming, idle timeout, load balancing and reboot; at 60 
 representing a busy multi-access-point environment, a threshold of eight fired spuriously in
 79.9\% of ten-minute runs. Table~\ref{tab:sensitivity} gives the trade-off surface.
 
-\begin{table}[t]
+\begin{table}[htbp]
 \centering\small
 \caption{Detector sensitivity. False-positive rate is measured at 60 benign frames per minute;
 detection latency is the median at the stated attack rate. The deployed configuration is shown
@@ -1244,12 +1251,15 @@ the siren line. The measuring clock is therefore never the clock under load, whi
 a device cannot credibly measure its own latency while that latency is the quantity being
 perturbed.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{experimental_setup.pdf}
-\caption{Experimental setup. (A) The simulation harness used for all results reported in this
-paper. (B) The hardware rig, specified and built but not yet run, in which a second
-microcontroller serves as an independent measuring instrument across four load conditions.}
+\caption{Experimental setup. (A) Everything that has been run and that this paper reports:
+the host simulation harness (E1--E5) and the real-broker testbed (E6), which is a live
+Mosquitto instance and not a simulation. Counts are reproduced from the committed artefacts
+listed in Table~\ref{tab:accounting}. (B) The hardware rig, specified and built but not yet
+run, in which a second microcontroller serves as an independent measuring instrument across
+four load conditions. No number anywhere in this paper comes from panel~(B).}
 \label{fig:setup}
 \end{figure}
 
@@ -1333,7 +1343,7 @@ order. A rate limiter inverts this: it decides by arrival order, which an attack
 
 \subsection{A compile-time guard that encodes an unsound inference}
 
-\begin{figure*}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{guard_decision.pdf}
 \caption{The compile guard before and after. Both branches of the original guard reach the
@@ -1343,19 +1353,22 @@ publisher authority. The repair removes the unsound branch rather than adding a 
 the research baseline reaches the same outcome only through an explicit acknowledgement macro.
 Transcribed from the preprocessor conditions and from \texttt{handleCommands}.}
 \label{fig:guard}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{security_paths.pdf}
 \caption{Where broker credentials decide admission and where the command key decides authority.
 Under \texttt{AUTH\_COMMANDS} an adversary holding leaked broker credentials but not the command
-key is rejected and the alarm still fires in all 300 trials; with the removed guard the tag
-check is short-circuited and the same adversary disarms the system. The control, identical in
+key is rejected and the alarm still fires in all 300 trials; an adversary who has taken the
+controller host holds both a permitted credential and the key, so both layers pass the command
+and the alarm fires in only 50 of 300. With the removed guard the tag check is short-circuited
+and an adversary holding only leaked credentials disarms the system. The control, identical in
 both builds, shows an adversary without credentials refused at the broker. Every relationship
-drawn is taken from the implementation; the counts are measured.}
+drawn is taken from the implementation; the counts are measured, from
+\texttt{ablation.jsonl}.}
 \label{fig:security}
-\end{figure*}
+\end{figure}
 
 The leaked-credential arm fails for a reason worth stating precisely, because the defect is not
 in a cryptographic primitive but in a build condition. The firmware permitted unauthenticated
