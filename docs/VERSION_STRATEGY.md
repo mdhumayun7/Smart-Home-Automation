@@ -10,9 +10,9 @@ today.
 
 ## Version A — the hardware-timing paper
 
-**Title:** keep the current one, *Isolating the Safety Function on a Single-Chip Wi-Fi SoC*,
-**only if conditions A–C are measured.** Otherwise the title names a property the paper does
-not establish.
+**Title:** *Isolating the Safety Function on a Single-Chip Wi-Fi SoC*, **only if conditions
+A–C are measured.** That title named a property the paper does not establish, so it has been
+removed from the manuscript; it becomes available again only with the measurement behind it.
 
 **Claim.** That pinning the safety task to the application core, combined with bounded
 non-blocking queues and a zero-timeout status snapshot, keeps sensor-to-siren latency invariant
@@ -49,9 +49,11 @@ Nothing else is missing.
 
 ## Version B — the verification-assumptions paper
 
-**Proposed title:** *Unverified Assumptions in Embedded Safety Firmware: Configuration
-Defects, a Vacuous Invariant, and What Cheap Falsification Finds*. Several variants are
-plausible; what matters is that the title names assumptions and falsification, not timing.
+**Title, now selected and applied:** *Unverified Assumptions in Embedded Safety Firmware:
+Configuration, Specification and Response-Time Defects in an MQTT Alarm System*. The three
+nouns in the subtitle name the three defects, one per kind of assumption, and none of them
+implies a measured timing quantity. The evaluation of this and four other candidates is in
+[TITLE_ASSESSMENT.md](TITLE_ASSESSMENT.md).
 
 **Claim.** That a security property asserted in build configuration, and a timing property
 asserted in design, are both unverified claims, and that each can be falsified by a method

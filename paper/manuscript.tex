@@ -30,9 +30,9 @@
 \usepackage{enumitem}
 \graphicspath{{../docs/images/}{../experiments/results/}{./}}
 
-\title{\textbf{Isolating the Safety Function on a Single-Chip Wi-Fi SoC:\\
-Formal Verification, Response-Time Analysis, and a Reproducible\\
-Measurement Protocol}}
+\title{\textbf{Unverified Assumptions in Embedded Safety Firmware:\\
+Configuration, Specification and Response-Time Defects\\
+in an MQTT Alarm System}}
 
 \author{MD Humayun\\
 \small Department of Computer Science and Engineering\\
@@ -66,7 +66,11 @@ of trials against 100\% for an otherwise identical control. The principle is tex
 attack class published, so we claim no new vulnerability; the point is that a guard encoding it
 compiles silently and costs a \emph{safety} property. Separately, a response-time decomposition
 exposed an unbounded drain in the safety path that had survived every test, fuzz iteration,
-trial and model-checking run.
+trial and model-checking run. A third assumption failed in our own formal work: the invariant
+stating that unauthenticated remote disarm never takes effect was vacuous in the specification
+we shipped, because it assumed the refusal instead of deriving it. All three defects are the
+same shape---a claim asserted in configuration, in design, or in a specification, and never
+checked.
 
 The ablation further shows that availability, integrity and the safety function fail
 independently, and that broker-side authorization and application-layer authentication fail
@@ -86,8 +90,9 @@ hardware quantity outstanding, and a public framework with which any laboratory 
 inexpensive boards can measure it.
 \end{abstract}
 
-\noindent\textbf{Keywords:} embedded systems security; real-time task isolation; formal
-verification; TLA+; IoT; ESP32
+\noindent\textbf{Keywords:} embedded systems security; safety-critical firmware; MQTT;
+configuration defects; response-time analysis; specification mutation; formal verification;
+TLA+; IoT; ESP32
 
 \section{Introduction}\label{sec:intro}
 
@@ -1548,9 +1553,10 @@ synthetic arrival model; and replication on a single-core variant of the same fa
 
 \section{Conclusion}\label{sec:conclusion}
 
-We treated a consumer intrusion alarm as a safety-critical system and asked whether the one
-isolation mitigation available on its hardware---core pinning, combined with bounded queue
-discipline---is adequate when the attacked resource is the chip's own radio. Prior measurement
+We treated a consumer intrusion alarm as a safety-critical system and asked what its
+designers had assumed rather than checked. Two assumptions are near-universal on this
+hardware: that core pinning with bounded queue discipline keeps the safety task out of the
+network's way, and that a build condition is a sound place to gate a risky feature. Prior measurement
 establishes that network activity reaches a critical task on this hardware despite cross-core
 separation; what it does not establish is whether the available mitigation suffices, and it has
 not examined radio-layer load, an adversarial model, or any formal treatment.
@@ -1577,6 +1583,14 @@ and an apparatus rather than a number: a decomposition that removes three of fou
 terms by construction and names the one that remains, and a public framework with which an
 independent laboratory can measure it. We report no latency figure, because we have not
 measured one.
+
+Three defects, in three different kinds of assumption, were each found by a method that costs
+far less than the system it checks: a configuration defect by ablation, a response-time defect
+by decomposition, and a vacuous invariant by mutating the specification. None of the three
+methods is new, and we claim none of them. What the case supports is narrower and, we think,
+more useful: the assumptions a system is built on are themselves falsifiable artefacts, and
+testing the running system does not test them. Our own headline timing claim remains in that
+category, and the measurement protocol is there so that someone can falsify it too.
 
 All claims are scoped to the platform tested: the dual-core Xtensa ESP32 under arduino-esp32
 2.0.17 and 3.3.12. The artifact is public so that the results can be reproduced and the open
