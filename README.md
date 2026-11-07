@@ -404,7 +404,10 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/TIMING_ANALYSIS.md`](docs/TIMING_ANALYSIS.md) | Response-time decomposition of the safety loop: which interference terms the design eliminates by construction, which are irreducibly hardware, and the defect this analysis exposed |
 | [`docs/PUBLICATION_READINESS.md`](docs/PUBLICATION_READINESS.md) | Final readiness verdict, re-scored reviewer gate, venue evidence, and likely reviewer objections with answers |
 | [`docs/MANUSCRIPT_REVIEW.md`](docs/MANUSCRIPT_REVIEW.md) | Section-by-section verification report, fact-verification record, and the two hardware-scenario pathways with a validation checklist |
-| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (25 pages). `paper/paper.tex` is the short letters-format version |
+| [`docs/TITLE_ASSESSMENT.md`](docs/TITLE_ASSESSMENT.md) | Why the title changed, five candidates scored on six criteria, and the title-abstract-contribution alignment check |
+| [`docs/FIGURE_VALIDATION.md`](docs/FIGURE_VALIDATION.md) | Figure-by-figure validation of all eight manuscript figures: source, regeneration command, technical correctness, printed type size, vector check and caption review |
+| [`docs/CONSISTENCY_AUDIT.md`](docs/CONSISTENCY_AUDIT.md) | Eleven-point audit of the manuscript against the raw artefacts, with the command for each check and the three defects it found |
+| [`paper/manuscript.tex`](paper/) | **Full-length manuscript** (30 pages). `paper/paper.tex` is the short letters-format version |
 
 **Status in one line:** firmware, formal verification, response-time analysis, simulation
 campaign, the twelve-design ablation, sensitivity sweep, fuzzing, the access-control validation

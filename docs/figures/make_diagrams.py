@@ -1068,6 +1068,101 @@ def acl_architecture():
     return f
 
 
+def hardware_rig():
+    """The measurement rig for conditions A-D. Nothing here has been built or run.
+
+    This is a plan diagram, not a result. It exists so that an independent laboratory can
+    wire the rig from one picture, and so the manuscript's Figure 6 panel B has a detailed
+    counterpart in the repository. Pin assignments come from REPRODUCTION.md section 3.2 and
+    from experiments/hardware/latency_probe.
+    """
+    PLAN = "#F4F6F8"
+    f = Fig(1100, 782, "Hardware measurement rig for conditions A to D (not yet built)",
+            crop_top=10)
+    f.lines(550, 34, [
+        "NOT YET BUILT AND NOT YET RUN. No number in the manuscript comes from this rig.",
+    ], size="small", fill=BAD_RED)
+    f.lines(550, 58, [
+        "The device under test never times itself: the hypothesis concerns its own clock "
+        "under load, so a second board with an",
+        "independent clock timestamps both edges.",
+    ], size="small")
+
+    # device under test
+    f.box(60, 104, 400, 196, fill=PLAN, dash="2 4", sw=2.2)
+    f.text(260, 132, "Device under test", size="head", bold=True)
+    f.lines(260, 154, [
+        "ESP32-WROOM-32 DevKit (dual core)",
+        "smart_home v2.2.0, AUTH_COMMANDS=1",
+        "unmodified, not reflashed between conditions",
+    ], size="small")
+    f.box(84, 216, 160, 72, fill="#FFFFFF")
+    f.text(164, 240, "GPIO 13", size="body", bold=True, mono=True)
+    f.lines(164, 260, ["PIR input", "(or push button)"], size="small")
+    f.box(276, 216, 160, 72, fill="#FFFFFF")
+    f.text(356, 240, "GPIO 23", size="body", bold=True, mono=True)
+    f.lines(356, 260, ["buzzer output", "siren line"], size="small")
+
+    # probe
+    f.box(640, 104, 400, 196, fill=PLAN, dash="2 4", sw=2.2)
+    f.text(840, 132, "Measuring instrument", size="head", bold=True)
+    f.lines(840, 154, [
+        "second ESP32, independent clock",
+        "experiments/hardware/latency_probe",
+        "rising-edge ISR, its own hardware timer",
+    ], size="small")
+    f.box(664, 216, 160, 72, fill="#FFFFFF")
+    f.text(744, 240, "GPIO 34", size="body", bold=True, mono=True)
+    f.lines(744, 260, ["PIN_PIR_SENSE", "input only"], size="small")
+    f.box(856, 216, 160, 72, fill="#FFFFFF")
+    f.text(936, 240, "GPIO 35", size="body", bold=True, mono=True)
+    f.lines(936, 260, ["PIN_BUZZ_SENSE", "input only"], size="small")
+
+    # The three wires are routed below both boards: a straight run from GPIO 13 to GPIO 34
+    # would pass through the GPIO 23 box, which reads as a connection that does not exist.
+    f.arrow([(164, 288), (164, 326), (744, 326), (744, 288)], sw=2.2)
+    f.text(454, 318, "sensor edge  (t0)", size="small", fill=MUTED)
+    f.arrow([(356, 288), (356, 358), (936, 358), (936, 288)], sw=2.2)
+    f.text(646, 350, "siren edge  (t1)", size="small", fill=MUTED)
+    f.box(386, 384, 328, 44, fill=SHARED)
+    f.text(550, 412, "common ground  \u2014  required", size="body", bold=True)
+    f.arrow([(100, 288), (100, 406), (386, 406)], head=False)
+    f.arrow([(1000, 288), (1000, 406), (714, 406)], head=False)
+
+    # what is measured
+    f.box(60, 448, 980, 76, fill=MID)
+    f.text(550, 474, "Measured quantity:  L = t1 \u2212 t0,  the confirmed sensor edge to the "
+                     "siren line going active",
+           size="body", bold=True)
+    f.text(550, 498, "One value per trial, in microseconds, timed entirely on the probe's "
+                     "clock. Written to results_hw.csv by collect.py.",
+           size="small", fill=MUTED)
+
+    # conditions
+    f.box(60, 544, 980, 140, fill=PLAN, dash="4 3")
+    f.text(550, 570, "Four conditions, same firmware throughout",
+           size="head", bold=True)
+    for i, (c, what, iso) in enumerate([
+        ("A", "idle, broker reachable, no other traffic \u2014 the control", "none"),
+        ("B", "legitimate MQTT load: frequent STATUS, large retained payloads", "none"),
+        ("C", "high-rate publication on the device's own command topic", "none"),
+        ("D", "802.11 deauthentication and disassociation frames at the device",
+         "shielded enclosure + permission"),
+    ]):
+        y = 600 + i * 22
+        f.text(84, y, f"{c}.", size="small", anchor="start", bold=True)
+        f.text(112, y, what, size="small", anchor="start")
+        f.text(1016, y, iso, size="small", anchor="end",
+               fill=BAD_RED if c == "D" else MUTED)
+
+    f.lines(550, 714, [
+        "At least 50 samples per condition, 200 preferred: 200 detects a shift of about "
+        "0.29 standard deviations",
+        "at the pre-registered two-sided Mann\u2013Whitney U test, \u03b1 = 0.05, power = 0.80.",
+    ], size="small")
+    return f
+
+
 # ---------------------------------------------------------------- driver -----
 FIGS = {
     "architecture": architecture,
@@ -1079,6 +1174,7 @@ FIGS = {
     "security_paths": security_paths,
     "guard_decision": guard_decision,
     "acl_architecture": acl_architecture,
+    "hardware_rig": hardware_rig,
 }
 
 

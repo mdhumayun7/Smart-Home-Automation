@@ -1,0 +1,18 @@
+condition,index,latency_us
+# Data collection template for conditions A-D. Delete these comment lines before use.
+#
+# Written automatically by collect.py; this file documents the schema so a laboratory can
+# check its own output, or record by hand if it uses a logic analyser instead of the probe.
+#
+#   condition   A, B, C or D exactly. A is the control.
+#   index       0-based position within that condition, as written by collect.py.
+#   latency_us  integer microseconds from the confirmed sensor edge to the siren line going
+#               active, timed on the PROBE's clock. Never on the device under test's clock.
+#
+# One row per trial. collect.py appends, so all four conditions accumulate in one file.
+# At least 50 rows per condition; 200 is preferred (see the power table in
+# docs/HARDWARE_VALIDATION_PLAN.md).
+#
+# Example of two well-formed rows, which MUST be deleted before analysis:
+# A,0,4187
+# A,1,4203
