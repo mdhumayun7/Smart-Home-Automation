@@ -392,6 +392,7 @@ Run it all with `experiments/run.sh` and `formal/run_tlc.sh`; a reduced version 
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | Publication ethics, submission inventory, cover letter, highlights and the final QA checklist |
 | [`docs/LITERATURE_LOG.md`](docs/LITERATURE_LOG.md) | Dated search log: databases, search strings, screening decisions, and the competing work that narrowed this project's claim |
 | [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md) | Every result classified by evidence category, with seeds, runs, environment and reproduction commands, plus the seven experiments not yet run |
+| [`docs/VERSION_STRATEGY.md`](docs/VERSION_STRATEGY.md) | Two honest framings of this work, what each can claim, and which one is submittable today |
 | [`docs/CORPUS_STUDY.md`](docs/CORPUS_STUDY.md) | Whether the compile-guard pattern occurs in 135 other open-source embedded MQTT projects. It does not, and the rule that found that had to be fixed first |
 | [`docs/REVIEWER_ASSESSMENT.md`](docs/REVIEWER_ASSESSMENT.md) | Three-reviewer simulated peer review and the consolidated editorial decision |
 | [`docs/SUBMISSION_CHECKLIST.md`](docs/SUBMISSION_CHECKLIST.md) | What is verified, what blocks submission, and what only the author can resolve |
