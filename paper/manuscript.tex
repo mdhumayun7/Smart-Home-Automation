@@ -470,7 +470,7 @@ exactly three channels between them. Figure~\ref{fig:arch} shows the arrangement
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.92\textwidth]{architecture.pdf}
+\includegraphics[width=\textwidth]{architecture.pdf}
 \caption{System architecture. The safety domain on core~1 owns the state machine, sensing and
 actuation; the network domain on core~0 owns Wi-Fi, MQTT and command authentication. The two
 communicate only through two bounded queues and a status snapshot guarded by a zero-timeout
@@ -529,7 +529,7 @@ nothing.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.92\textwidth]{command_flow.pdf}
+\includegraphics[width=\textwidth]{command_flow.pdf}
 \caption{Command execution across the two cores. Parsing and tag verification complete on core~0,
 so a command flood costs the safety core no time; the replay counter is committed to
 non-volatile storage before the command is acted upon.}
@@ -1017,7 +1017,7 @@ TLS + ACL + HMAC & controller credential and command key & yes & 50/300 & \textb
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.96\textwidth]{acl_architecture.pdf}
+\includegraphics[width=\textwidth]{acl_architecture.pdf}
 \caption{Per-client topic permissions as modelled, and which compromise each control contains.
 Some identity must hold write on the command topic or the alarm cannot be commanded, so which
 identity the adversary steals decides the outcome. The MAC fails under the one compromise the
@@ -1246,7 +1246,7 @@ perturbed.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.92\textwidth]{experimental_setup.pdf}
+\includegraphics[width=\textwidth]{experimental_setup.pdf}
 \caption{Experimental setup. (A) The simulation harness used for all results reported in this
 paper. (B) The hardware rig, specified and built but not yet run, in which a second
 microcontroller serves as an independent measuring instrument across four load conditions.}
@@ -1335,7 +1335,7 @@ order. A rate limiter inverts this: it decides by arrival order, which an attack
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.95\textwidth]{guard_decision.pdf}
+\includegraphics[width=\textwidth]{guard_decision.pdf}
 \caption{The compile guard before and after. Both branches of the original guard reach the
 same outcome: a build in which any admitted \texttt{DISARM} is acted on. A signed build reaches
 it legitimately; an unsigned one reaches it through a transport test that cannot establish

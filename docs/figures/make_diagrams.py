@@ -48,7 +48,14 @@ PAL = {
     "output":    ("#FDECEC", "#C0392B"),
 }
 
-SZ = {"title": 18, "head": 15, "body": 12.5, "small": 11}
+# Type scale, in SVG user units. These are chosen against the printed page, not the screen.
+# A diagram placed at \textwidth on A4 with 1 in margins is 451 pt wide, so a 1,100-unit
+# canvas renders one user unit as 0.41 pt. At the previous scale (small = 11) the smallest
+# label printed at 4.2 pt, well under the 6 pt floor publishers set -- which no amount of
+# inspection at screen resolution reveals. experiments/check_figure_type.py measures this and
+# fails the build if any label drops below the floor; keep every canvas at or under 1,200
+# units wide, or these values stop clearing it.
+SZ = {"title": 22, "head": 19.5, "body": 17.5, "small": 16}
 
 
 def esc(s):
