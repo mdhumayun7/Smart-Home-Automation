@@ -200,7 +200,7 @@ available, so these characterise the detector's logic, not any real network.
 | 20 | 5000 | 0.0005 | 958 ms | 3852 ms | 0/500 |
 
 **This sweep changed the firmware.** The original threshold of 8 fired
-spuriously in 79.8% of benign ten-minute runs at 60
+spuriously in 1597/2000 = 79.85% of benign ten-minute runs at 60
 frames/min, which is an ordinary busy multi-AP environment. The default is
 now **12**, which fires in 0.25% of the same runs while
 still detecting every swept attack rate with no misses. The cost is about

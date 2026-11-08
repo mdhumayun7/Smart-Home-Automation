@@ -108,6 +108,37 @@ the latest, and the output is driven within that same pass by `driveOutputs`, wh
 `runStateMachine` in program order (l.1156–1160). Hence
 $L \le T_{\mathrm{conf}} + 2R$. ∎
 
+### 2.1.1 A tighter bound, and why the stage order is load-bearing
+
+Proposition 1 is loose, and once $c_{\mathrm{i2c}}$ is known (§2.3.1) the looseness is worth
+removing, because it is 24 ms wide.
+
+The loop's program order is `readInputs`, `handleCommands`, `runStateMachine`, `wifiGuardStep`,
+**`driveOutputs`**, `updateDisplay`, `copyStatusForNetwork` (l.1156–1164). The siren is asserted by
+`driveOutputs`, which runs **before** `updateDisplay`. Define
+
+- $R_{\text{full}}$ — a complete pass, including a display transaction when one is due;
+- $R_{\text{pre}}$ — the prefix from `readInputs` through `driveOutputs`, which **never** includes
+  the display transaction.
+
+**Proposition 1′.** $L \le T_{\mathrm{conf}} + R_{\text{full}} + R_{\text{pre}}$.
+
+*Proof.* In the worst case the predicate becomes true immediately after `readInputs` of some pass.
+That pass must finish, costing at most $R_{\text{full}}$. The next pass then observes the edge and
+asserts the siren at `driveOutputs`, costing at most $R_{\text{pre}}$. ∎
+
+This is tighter than $T_{\mathrm{conf}} + 2R$ by one display transaction, because only the
+*interrupted* pass can contain one. With $R_{\text{pre}}$ microsecond-scale and
+$R_{\text{full}} \approx 24.5$ ms plus interference:
+
+$$L \lesssim 150 + 24.5 + \varepsilon + 2(I_{\mathrm{isr}} + I_{\mathrm{mem}})
+       \approx 175\ \text{ms} + \text{interference}.$$
+
+**The stage order is therefore load-bearing for the latency bound.** Moving `updateDisplay` before
+`driveOutputs` — an edit with no visible effect — would add a second display transaction to the
+worst case and cost roughly 24.5 ms of latency. Nothing in the code records this, and it is exactly
+the class of undocumented assumption this work is about. It belongs in a comment at the call site.
+
 The factor 2 is an upper bound arising from phase: under a uniform phase assumption the
 expectation is $T_{\mathrm{conf}} + 1.5R$. **This is an expectation under an assumed phase
 distribution, not a measurement.**
@@ -147,9 +178,35 @@ Write $C_{\mathrm{own}} = c_0 + D_c\,c_{\mathrm{cmd}} + [\text{display pass}]\,c
 where $c_0$ bounds the constant stages, $c_{\mathrm{cmd}}$ one dequeue-and-dispatch, and
 $c_{\mathrm{i2c}}$ one display transaction.
 
-**$c_0$, $c_{\mathrm{cmd}}$ and $c_{\mathrm{i2c}}$ are not quantified.** Doing so needs
-measurement or a cycle-accurate Xtensa model, and neither exists here. They remain symbolic
-throughout, and the display term is the largest and the first thing a measurement should target.
+### 2.3.1 $c_{\mathrm{i2c}}$ derived by arithmetic, and it dominates
+
+$c_{\mathrm{i2c}}$ **can** be bounded without hardware, from the bus clock and the transfer
+length, and doing so changes the analysis materially.
+
+From source: `Adafruit_SSD1306 display(128, 64, &Wire, -1)` (l.338) and
+`Wire.setClock(400000)` (l.1079). `Adafruit_SSD1306::display()` writes the entire framebuffer.
+
+| Quantity | Value |
+|---|---|
+| Framebuffer | $128 \times 64 / 8 = 1024$ bytes |
+| I²C chunks of 32 bytes | 32 |
+| Per chunk: address byte + `0x40` data-mode byte | $32 \times 2 = 64$ bytes |
+| Bytes on the wire | 1088 |
+| Bit-times at 9 per byte (8 data + ACK) | 9792 |
+| **At $f_{\mathrm{scl}} = 400$ kHz** | **$c_{\mathrm{i2c}} = 24.48$ ms** |
+| At 100 kHz, had the clock not been raised | 97.92 ms |
+
+This neglects START/STOP conditions and any clock stretching, so it is a lower bound on the
+transaction and the true figure is slightly larger.
+
+**$c_{\mathrm{i2c}} = 24.48$ ms dominates $C_{\mathrm{own}}$ by more than an order of
+magnitude.** Every other stage is tens of GPIO operations and constant arithmetic — microseconds.
+So on a display pass, $C_{\mathrm{own}} \approx 24.5$ ms; on every other pass it is small. The
+display term is not merely "the largest"; it is essentially the whole of $C_{\mathrm{own}}$.
+
+$c_0$ and $c_{\mathrm{cmd}}$ remain symbolic: bounding them needs a cycle-accurate Xtensa model or
+a measurement, and both are microsecond-scale against a 24.48 ms term, so they do not affect any
+conclusion below.
 
 ### 2.4 $B = 0$, with the argument stated exactly
 
@@ -196,7 +253,7 @@ published.
 
 ---
 
-## 3. A conditional deadline theorem
+## 3. A conditional deadline condition (a budget decomposition)
 
 The useful result available without hardware is a **sufficient condition**, stated so that the
 unmeasured quantity appears exactly once and the condition becomes a measurement target.
@@ -210,11 +267,33 @@ unmeasured quantity appears exactly once and the condition becomes a measurement
   \bar{I}$. **This is an assumption, not a derivation.** $\bar{I}$ is symbolic and no numerical
   value is assigned to it anywhere.
 - **(T4)** $\tau_s$ is the only task pinned to core 1, so it suffers no task-level preemption —
-  only ISR-level.
+  only ISR-level. **This is an assumption about the build and it is not verified here, which is a
+  weakness.** It is true of the *application* tasks: the firmware creates exactly one task of its
+  own, `networkTask`, and pins it to core 0 (l.1149), while `loop()` runs in the framework's
+  `loopTask`, pinned to core 1 by the arduino-esp32 default. It is **not** true that core 1 is
+  otherwise empty: the SDK maintains a per-core idle task, and an inter-processor-call task, on
+  each core. The idle task cannot preempt $\tau_s$ because it runs at the lowest priority. The
+  IPC task runs at a high priority and *can* preempt, but only while another core is executing a
+  cross-core call, which this firmware never issues directly. Framework timer and event tasks have
+  affinities set by SDK configuration that this work did not audit.
+
+  Confirming (T4) needs a task-list dump from a running device — `uxTaskGetSystemState` or
+  `vTaskList` — reporting each task's core affinity and priority. That is a two-line addition to
+  the firmware and a serial capture, and it is listed in the hardware runbook as a prerequisite
+  measurement rather than claimed as done. **Until then, (T4) should be read as "no application
+  task preempts $\tau_s$", which is established, rather than "nothing preempts $\tau_s$", which is
+  not.**
 
 ### 3.2 Theorem
 
-**Theorem 1 (conditional deadline satisfaction).** Under (T1)–(T4),
+> **On the status of this result.** It is presented as a *budget decomposition*, not dignified as a
+> theorem. With $B = 0$ established and both remaining terms assumed bounded, the inequality below
+> follows immediately from its own hypotheses, and the rearrangement into a feasibility condition is
+> algebra. Its value is organisational — it collapses every design-controlled quantity into one
+> symbol and isolates the hardware dependence in another — not mathematical. The substantive
+> results in this document are Propositions 3–6, and Proposition 5 in particular.
+
+**Proposition 7 (conditional deadline satisfaction).** Under (T1)–(T4),
 $$R \le \bar{C} + \bar{I},$$
 and consequently
 $$L \le T_{\mathrm{conf}} + 2(\bar{C} + \bar{I}).$$
@@ -229,7 +308,7 @@ gives the stated condition. ∎
 
 ### 3.3 Interpretation, and the limit of the result
 
-**What the theorem gives.** A single scalar feasibility test. Every design-controlled quantity has
+**What it gives.** A single scalar feasibility test. Every design-controlled quantity has
 been collapsed into $\bar{C}$, the blocking term is gone, and the entire hardware dependence sits
 in $\bar{I}$. An engineer with a deadline $L_{\max}$ and a measurement of $\bar{I}$ can decide
 feasibility without re-deriving anything.
@@ -239,7 +318,7 @@ $(L_{\max} - 150)/2$ ms. The confirmation window, not the loop, dominates the la
 useful structural observation: $T_{\mathrm{conf}}$ is a design parameter the application chooses,
 while $\bar{I}$ is not.
 
-**What the theorem does not give, stated plainly.**
+**What it does not give, stated plainly.**
 
 1. It is **conditional**. (T3) assumes the per-pass interference bound it needs. The theorem
    converts "does the design meet its deadline?" into "is $\bar{I}$ small enough?", which is
@@ -247,14 +326,14 @@ while $\bar{I}$ is not.
 2. It yields **no number**. $\bar{C}$ and $\bar{I}$ are symbolic, so no feasibility verdict is
    reached here.
 3. It is **not** an experimentally validated real-time guarantee. A real-time guarantee requires a
-   measured or certified WCET on the target. This is a conditional mathematical statement whose
-   hypothesis is unverified on hardware.
+   measured or certified WCET on the target. This is a conditional statement whose hypothesis is
+   unverified on hardware.
 4. (T3) is **exactly what the hardware experiment measures.** Conditions A–D estimate the
    distribution of $I_{\mathrm{isr}} + I_{\mathrm{mem}}$ under four load levels; the theorem is
    what makes that measurement decisive rather than merely descriptive.
 
-**Distinction maintained.** Theorem 1 is a *conditional mathematical guarantee*. The project has
-*no experimentally validated real-time guarantee*, and none is claimed anywhere.
+**Distinction maintained.** Proposition 7 is a *conditional mathematical statement*. The project
+has *no experimentally validated real-time guarantee*, and none is claimed anywhere.
 
 ---
 
@@ -325,8 +404,13 @@ $$\frac{1 + D_c}{P} \;>\; \frac{D_e}{P_n}.$$
 With $D_c = 4$, $D_e = 4$, $P_n = 20$ ms, the condition is $5/P > 0.2$ per ms, i.e.
 $$P < 25\ \text{ms}.$$
 
-**This condition is met.** The loop's trailing `delay(2)` alone gives $P \ge 2$ ms, and
-$P \approx \delta_s + C_{\mathrm{own}}$ is far below 25 ms in any plausible case. So in the worst
+**This condition is met on all but one pass in 125.** The loop's trailing `delay(2)` gives
+$P \ge 2$ ms, and on a non-display pass $P \approx \delta_s + C_{\mathrm{own}} \approx 2$ ms,
+far below the 25 ms threshold. The exception is the display pass: by §2.3.1 it costs
+$2 + 24.48 \approx 26.5$ ms, which is *above* the threshold, so a display pass is the one pass
+during which the network side can get ahead of the producer. Since the display refreshes once per
+$T_{\mathrm{oled}} = 250$ ms and a non-display pass takes about 2 ms, roughly one pass in 125 is
+of this kind, and the service deficit of the other 124 dominates. So in the worst
 case — a sustained adversarial command flood where every dequeued command is rejected and every
 rejection emits an event — **the event queue is driven into sustained overflow**, and the
 drop-oldest policy of (A4) is not an edge case but the operating regime.
@@ -416,15 +500,27 @@ found by asking what bounds each stage, and finding that one stage had no answer
 ### 6.1 Deadline feasibility boundary
 
 The condition is $\bar{C} + \bar{I} \le (L_{\max} - T_{\mathrm{conf}})/2$. With
-$T_{\mathrm{conf}} = 150$ ms:
+$T_{\mathrm{conf}} = 150$ ms, and now with $\bar{C} \approx c_{\mathrm{i2c}} = 24.48$ ms from
+§2.3.1:
 
-| $L_{\max}$ (ms) | Budget for $\bar{C} + \bar{I}$ (ms) |
-|---|---|
-| 160 | 5 |
-| 200 | 25 |
-| 250 | 50 |
-| 300 | 75 |
-| 500 | 175 |
+| $L_{\max}$ (ms) | Budget for $\bar{C} + \bar{I}$ (ms) | Remaining for $\bar{I}$ after $\bar{C} = 24.48$ |
+|---|---|---|
+| 160 | 5 | **none — infeasible on the display term alone** |
+| 200 | 25 | 0.5 ms |
+| 250 | 50 | 25.5 ms |
+| 300 | 75 | 50.5 ms |
+| 500 | 175 | 150.5 ms |
+
+**This is the most consequential number the analysis produces.** A 160 ms deadline is infeasible
+for this firmware *before any interference is considered*, purely because a full-frame SSD1306
+write at 400 kHz occupies the safety loop for 24.48 ms. At a 200 ms deadline the design has about
+half a millisecond of interference budget, which no amount of core pinning will protect. Only at
+250 ms and beyond does the interference term have room to be the interesting quantity.
+
+The remedy is a design change the analysis points straight at: move the display refresh off the
+safety task, or write it in chunks across passes. Neither was done, because this bound was derived
+during the present revision in response to the observation that $c_{\mathrm{i2c}}$ did not need
+hardware to compute.
 
 The budget is linear in $L_{\max}$ with slope $1/2$, and $T_{\mathrm{conf}}$ consumes a fixed
 150 ms before the loop is considered at all. **Structural reading: for any plausible $\bar{C}$ and
@@ -480,13 +576,17 @@ analysis is what makes the simulation's result interpretable rather than vacuous
 | $R = C_{\mathrm{own}} + B + I_{\mathrm{isr}} + I_{\mathrm{mem}}$ | **derived**, exhaustive for this structure | no synchronous call, no blocking I/O |
 | $C_{\mathrm{own}} = O(1)$ | **derived** | (A3), display rate limit |
 | Proposition 2, $B = 0$ | **derived**, and formally verified as a logical property | (A1), (A2), (A3), **(A5)** |
-| Theorem 1, conditional deadline | **derived** | (T1)–(T4), with **(T3) assumed** |
+| Proposition 7, conditional deadline budget | **derived**, and trivially so | (T1)–(T4), with **(T3) assumed** |
 | Proposition 3, $q_c \le N_c$ | **derived** | fixed-capacity queue, zero-timeout write |
 | Proposition 4, single-pass drain | **derived** | $D_c = N_c$, enforced by `static_assert` |
 | Proposition 5, overload iff $P < 25$ ms | **derived** | verified constants $D_c, D_e, P_n$ |
 | Proposition 6, bounded and accounted overflow | **derived**, formally verified | (A4) |
 | $\partial R / \partial \lambda_{\mathrm{cmd}} = 0$ | **derived** | (A3), Proposition 3 |
-| Numerical values of $\bar{C}$, $\bar{I}$, $R$, $L$ | **UNMEASURED** | hardware |
+| $c_{\mathrm{i2c}} = 24.48$ ms, hence $\bar{C}$ | **derived by arithmetic** | bus clock and transfer length, both read from source |
+| Proposition 1′, tighter latency bound | **derived** | program order: `driveOutputs` precedes `updateDisplay` |
+| $L \lesssim 175$ ms + interference | **derived**, conditional on $\bar{I}$ | §2.1.1 with §2.3.1 |
+| Numerical values of $\bar{I}$, and hence of $R$ and $L$ | **UNMEASURED** | hardware |
+| (T4), that *nothing* preempts $\tau_s$ | **ASSUMED, not verified** | needs a task-list dump from a device |
 | Physical timing invariance | **NOT ESTABLISHED** | hardware |
 | §6 tables | **analytical illustration, hypothetical inputs** | — |
 
@@ -496,5 +596,11 @@ analysis is what makes the simulation's result interpretable rather than vacuous
    Proposition 5 an alarm event can be dropped while command-rejection events are delivered.
 2. **The cooldown is load-bearing for the arrival bound**, not merely for usability. Tuning the
    detector to report more often would invalidate §4.3.
-3. **$\bar{C}$ is unquantified**, so Theorem 1 cannot be evaluated even if $\bar{I}$ were measured.
-   Quantifying $c_{\mathrm{i2c}}$ is the cheapest single measurement that would improve this.
+3. **The display refresh runs on the safety task and costs 24.48 ms**, which is more than ten
+   times the rest of the loop and makes a 160 ms deadline infeasible before interference is even
+   considered. It should be moved to the network task or chunked across passes. **Not fixed.**
+4. **The stage order is load-bearing and undocumented.** `driveOutputs` must precede
+   `updateDisplay` or the worst-case latency gains a whole display transaction (§2.1.1). Nothing in
+   the code says so. **Not fixed.**
+5. **(T4) is assumed rather than verified**, so the no-preemption claim covers application tasks
+   only.

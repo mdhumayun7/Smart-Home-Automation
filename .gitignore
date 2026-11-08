@@ -33,9 +33,13 @@ paper/*.aux
 paper/*.log
 paper/*.out
 experiments/campaign
-# Campaign raw per-trial records: ~6000 lines x 2 builds, regenerates identically from the
-# committed seeds, so only the aggregates are tracked.
-experiments/results/campaign_*.jsonl
+# Campaign raw per-trial records ARE tracked (1.4 MB for both builds). They were previously
+# excluded on the grounds that they regenerate identically from the committed seeds -- which is
+# true, and was verified again in the 2026 revision when the full 6,000-trial campaign was re-run
+# and every trial outcome reproduced. But "regenerates" is not "available": excluding them meant
+# the campaign could not be re-analysed without re-running it, while the ablation and sensitivity
+# raw records were tracked for exactly the opposite reason. Simulated peer review flagged the
+# inconsistency and it is fixed.
 # The ablation and sensitivity raw records ARE tracked: they are small (316K and 20K) and
 # keeping the raw measurements, not just the aggregates, is part of the evidence rules.
 !experiments/results/ablation.jsonl

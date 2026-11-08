@@ -443,7 +443,12 @@ def main():
         old = benign.get((8, 2000, 60.0))
         if dep and old:
             L.append("**This sweep changed the firmware.** The original threshold of 8 fired")
-            L.append(f"spuriously in {old['fp_rate']:.1%} of benign ten-minute runs at 60")
+            # 1597/2000 = 0.7985 is an exact tie at one decimal place, which Python's
+            # round-half-even renders 79.8% and a round-half-up convention renders 79.9%. The
+            # manuscript and this document disagreed for that reason alone. Reporting the count
+            # alongside two decimals removes the ambiguity instead of picking a convention.
+            L.append(f"spuriously in {old['fired']}/{old['runs']} = {old['fp_rate']:.2%} "
+                     "of benign ten-minute runs at 60")
             L.append("frames/min, which is an ordinary busy multi-AP environment. The default is")
             L.append(f"now **12**, which fires in {dep['fp_rate']:.2%} of the same runs while")
             L.append("still detecting every swept attack rate with no misses. The cost is about")

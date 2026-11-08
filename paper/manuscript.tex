@@ -44,29 +44,26 @@ in an MQTT Alarm System}}
 
 \begin{abstract}
 \noindent
-Consumer intrusion alarms run on single-chip Wi-Fi systems-on-chip, where the radio driver,
-the network stack and the safety application share one die, one scheduler and one interrupt
-controller. Engineers mitigate this by pinning the safety task to its own core and by gating
-risky features behind build configuration. Both are assertions, and neither is normally
-checked.
+Consumer intrusion alarms run on single-chip Wi-Fi systems-on-chip, where the radio driver, the
+network stack and the safety application share one die, scheduler and interrupt controller. Engineers mitigate this by pinning the safety task to its own core and gating risky features
+behind build configuration. Both are assertions, and neither is normally checked.
 
-We treat an ESP32 alarm as a case study and falsify both. Three defects emerged, each in a
-different kind of assumption, each found by a method cheaper than the system it checks. A
-compile-time guard accepted TLS plus a broker login as evidence of publisher authority: under
-one leaked credential the alarm fires in 16.7\% of 300 trials (95\% Wilson 12.9--21.3) against
-100\% for the control. A response-time decomposition exposed an unbounded command drain that
-9{,}600 adversarial trials, 3{,}000{,}000 fuzz iterations and exhaustive model checking had
-all passed. Our own invariant forbidding unauthenticated remote disarm proved vacuous in the
-specification we shipped.
+We treat an ESP32 alarm as a case study and falsify both. Three defects emerged in different
+kinds of assumption, each found by a method cheaper than the system it checks. A compile-time guard
+accepted TLS plus a broker login as evidence of publisher authority: under one leaked credential
+the alarm fires in 16.7\% of 300 trials (95\% Wilson 12.9--21.3) against 100\% for the control. A response-time decomposition exposed an unbounded command drain that 9{,}600 adversarial
+trials, 3{,}000{,}000 fuzz iterations and exhaustive model checking had all passed. Our own
+invariant forbidding unauthenticated remote disarm was vacuous in the specification we shipped.
 
-A twelve-configuration ablation shows availability, integrity and the safety function failing
-independently: a rate limiter costs 41\% of operator commands and buys integrity nothing.
+A twelve-configuration ablation shows availability, integrity and the safety function fail
+independently: a rate limiter buys integrity nothing and costs 41\% of operator commands,
+admitting none at one attack rate and all at another.
 Broker access control and message authentication fail under different compromises, confirmed
-against a live Mosquitto broker. A compromised controller host holding a permitted credential
-and the command key defeats the layered configuration and locks the owner out.
+against a live broker. A compromised controller holding a permitted credential and the command key defeats the layered
+configuration and locks the owner out.
 
-These results establish \emph{logical} isolation only. Physical timing invariance is a
-property of the silicon and a closed-source radio driver, and no latency figure is reported.
+These results establish \emph{logical} isolation only. Physical timing invariance is a property
+of silicon and a closed-source driver; no latency figure is reported.
 \end{abstract}
 
 \noindent\textbf{Keywords:} embedded systems security; MQTT; configuration defects;
@@ -165,7 +162,7 @@ safety function fail independently: a rate limiter costs 41\% of operator comman
 integrity nothing, a static token does the reverse, a transport-only configuration is a strong
 baseline exactly as long as broker credentials hold, and only a counter-bound MAC provides
 both. Sweeping the deauthentication detector over the same harness also corrected our own
-firmware default, which fired spuriously in 79.9\% of benign ten-minute runs
+firmware default, which fired spuriously in 1{,}597 of 2{,}000 benign ten-minute runs (79.85\%)
 (Section~\ref{sec:results}).
 
 \item \textbf{A compromise-indexed comparison of broker authorization against application-layer
@@ -430,6 +427,15 @@ E$'$ & controller credential + command key & \textbf{remote} & \S\ref{sec:acl}, 
 \end{tabular}
 \end{table}
 
+\textbf{What we assume is trustworthy, stated so that no result is read beyond it.} Two components
+are trusted throughout and neither appears as a scenario above. The \emph{broker} is assumed to
+enforce its own policy faithfully: the entire access-control argument rests on it, so no result in
+this paper survives a malicious or compromised broker---which in a home deployment is often a
+third-party cloud service or an unpatched single-board computer, and is therefore a realistic
+omission rather than a theoretical one. The \emph{controller host} is likewise assumed intact;
+scenario E$'$ is precisely what happens when that assumption fails, and the layered configuration
+does not survive it. We also assume the vendor radio stack is not itself the adversary.
+
 Scenarios B, C and D remain \emph{remote}: broker credentials are bearer tokens, commonly
 shared across every client in a deployment and stored in plaintext in a configuration header,
 so an adversary can obtain one without ever touching the device. Such an adversary connects to
@@ -508,7 +514,15 @@ $m = \texttt{VERB}\,\|\,\text{``:''}\,\|\,c$ for counter $c$, the transmitted ta
 \label{eq:tag}
 \end{equation}
 where $\mathrm{HMAC}$ follows RFC~2104 and truncation to 16 octets is permitted by its
-Section~5, giving a forgery probability of $2^{-128}$ per attempt. A command is accepted iff
+Section~5, giving a forgery probability of $2^{-128}$ per attempt. The choice of 16 rather than 8
+or 32 octets follows from the command rate: the broker and the device together admit at most a few
+hundred commands per second, so even a sustained $10^{3}$ attempts per second for a decade is
+$\approx 2^{38}$ trials, leaving a forgery probability near $2^{-90}$. An 8-octet tag
+($2^{-64}$ per attempt) would leave $\approx 2^{-26}$ over the same period, which we judged too
+close for a safety function; 32 octets would double the tag on a wire format that must fit an MQTT
+payload alongside a verb and a counter, for no reachable gain. We note that this reasoning is
+analytical: the fuzzing campaign cannot corroborate it, because zero forgeries in three million
+attempts is the expected outcome at any of these lengths. A command is accepted iff
 \begin{equation}
 \mathrm{ct\_eq}\!\left(\tau, \tau'\right) \;\wedge\; c > c_{\text{stored}},
 \label{eq:accept}
@@ -600,14 +614,44 @@ network side and cannot delay the safety side. This is precisely the property
 snapshot may be skipped, which is acceptable because the snapshot feeds notification, which is
 best-effort, while the siren is driven from state the safety loop owns outright.
 
-\textbf{$C_{\mathrm{own}}$ is constant-time.} Every stage of the loop performs $O(1)$ work.
-Neither queue can block, both being accessed with a zero timeout; the command drain is bounded by
-the queue capacity; the display stage, which dominates $C_{\mathrm{own}}$ because it performs an
-I\textsuperscript{2}C transaction, is rate-limited to once per 250\,ms. The deauthentication
+\textbf{$C_{\mathrm{own}}$ is constant-time, and one stage dominates it.} Every stage of the loop
+performs $O(1)$ work. Neither queue can block, both being accessed with a zero timeout; the command
+drain is bounded by the queue capacity; the display stage is rate-limited to once per 250\,ms.
+
+That stage dominates $C_{\mathrm{own}}$, and its cost follows from the bus clock and the transfer
+length without needing a device. The firmware drives a 128$\times$64 SSD1306 at
+$f_{\mathrm{scl}} = 400$\,kHz, and the driver writes the whole framebuffer: 1{,}024 bytes of pixels
+plus an address and a data-mode byte for each of 32 chunks, so 1{,}088 bytes, at nine bit-times
+each, is 9{,}792 bit-times. Hence
+\begin{equation}
+c_{\mathrm{i2c}} \;=\; \frac{9{,}792}{400\,\mathrm{kHz}} \;=\; 24.48\ \mathrm{ms},
+\label{eq:i2c}
+\end{equation}
+neglecting START and STOP conditions and any clock stretching, so slightly optimistic. Every other
+stage is tens of GPIO operations and constant arithmetic---microseconds. So on a display pass
+$C_{\mathrm{own}} \approx 24.5$\,ms and on every other pass it is negligible.
+
+This figure changes what the analysis says, and we derived it only when asked why a term that needs
+no hardware had been left symbolic. Two consequences follow. First, the latency bound tightens:
+because \texttt{driveOutputs} precedes \texttt{updateDisplay} in program order, only the
+\emph{interrupted} pass can contain a display transaction, so
+$L \le T_{\mathrm{conf}} + R_{\mathrm{full}} + R_{\mathrm{pre}}$ where $R_{\mathrm{pre}}$ is the
+prefix up to the siren and excludes the display, giving $L \lesssim 175$\,ms plus interference
+rather than the $T_{\mathrm{conf}} + 2R$ of~\eqref{eq:latency}. The stage order is therefore
+load-bearing for the deadline: swapping two adjacent calls, an edit with no visible effect, would
+cost roughly 24.5\,ms. Nothing in the code records this. Second, a 160\,ms deadline is
+\textbf{infeasible for this firmware before any interference is considered}, and at 200\,ms the
+design has about half a millisecond of interference budget, which no amount of core pinning
+protects. The remedy---move the refresh off the safety task, or chunk it across passes---is a
+design change this analysis points at and we have not made.
+
+The deauthentication
 detector could in principle emit one event per observed frame; it does not, because the cooldown
 in~\eqref{eq:deauth} admits at most one report per 10\,s. Without that cooldown a radio flood
 would become an event flood and the bound would fail, so the cooldown is a timing mechanism as
-much as a usability one.
+much as a usability one---a coupling an engineer tuning the detector's responsiveness would not
+expect, and one that the detector's own section (Section~\ref{sec:results}) therefore
+cross-references here.
 
 \textbf{The residual.} $I_{\mathrm{isr}}$ and $I_{\mathrm{mem}}$ cannot be bounded from source.
 The Wi-Fi driver is closed-source; Mudraje et al.~\cite{esp32c3re2025} required substantial
@@ -743,6 +787,28 @@ dependency can block the safety step. It says nothing about contention for share
 is a property of the implementation rather than the model. Model checking here bounds the logical
 design space; it does not substitute for measurement.
 
+Coverage should be stated quantitatively rather than left to be reconstructed. The two
+specifications abstract a five-state machine with a command counter, and a seven-variable model of
+two tasks and their queues, out of a 1{,}166-line firmware. Modelled: the state transitions,
+authenticated command acceptance, counter monotonicity, unauthenticated remote disarm as a build
+parameter, queue bounds, drop accounting, and the safety task's enabledness under an adversarial
+network. Not modelled: the HMAC computation, which is instead checked differentially against an
+independent implementation; the command parser, which is fuzzed; non-volatile storage and its
+failure modes; the detector arithmetic, which is swept; sensor fusion, the display, the MQTT client
+and ESP-NOW; and \emph{execution time}, which neither model represents at all. The correct summary
+is that selected properties of a bounded abstraction were checked exhaustively---not that the
+firmware was verified.
+
+One bound deserves its own justification. The counter space is bounded at
+\textsc{MaxCtr}~$= 4$, and the counter is the mechanism behind both the replay resistance and the
+owner lockout, so a reader is entitled to ask whether a monotonicity property established over
+five values transfers to a 32-bit counter. It does, by data independence: no action in the
+specification inspects the counter's \emph{value}, only the predicate $c > c_{\text{stored}}$ and
+the successor relation, so the reachable control structure is identical for any bound $\ge 2$ and
+enlarging \textsc{MaxCtr} adds states that are isomorphic to those already explored. We verified
+the state count is as expected at the chosen bound rather than proving the isomorphism mechanically,
+which is the weaker of the two available assurances.
+
 \section{Implementation}\label{sec:impl}
 
 The firmware comprises approximately 1{,}100 lines of C++ for the main application, together
@@ -825,7 +891,11 @@ which describes the binary rather than the device executing it.
 blocks, delays or corrupts the safety path, and no forged, stale or malformed command is
 accepted. \emph{Testable by model checking and simulation.}
 \item[H2 (timing isolation).] $F_{\Lambda} \stackrel{d}{=} F_{0}$ for radio-layer load $\Lambda$
-across the operating range. \emph{Requires hardware; not tested here.}
+across the operating range. \emph{Not a hypothesis of this study.} It is untestable with the
+evidence available here, so we state it as the pre-registered hypothesis of the future experiment
+in Section~\ref{sec:hw} rather than list it among the claims this paper evaluates. It appears here
+because the design was built to satisfy it and the reader should know what the design was aiming
+at.
 \end{description}
 
 Given~\cite{behnke2020}, we do not expect H2 to hold exactly. The informative question is the
@@ -954,6 +1024,12 @@ latency is the same constant in every trial; a test on two constant-valued sampl
 satisfied and carries no information. The pre-registered test for the hardware measurement,
 should it be performed, is stated in Section~\ref{sec:hw} and was committed before any data
 existed.
+
+The twelve arms are fixed in \texttt{ablation.cpp} and the two comparisons are computed in
+\texttt{analyse\_ablation.py}, both committed before the reported analysis, so ``pre-declared'' is
+checkable from the repository history rather than taken on trust. We hold no pre-registration
+document for the simulation work---only for the hardware protocol of Section~\ref{sec:hw}---and we
+do not imply otherwise.
 
 Because every arm is a fixed, pre-declared configuration rather than a selected subset, and
 because the comparisons reported are the ones the design questions dictate, we apply no
@@ -1194,6 +1270,14 @@ that---every denied publish in Table~\ref{tab:broker} was acknowledged. Each sce
 decided instead by whether a subscriber holding the device's identity actually received the
 message, which is also how the real firmware would learn of it, namely not at all.
 
+\textbf{What this experiment is, and is not.} It is a \emph{conformance check of one mechanism}:
+it establishes that Mosquitto's per-client authorisation behaves as our arms model it. It is not a
+security evaluation of a deployment. The testbed is loopback with one client active at a time, so
+it excludes concurrent clients, retained-message interactions, session takeover by duplicate
+client identifier, QoS~2 flows, bridging and \texttt{\$SYS} exposure---several of which are the
+usual ways real MQTT deployments are broken. No conclusion here should be read as a statement about
+deployed systems.
+
 One point of traceability, so that a reader checking the artefact is not misled. The run we report
 as scenario E$'$ is recorded in \texttt{broker\_acl.jsonl} under the identifier
 \texttt{E-control}, because we designed it as a methodological control: its purpose was to show
@@ -1275,7 +1359,7 @@ The detector's threshold and window had a stated rationale but no measurement. S
 threshold of eight was wrong. Access points emit deauthentication and disassociation frames in
 normal operation during roaming, idle timeout, load balancing and reboot; at 60 frames per minute,
 representing a busy multi-access-point environment, a threshold of eight fired spuriously in
-79.9\% of ten-minute runs. Table~\ref{tab:sensitivity} gives the trade-off surface.
+1{,}597 of 2{,}000 ten-minute runs, 79.85\%. Table~\ref{tab:sensitivity} gives the trade-off surface.
 
 \begin{table}[htbp]
 \centering\small
@@ -1404,6 +1488,18 @@ concern. Adding them would raise the contribution count without evidence to supp
 
 \section{Corpus Analysis and Generalizability}
 \label{sec:corpus}
+
+\textbf{What this section contributes, stated first, because the counts are not it.} The
+generalisation attempt returned a null result: the precise rule found the pattern in none of the
+135 projects. We report that as a zero and make no prevalence claim. The reusable contribution is
+the \emph{instrument and its validation}---a labelled control set including our own pre-repair
+guard and its repair, and a documented polarity defect that made the rule's first zero
+meaningless---rather than the number of hits. A reader looking for a prevalence finding will not
+find one here; a reader wanting to build such a rule will find what it takes to know whether theirs
+works. One limit is structural rather than methodological: our rule matches a syntactic shape,
+while the defect is an unsound \emph{inference}. The same inference written differently---in a
+build system, a runtime configuration check, or a comment-justified default---is invisible to it.
+That bounds the generalisation attempt more tightly than corpus bias does.
 
 The defect of Section~\ref{sec:config} is one defect in one codebase, and a single
 self-reported finding is an anecdote until it is shown to generalise. We therefore built a
@@ -1557,6 +1653,38 @@ invalid commands is discarded without ever occupying a queue slot. The queue the
 capacity for the one valid command, and admission is decided by validity rather than arrival
 order. A rate limiter inverts this: it decides by arrival order, which an attacker controls.
 
+\subsection{Credential separation, not list syntax, carries the protection}
+
+One reading of the matrix is worth making explicit because it is easy to invert. A shared
+credential defeats the access-control list entirely: the list must grant the single identity write
+access to the command topic for the system to function, so the configuration collapses to the
+no-list case. \emph{Credential separation, not the list's syntax, is what carries the protection},
+and scenario~B---one credential reused across every client---is the most likely real-world
+configuration of the eight we tested and the one a deployment is most likely to have. We keep
+scenario~E's treatment separate from it nonetheless, because E is the only scenario requiring
+physical access and conflating the two would obscure the cost asymmetry that is this section's
+point.
+
+\subsection{A counter-bound MAC is not a sound design without key management}
+
+The ablation's headline reading---only the counter-bound MAC holds all three
+properties---should not be taken as an endorsement of the construction as deployed here, and two of
+our own results say why.
+
+This firmware has \textbf{no key rotation, no revocation and no counter resynchronisation}. Those
+absences are not incidental: they are the direct cause of both negative results. The owner lockout
+happens because there is no authenticated path to reset a counter the adversary has advanced, and
+scenario E$'$ is unrecoverable because a key known to be compromised cannot be retired. A reader who
+takes the counter-bound MAC and omits key management inherits both failures and has no remedy for
+either.
+
+The defensible statement is narrower than the table suggests: \emph{under the assumption that the
+key remains secret and the controller host is intact}, a counter-bound MAC holds availability,
+integrity and the safety function together, and the alternatives do not. Once either assumption
+fails, the construction needs machinery this firmware does not have. Designing that machinery for a
+device with no secure element, no clock and 1{,}024 bytes of usable non-volatile storage is the
+open problem our results point at, and we do not solve it.
+
 \subsection{Relationship to prior measurement}
 
 Our work complements rather than contradicts~\cite{behnke2020}. They established that on-chip
@@ -1591,8 +1719,30 @@ and the campaign was re-run from scratch after each correction. None affected th
 disarm results, which are read from directly observed events carrying explicit source tags
 rather than inferred. We record them because three of the four produced entirely plausible
 numbers, and the first was detected only because results were broken out by attack rate rather
-than aggregated. The residual threat is that the host models and the firmware share an author,
-so a common misconception would be invisible to both.
+than aggregated.
+
+A fifth instance surfaced during final preparation, in the analysis code rather than the harness.
+Our campaign analysis ran a Mann--Whitney $U$ test of latency against the no-attack control and
+printed the verdict ``indistinguishable'' for every attack rate. Because the harness advances a
+logical clock, every observation in both samples is the same constant, so the statistic has zero
+variance and the test cannot reject under \emph{any} data. A test that cannot fail has not found
+agreement. The summary document did carry the caveat in prose, but the machine-readable artefact
+did not, so a tool or a reader consuming it would have taken the verdict at face value. Both the
+campaign analysis and the pre-registered hardware analysis now return and label the degenerate
+case; the statistical method is unchanged. We record this because it is the vacuity failure of
+Section~\ref{sec:vacuity} occurring in our own measurement of the property the paper is about.
+
+\textbf{Five such findings in our own artefacts is itself a datum, and it cuts both ways.} Each
+repair is now accompanied by a control that would fail if the defect recurred, which is why we
+report the remaining results with confidence. But the honest extension of our own argument is to
+say which parts still have \emph{no} such control, and three do not. The host stub models have no
+differential check against real Arduino or FreeRTOS behaviour, so a shared misconception between
+the stubs and the firmware---which have the same author---would be invisible to both. The broker
+scenarios are adjudicated by a script reading Mosquitto's log, and nothing independently verifies
+that the script's parse matches the broker's intent. The corpus's manual adjudication of eighteen
+flagged projects was performed by one person with no second rater, so no inter-rater agreement can
+be reported. We draw no conclusion that depends on those three being correct beyond what is
+stated, and a reader should weigh them as we do.
 
 \paragraph{External validity.} Limited, and we scope our claims accordingly. All results concern
 one chip, two framework versions, one application and no deployment. We do not generalise to
