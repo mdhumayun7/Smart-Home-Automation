@@ -147,8 +147,18 @@ Expect exactly:
 | TLS+ACL+HMAC, device cred + key | 300/300 | [98.7, 100.0] | 100.0% | 0% | 0 |
 | TLS+ACL+HMAC, controller cred + key | 50/300 | [12.9, 21.3] | **0.0%** | 98% | 234 |
 
-Two Fisher exact tests, one-sided: rate limiter against the others,
-*p* = 3.53 × 10⁻¹⁸⁴; transport leaked against transport held, *p* = 9.83 × 10⁻¹¹⁹.
+**Primary tests are paired**, because all twelve arms run on the identical seed set (2000–2299)
+with the identical seed-to-attack-rate mapping. Exact one-sided McNemar on discordant pairs:
+availability at the trial level, 112 discordant pairs, *p* = 1.93 × 10⁻³⁴; transport arms, 250
+discordant pairs all in one direction, *p* = 5.53 × 10⁻⁷⁶.
+
+Clustering is also quantified: the five operator attempts in a trial share its token-bucket
+phase, so 231 of 250 rate-limiter trials admitted all five or none. ICC = 0.669, design effect
+3.68, effective sample size about 340 rather than 1,250.
+
+The superseded unpaired Fisher figures were 3.53 × 10⁻¹⁸⁴ and 9.83 × 10⁻¹¹⁹. They assume an
+independence this design does not provide; the script still prints them, labelled as a
+sensitivity analysis.
 
 Availability denominators are **1,250 operator attempts per arm**, not 300. A single attempt per
 trial measured where in the token bucket's refill cycle the attempt landed rather than the

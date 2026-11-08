@@ -347,8 +347,13 @@ Five missing DOIs & \textbf{outstanding} & \code{mcreview2026}, \code{espwn2023}
   \item \textbf{Every reported count against its raw artefact.} 6,000 campaign trials; 3,600
         ablation trials (9,600 adversarial trials in total); 3,000,000 fuzz iterations; 180
         sensitivity cells; 8 broker scenarios; 135 corpus projects; 19,529 trace transitions.
-  \item \textbf{Both Fisher $p$-values recomputed} from the raw records:
-        $3.53\times10^{-184}$ and $9.83\times10^{-119}$.
+  \item \textbf{Both primary tests recomputed} from the raw records, paired by seed as the
+        design requires: McNemar exact $1.93\times10^{-34}$ (availability, trial level) and
+        $5.53\times10^{-76}$ (transport arms). The superseded unpaired Fisher figures were
+        $3.53\times10^{-184}$ and $9.83\times10^{-119}$; the difference is the cost of having
+        treated matched arms as independent.
+  \item \textbf{Clustering quantified:} intra-cluster correlation 0.669 over five operator
+        attempts per trial, a design effect of 3.68.
   \item \textbf{The Wilson interval recomputed:} [12.9, 21.3].
   \item \textbf{All three TLC configurations re-run:} 25 and 660 distinct states, and the
         required violation in the third.

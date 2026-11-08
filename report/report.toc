@@ -103,17 +103,17 @@
 \contentsline {section}{\numberline {8.3}E1 and E2: the adversarial campaign}{40}{section.8.3}%
 \contentsline {section}{\numberline {8.4}E3: the command-path ablation}{40}{section.8.4}%
 \contentsline {subsection}{\numberline {8.4.1}The six command-path designs}{40}{subsection.8.4.1}%
-\contentsline {subsection}{\numberline {8.4.2}Three findings}{40}{subsection.8.4.2}%
+\contentsline {subsection}{\numberline {8.4.2}Three findings}{41}{subsection.8.4.2}%
 \contentsline {section}{\numberline {8.5}Broker authorisation against message authentication}{41}{section.8.5}%
 \contentsline {subsection}{\numberline {8.5.1}The nine-cell matrix}{41}{subsection.8.5.1}%
 \contentsline {subsection}{\numberline {8.5.2}Neither control dominates}{42}{subsection.8.5.2}%
 \contentsline {subsection}{\numberline {8.5.3}An unanticipated negative result: owner lockout}{42}{subsection.8.5.3}%
 \contentsline {subsection}{\numberline {8.5.4}An overclaim found by measuring the missing arm}{42}{subsection.8.5.4}%
-\contentsline {section}{\numberline {8.6}E6: results against a live broker}{42}{section.8.6}%
+\contentsline {section}{\numberline {8.6}E6: results against a live broker}{44}{section.8.6}%
 \contentsline {section}{\numberline {8.7}E5: detector parameter sensitivity}{44}{section.8.7}%
 \contentsline {section}{\numberline {8.8}E4: fuzzing}{44}{section.8.8}%
-\contentsline {section}{\numberline {8.9}E7: the corpus study, and a negative result}{44}{section.8.9}%
-\contentsline {subsection}{\numberline {8.9.1}Rule 1 found nothing}{44}{subsection.8.9.1}%
+\contentsline {section}{\numberline {8.9}E7: the corpus study, and a negative result}{45}{section.8.9}%
+\contentsline {subsection}{\numberline {8.9.1}Rule 1 found nothing}{45}{subsection.8.9.1}%
 \contentsline {subsection}{\numberline {8.9.2}The rule was wrong at first}{45}{subsection.8.9.2}%
 \contentsline {subsection}{\numberline {8.9.3}Rule 2 and the nine confirmed projects}{45}{subsection.8.9.3}%
 \contentsline {section}{\numberline {8.10}E8 and E9: conformance and model checking}{45}{section.8.10}%

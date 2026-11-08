@@ -63,7 +63,9 @@ resolved by further work on the repository.
 | Check | Result |
 |---|---|
 | Every reported count recomputed from raw artefacts | matches (`docs/COMPLETE_RESEARCH_AUDIT.md` §2) |
-| Both Fisher *p*-values recomputed | 3.53 × 10⁻¹⁸⁴ and 9.83 × 10⁻¹¹⁹ |
+| Primary (paired) tests recomputed | McNemar exact 1.93 × 10⁻³⁴ and 5.53 × 10⁻⁷⁶ |
+| Clustering quantified | ICC 0.669, design effect 3.68, effective *n* ≈ 340 not 1,250 |
+| Superseded unpaired Fisher figures | 3.53 × 10⁻¹⁸⁴ and 9.83 × 10⁻¹¹⁹, retained as labelled sensitivity only |
 | Wilson interval recomputed | [12.9, 21.3] |
 | Figure SVGs regenerate byte-identically | yes |
 | Broker experiment re-run on a clean install | all 8 verdicts identical |

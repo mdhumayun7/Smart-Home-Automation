@@ -166,7 +166,9 @@ usability concern, and two arms show why.
 
 \textbf{The rate limiter.} A token bucket on the command path preserves the safety function and
 leaves replay resistance unchanged, and costs \textbf{41\% of legitimate operator commands}
-(737 of 1,250 admitted, Fisher exact $p = 3.5 \times 10^{-184}$). An alarm that refuses two in
+(737 of 1,250 attempts admitted; paired by seed at the trial level, McNemar exact, one-sided,
+$p = 1.9 \times 10^{-34}$). The aggregate understates the worst case: at 100\,commands/s the
+limiter admitted \textbf{0 of 250} operator attempts. An alarm that refuses two in
 five owner commands is not a secure alarm; it is a denial of service the defender installed.
 
 \textbf{Owner lockout under key compromise.} Two configurations admit \textbf{0 of 1,250}

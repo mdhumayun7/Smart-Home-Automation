@@ -141,14 +141,21 @@ limiter: an arrival that finds the bucket below the admission threshold is rejec
 consuming a token*, which pins the bucket just under the threshold and leaves enough refill for
 the next legitimate arrival.
 
-The aggregate 59% is arithmetically correct and scientifically misleading: it reads as "the
-limiter degrades availability by 41%", when the measured behaviour is "the limiter can deny the
-operator entirely at one attack rate and not at all at another". The per-rate table exists in
-`analyse_ablation.py` output and the mechanism is explained in `docs/SECURITY_ANALYSIS.md` §9, so
-this is a reporting gap in the manuscript rather than an unexamined result.
+**Correction to this finding as first written.** An earlier draft of this audit said the
+manuscript "reports only the aggregate". That was too strong and is withdrawn. The manuscript did
+state that the cost "is not monotonic in attack intensity" and did give the token-consumption
+mechanism. What it did **not** give was any per-rate figure, so a reader could not see that the
+limiter reaches a complete lockout at one rate and no cost at all at another — the disclosure was
+qualitative where the result is quantitative.
 
-**Action:** the per-rate breakdown and the mechanism must appear in the manuscript's results, not
-only the aggregate.
+The accurate finding is therefore narrower: the aggregate 59% reads as "degrades availability by
+41%", the non-monotonicity was disclosed without the numbers that make it actionable, and the
+practical consequence was not drawn — **a defender who tunes the limiter against the worst flood
+they can generate measures no availability cost at all, and meets the complete lockout in the
+field at a rate two orders of magnitude lower.**
+
+**Action taken:** the per-rate breakdown and that consequence now appear in the manuscript's
+results and in the report's Chapter 8 and Chapter 10.
 
 ### 5.2 Scenario E′ is the `E-control` run, and the manuscript does not say so
 
@@ -203,6 +210,44 @@ a `degenerate_zero_variance` flag in the JSON. The same labelling was applied to
 `experiments/hardware/analyse_hw.py`. **The statistical method is unchanged** — this alters only
 how a degenerate case is labelled, which is why it is compatible with that script's
 pre-registration.
+
+### 5.6 The reported tests assumed an independence the design does not have
+
+Found while auditing §7's statistical requirements, and the most consequential finding of the
+audit after §5.1.
+
+**The ablation is a matched-pairs design.** All twelve arms run on the identical seed set
+(2000–2299), with the identical seed-to-attack-rate mapping. Verified directly: every arm's sorted
+seed list is equal, and every arm's seed→attack-rate map is equal. The analysis script's own prose
+even says the arms are "run on identical seeds" — and then applies Fisher's exact test, which
+assumes two **independent** samples.
+
+**A second, independent problem: the availability metric is clustered.** It takes five operator
+attempts per trial, and those five share that trial's token-bucket phase. In the rate-limiter arm
+**231 of 250 trials admitted either all five attempts or none** (93 trials at 0/5, 138 at 5/5,
+only 19 mixed). The intra-cluster correlation is **0.669**, a design effect of **3.68**, so 1,250
+attempts carry the information of roughly **340** independent observations, not 1,250.
+
+Recomputed with the correct tests:
+
+| Comparison | Reported (Fisher, unpaired) | Correct (McNemar exact, paired) |
+|---|---|---|
+| Transport arms, alarm activation | 9.83 × 10⁻¹¹⁹ | **5.53 × 10⁻⁷⁶** (250 discordant pairs, all one direction) |
+| Availability, rate limit vs MAC | 3.53 × 10⁻¹⁸⁴ | **1.93 × 10⁻³⁴** (112 discordant pairs, trial level) |
+
+**Direction of the error.** Every conclusion is unchanged and every comparison remains decisive —
+a cluster-robust check gives *z* = 13.6 on a difference of 0.4104 with SE 0.0301. But the reported
+precision was overstated by roughly 43 and 150 orders of magnitude respectively. The error was
+anti-conservative: it claimed more evidence than the design provides.
+
+This is the specific failure Part 7 of the revision brief warns against — a test chosen without
+checking whether its assumptions hold, producing a very small *p*-value.
+
+**Action taken.** `mcnemar_exact` and `icc_oneway` are implemented in
+`experiments/analyse_ablation.py`, so the corrected figures are reproducible rather than computed
+by hand. McNemar is now the primary test, the clustering is quantified in the output, and Fisher is
+retained as an explicitly labelled sensitivity analysis. The manuscript's statistical-treatment
+section, the report's Chapter 8 and Chapter 10, and the reproducibility record are all updated.
 
 ### 5.5 Minor: a rounding inconsistency
 

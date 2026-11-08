@@ -14,9 +14,20 @@ than the normal approximation, because several arms sit at or near $p=0$ or $p=1
 normal interval is degenerate and can extend outside $[0,1]$. Intervals are clamped at the unit
 bounds.
 
-\textbf{Hypothesis tests.} Comparisons of two proportions use Fisher's exact test, one-sided,
-in preference to $\chi^2$: several of the $2\times2$ tables contain zero cells, where the
-$\chi^2$ approximation is not valid.
+\textbf{Hypothesis tests: the design is matched pairs.} Every arm runs on the same 300 seeds with
+the same seed-to-attack-rate mapping, so each seed yields a matched pair and only discordant pairs
+carry information. The primary test is the exact one-sided McNemar test. An earlier version of
+this report used Fisher's exact test, which assumes two independent samples --- an assumption this
+design does not satisfy, and which overstated the evidence by roughly fifty orders of magnitude in
+one comparison. Fisher figures are retained only as a labelled sensitivity analysis. $\chi^2$ is
+avoided because several tables contain zero cells.
+
+\textbf{Clustered observations.} The availability metric takes five operator attempts per trial,
+and those five share that trial's token-bucket phase: 231 of 250 rate-limiter trials admitted
+either all five or none. The intra-cluster correlation is 0.669, a design effect of 3.68, so 1,250
+attempts carry the information of about 340 independent ones. The attempt-level proportion is
+reported because it is what an operator experiences; the test is at the trial level, which is the
+independent unit.
 
 \textbf{Where no test is reported.} No hypothesis test is applied to a quantity whose variance
 is identically zero by construction. The simulation harness advances a logical clock, so the
@@ -103,14 +114,26 @@ commands}. The static token does the reverse: every operator command is admitted
 resistance is nil. Only the counter-bound message authentication code holds all three. A designer who treats
 ``security'' as one property will choose badly here.
 
-The availability difference between the rate limiter and the others is significant at Fisher's
-exact test, one-sided, $p = 3.5 \times 10^{-184}$.
+Paired by seed at the trial level, 112 pairs are discordant and all favour the authenticated
+design: McNemar exact, one-sided, $p = 1.9 \times 10^{-34}$. (Fisher, ignoring both the pairing
+and the clustering, would give $3.5 \times 10^{-184}$.)
+
+The aggregate is also the wrong summary of the limiter's own behaviour, and the per-rate figures
+are what a reader needs: 82 of 250 operator attempts admitted at 10\,commands/s, \textbf{0 of 250
+at 100\,commands/s}, 155 of 250 at 1,000, and all 250 at both 5,000 and 20,000. The cost is not
+monotonic in attack intensity and the extremes are the benign cases, because an arrival finding
+the bucket below the admission threshold is rejected \emph{without consuming a token}: an extreme
+flood pins the bucket just under the threshold and leaves enough refill for the next legitimate
+arrival. A defender who tunes the limiter against the worst flood they can generate measures no
+availability cost at all, and meets the complete lockout in the field two orders of magnitude
+lower.
 
 \textbf{Transport security alone is contingent on credential secrecy.} With credentials held,
 TLS gives 100\% alarm activation and no replay. With a single credential leaked, alarm
 activation falls to 16.7\%, 95\% Wilson [12.9, 21.3], and the adversary disarms the device in
-246 of 300 trials. The difference against the credentials-held arm is significant at
-$p = 9.8 \times 10^{-119}$.
+246 of 300 trials. Of the 300 matched pairs, 250 are discordant and every one lost the alarm when
+the credential leaked, with none gaining it: McNemar exact, one-sided,
+$p = 5.5 \times 10^{-76}$. (Fisher would give $9.8 \times 10^{-119}$.)
 
 \textbf{The alarm still firing is not the same as the system being secure.} In the
 \code{none}, \code{ratelimit} and \code{token} arms the alarm fires in all 300 trials, and all
@@ -323,8 +346,10 @@ Every value below was recomputed from the raw records during the preparation of 
 Leaked-credential alarm activation 16.7\%        & 50/300 = 16.67\%        & exact \\
 95\% Wilson interval [12.9\%, 21.3\%]            & [12.9, 21.3]            & exact \\
 Rate limiter admits 59.0\% of operator commands  & 737/1250 = 59.0\%       & exact \\
-Fisher exact, rate limiter vs others             & $3.53\times10^{-184}$   & exact \\
-Fisher exact, transport leaked vs held           & $9.83\times10^{-119}$   & exact \\
+McNemar exact (paired), availability             & $1.93\times10^{-34}$    & exact, primary \\
+McNemar exact (paired), transport arms           & $5.53\times10^{-76}$    & exact, primary \\
+Intra-cluster correlation, 5 attempts per trial  & 0.669 (design eff.\ 3.68) & exact \\
+Fisher exact, unpaired sensitivity only          & $3.53\times10^{-184}$, $9.83\times10^{-119}$ & superseded \\
 Adversary disarms in 246 of 300 trials           & 246                     & exact \\
 Owner lockout 0 of 1,250                         & 0/1250                  & exact \\
 Detector default fired in 79.9\% of benign runs  & 1597/2000 = 79.85\%     & exact \\

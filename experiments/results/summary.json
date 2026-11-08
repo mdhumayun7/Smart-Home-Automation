@@ -196,31 +196,36 @@
       "U": 125000.0,
       "z": 0.0,
       "p": 1.0,
-      "verdict": "indistinguishable"
+      "degenerate_zero_variance": true,
+      "verdict": "degenerate: zero variance, test cannot reject"
     },
     "100": {
       "U": 125000.0,
       "z": 0.0,
       "p": 1.0,
-      "verdict": "indistinguishable"
+      "degenerate_zero_variance": true,
+      "verdict": "degenerate: zero variance, test cannot reject"
     },
     "1000": {
       "U": 125000.0,
       "z": 0.0,
       "p": 1.0,
-      "verdict": "indistinguishable"
+      "degenerate_zero_variance": true,
+      "verdict": "degenerate: zero variance, test cannot reject"
     },
     "5000": {
       "U": 125000.0,
       "z": 0.0,
       "p": 1.0,
-      "verdict": "indistinguishable"
+      "degenerate_zero_variance": true,
+      "verdict": "degenerate: zero variance, test cannot reject"
     },
     "20000": {
       "U": 125000.0,
       "z": 0.0,
       "p": 1.0,
-      "verdict": "indistinguishable"
+      "degenerate_zero_variance": true,
+      "verdict": "degenerate: zero variance, test cannot reject"
     }
   }
 }

@@ -37,11 +37,11 @@ Mann-Whitney U, two-sided, each attack rate against the no-attack control.
 
 | attack rate | n(attack) | n(control) | U | z | p | verdict |
 |---|---|---|---|---|---|---|
-| 10 | 500 | 500 | 125000 | 0 | 1 | indistinguishable |
-| 100 | 500 | 500 | 125000 | 0 | 1 | indistinguishable |
-| 1000 | 500 | 500 | 125000 | 0 | 1 | indistinguishable |
-| 5000 | 500 | 500 | 125000 | 0 | 1 | indistinguishable |
-| 20000 | 500 | 500 | 125000 | 0 | 1 | indistinguishable |
+| 10 | 500 | 500 | 125000 | 0 | 1 | degenerate: zero variance, test cannot reject |
+| 100 | 500 | 500 | 125000 | 0 | 1 | degenerate: zero variance, test cannot reject |
+| 1000 | 500 | 500 | 125000 | 0 | 1 | degenerate: zero variance, test cannot reject |
+| 5000 | 500 | 500 | 125000 | 0 | 1 | degenerate: zero variance, test cannot reject |
+| 20000 | 500 | 500 | 125000 | 0 | 1 | degenerate: zero variance, test cannot reject |
 
 **Totals.** 6000 trials, 0 invariant violations, 0 attacker-caused disarms.
 

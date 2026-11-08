@@ -918,10 +918,29 @@ normal interval is known to be degenerate and can extend outside $[0,1]$. Interv
 at the unit bounds, and the implementation is duplicated independently in
 \texttt{make\_ablation\_figures.py} and \texttt{validate\_figures.py}; the two agree.
 
-\emph{Hypothesis tests.} Comparisons of two proportions use Fisher's exact test, one-sided, in
-preference to $\chi^2$: several of the $2\times2$ tables contain zero cells, where the
-$\chi^2$ approximation is not valid. Tests are computed with a stdlib-only implementation
-committed in the repository, so no external statistical package can alter a reported value.
+\emph{Hypothesis tests: the design is matched pairs, not independent samples.} Every ablation arm
+runs on the same 300 seeds with the same seed-to-attack-rate mapping, so each seed yields a
+matched pair of outcomes and only discordant pairs carry information. The primary test is
+therefore the exact one-sided McNemar test on discordant pairs. An earlier version of this work
+reported Fisher's exact test, which assumes two independent samples; that assumption does not hold
+here, and treating the arms as independent overstated the evidence by roughly fifty orders of
+magnitude in one comparison. We retain Fisher figures only as an explicitly labelled sensitivity
+analysis. Both directions of the inference are unchanged --- every comparison reported remains
+decisive --- but the precision was not ours to claim. $\chi^2$ is avoided throughout because
+several tables contain zero cells. All tests use a stdlib-only implementation committed in the
+repository, so no external statistical package can alter a reported value.
+
+\emph{Clustered observations.} The availability metric takes five operator attempts per trial, and
+those five share that trial's token-bucket phase: in the rate-limiter arm 231 of 250 trials
+admitted either all five attempts or none. The intra-cluster correlation is 0.669, a design effect
+of 3.68, so 1{,}250 attempts carry the information of roughly 340 independent ones. We report the
+attempt-level proportion because it is the quantity an operator experiences, and we test at the
+trial level, which is the independent unit.
+
+\emph{No multiplicity correction.} Twelve arms are compared and each is a fixed, pre-declared
+configuration rather than a selected subset, so we apply none. We state this so a reader can judge
+the decision rather than infer it. The reported $p$-values are far from any correction threshold,
+but that is a property of these results and not a defence of the choice.
 
 \emph{Where we do not test.} We report no hypothesis test on a quantity whose variance is
 identically zero by construction. The simulation harness advances a logical clock, so the safety
@@ -998,11 +1017,20 @@ and (c), and 1{,}250 operator attempts per bar in (b).}
 
 The result separates three properties that are easily conflated. A rate limiter cannot
 distinguish a legitimate command from a flood, so it discards both: it admits 59.0\,\% of
-operator attempts against 100\,\% for every other design (Fisher exact, one-sided,
-$p = 3.5\times10^{-184}$), while leaving integrity entirely untouched. Its cost is not monotonic
-in attack intensity, for a reason we measured rather than assumed: an arrival that finds the
-bucket below the admission threshold is rejected \emph{without consuming a token}, so an extreme
-flood pins the bucket just under that threshold while a moderate flood drives it lower. A static
+operator attempts against 100\,\% for every other design, while leaving integrity entirely
+untouched. Tested at the trial level and paired by seed, 112 pairs are discordant and all favour
+the authenticated design: McNemar exact, one-sided, $p = 1.9\times10^{-34}$.
+
+That aggregate is the wrong summary of its own result, and the per-rate figures are what the
+reader needs: the limiter admits 82 of 250 operator attempts at 10\,commands/s, \textbf{0 of 250
+at 100\,commands/s}, 155 of 250 at 1{,}000, and all 250 at both 5{,}000 and 20{,}000. The cost is
+therefore not monotonic in attack intensity, and the extremes are the benign cases. The mechanism
+is one we measured rather than assumed: an arrival that finds the bucket below the admission
+threshold is rejected \emph{without consuming a token}, so an extreme flood pins the bucket just
+under that threshold and leaves enough refill for the next legitimate arrival, while a moderate
+flood drives it lower. A defender who tunes a limiter against the worst flood they can generate
+will therefore measure no availability cost at all, and meet the complete lockout in the field at
+a rate two orders of magnitude lower. A static
 shared token leaves availability intact, because the edge filters the flood cheaply, but it
 travels in plaintext, so a single captured command defeats it. Only the monotonic counter
 prevents replay; a message authentication code alone would behave as the token row does.
@@ -1011,8 +1039,11 @@ The two transport arms isolate the one configuration in which the safety functio
 broker credentials held, TLS is a strong baseline: the adversary is refused at the broker, never
 obtains an accepted command, and the alarm fires in all 300 trials. With the same build and the
 credentials leaked, the adversary disarms the system in 246 of 300 trials and the alarm fires in
-only 50 --- 16.7\,\%, 95\,\% Wilson CI [12.9\,\%, 21.3\,\%], against 100\,\% for the control
-(Fisher exact, one-sided, $p = 9.8\times10^{-119}$). The 50 successes are exactly the trials in
+only 50 --- 16.7\,\%, 95\,\% Wilson CI [12.9\,\%, 21.3\,\%], against 100\,\% for the control.
+Of the 300 matched pairs, 250 are discordant and every one of them lost the alarm when the
+credential leaked, with none gaining it: McNemar exact, one-sided, $p = 5.5\times10^{-76}$
+(Fisher, which assumes the independence this design does not have, gives
+$9.8\times10^{-119}$). The 50 successes are exactly the trials in
 which the adversary was silent. The cause is an unsound compile-time guard, analysed in
 Section~\ref{sec:discussion}: the firmware accepted ``TLS enabled and a broker login configured'' as
 sufficient to permit unauthenticated remote disarm. It is not. The broker terminates TLS and
@@ -1156,6 +1187,15 @@ discards it. A \texttt{PUBACK} is therefore not evidence of delivery, and we obs
 that---every denied publish in Table~\ref{tab:broker} was acknowledged. Each scenario is
 decided instead by whether a subscriber holding the device's identity actually received the
 message, which is also how the real firmware would learn of it, namely not at all.
+
+One point of traceability, so that a reader checking the artefact is not misled. The run we report
+as scenario E$'$ is recorded in \texttt{broker\_acl.jsonl} under the identifier
+\texttt{E-control}, because we designed it as a methodological control: its purpose was to show
+that the signature E carries is genuinely valid and that the access-control list is what refuses
+it. The capability set is identical to a compromised controller host --- a permitted broker
+identity plus the command key --- so the same run answers both questions, and we report it as
+both. No separate run named E$'$ exists, and we name the correspondence here rather than leave it
+to be inferred.
 
 \begin{table}[htbp]
 \centering\small

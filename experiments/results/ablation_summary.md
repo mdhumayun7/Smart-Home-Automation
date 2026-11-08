@@ -82,11 +82,24 @@ The two transport arms are built from identical source with identical flags
 and run on identical seeds; the adversary's possession of a valid broker
 credential is the only variable that differs.
 
+**The arms share one seed set, so the design is matched pairs, and the
+paired test below is the primary one.** Every arm is run on the same 300
+seeds with the same seed-to-attack-rate mapping, so each seed gives a
+matched pair and only discordant pairs carry information. The Fisher
+figures that follow assume two independent samples, which this design
+does not provide; they are reported as a labelled sensitivity analysis
+only. Treating matched arms as independent overstated the evidence by
+many orders of magnitude in an earlier version of this document.
+
 - Alarm activation, credentials leaked: 50/300 (16.7 %, 95 % Wilson CI [12.9 %, 21.3 %]).
 - Alarm activation, credentials held: 300/300 (100.0 %).
-- Fisher exact test, one-sided: p = 9.827e-119.
+- **Primary test (paired, McNemar exact, one-sided):** 300 matched pairs, 250 discordant (250 lost the alarm when the credential leaked, 0 gained it), p = 5.527e-76.
+- Secondary, *assumes independence this design does not have*: Fisher exact one-sided p = 9.827e-119.
 
-- Operator availability, rate limit 737/1250 (59.0 %) against HMAC 1250/1250 (100.0 %): Fisher exact one-sided p = 3.531e-184.
+- Operator availability, rate limit 737/1250 (59.0 %) against HMAC 1250/1250 (100.0 %).
+- **Clustering.** The 5 attempts in a trial share its bucket phase: 231/250 rate-limiter trials admitted either all 5 or none. ICC = 0.669, design effect 3.68, so the effective sample size is about 340, not 1250.
+- **Primary test (paired by seed at the trial level, McNemar exact, one-sided):** 112 discordant pairs, p = 1.926e-34.
+- Secondary, *treats 1250 clustered attempts as independent and ignores the pairing*: Fisher exact one-sided p = 3.531e-184. The conclusion is unchanged; the precision is not.
 
 ### 1.3 What each control protects, by which secret the adversary holds
 

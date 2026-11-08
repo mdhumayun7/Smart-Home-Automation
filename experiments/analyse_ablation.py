@@ -56,7 +56,13 @@ def _lchoose(n, k):
 
 
 def fisher_one_sided(a, b, c, d):
-    """One-sided Fisher exact test, P(X <= a) under the hypergeometric null."""
+    """One-sided Fisher exact test, P(X <= a) under the hypergeometric null.
+
+    NOTE: Fisher assumes two INDEPENDENT samples. The ablation arms are run on an identical
+    seed set with an identical seed-to-attack-rate mapping, so the arms are MATCHED PAIRS and
+    this assumption does not hold. It is retained below only as a clearly labelled secondary
+    sensitivity analysis; mcnemar_exact is the primary test. See docs/THREATS_TO_VALIDITY.md.
+    """
     n, r1, c1 = a + b + c + d, a + b, a + c
     total = 0.0
     for x in range(0, a + 1):
@@ -64,6 +70,38 @@ def fisher_one_sided(a, b, c, d):
             continue
         total += math.exp(_lchoose(c1, x) + _lchoose(n - c1, r1 - x) - _lchoose(n, r1))
     return total
+
+
+def mcnemar_exact(b, c):
+    """Exact one-sided McNemar test on discordant pairs.
+
+    The correct test for this design: every arm is run on the same 300 seeds with the same
+    seed-to-attack-rate mapping, so each seed yields a matched pair of outcomes and only the
+    discordant pairs carry information. Under the null the discordant pairs split 50/50, so the
+    p-value is the binomial tail with n = b + c and k = min(b, c).
+    """
+    n, k = b + c, min(b, c)
+    if n == 0:
+        return 1.0
+    return sum(math.exp(_lchoose(n, i)) for i in range(0, k + 1)) / 2 ** n
+
+
+def icc_oneway(counts, m):
+    """Intra-cluster correlation of a binary outcome measured m times per cluster.
+
+    One-way ANOVA estimator. The availability metric takes m = 5 operator attempts per trial,
+    and those attempts are NOT independent: they share the trial's token-bucket phase. Reporting
+    5 * trials as the denominator of an independence-assuming test overstates precision by the
+    design effect 1 + (m - 1) * ICC, which this function supplies.
+    """
+    n = len(counts)
+    if n < 2 or m < 2:
+        return 0.0
+    pbar = sum(counts) / (n * m)
+    msb = sum((k / m - pbar) ** 2 for k in counts) * m / (n - 1)
+    msw = sum(k * (m - k) / (m - 1) for k in counts) / n
+    denom = msb + (m - 1) * msw
+    return 0.0 if denom == 0 else (msb - msw) / denom
 
 
 def load(name):
@@ -226,13 +264,36 @@ def main():
             L.append("The two transport arms are built from identical source with identical flags")
             L.append("and run on identical seeds; the adversary's possession of a valid broker")
             L.append("credential is the only variable that differs.\n")
+            L.append("**The arms share one seed set, so the design is matched pairs, and the")
+            L.append("paired test below is the primary one.** Every arm is run on the same 300")
+            L.append("seeds with the same seed-to-attack-rate mapping, so each seed gives a")
+            L.append("matched pair and only discordant pairs carry information. The Fisher")
+            L.append("figures that follow assume two independent samples, which this design")
+            L.append("does not provide; they are reported as a labelled sensitivity analysis")
+            L.append("only. Treating matched arms as independent overstated the evidence by")
+            L.append("many orders of magnitude in an earlier version of this document.\n")
             L.append(f"- Alarm activation, credentials leaked: {tl['reached_alarm']}/"
                      f"{tl['intrusion_test_valid']} "
                      f"({100 * tl['reached_alarm'] / tl['intrusion_test_valid']:.1f} %, "
                      f"95 % Wilson CI [{100 * lo:.1f} %, {100 * hi:.1f} %]).")
             L.append(f"- Alarm activation, credentials held: {tr['reached_alarm']}/"
                      f"{tr['intrusion_test_valid']} (100.0 %).")
-            L.append(f"- Fisher exact test, one-sided: p = {p:.3e}.\n")
+            # ---- PRIMARY: paired analysis, matched by seed.
+            paired = defaultdict(dict)
+            for r in ab_rows:
+                paired[r["mode"]][r["seed"]] = r
+            A, B = paired.get("transport", {}), paired.get("transport_leaked", {})
+            seeds = sorted(s for s in A if s in B
+                           and A[s].get("intrusion_test_valid")
+                           and B[s].get("intrusion_test_valid"))
+            nb = sum(1 for s in seeds if A[s]["reached_alarm"] and not B[s]["reached_alarm"])
+            nc = sum(1 for s in seeds if not A[s]["reached_alarm"] and B[s]["reached_alarm"])
+            L.append(f"- **Primary test (paired, McNemar exact, one-sided):** {len(seeds)} "
+                     f"matched pairs, {nb + nc} discordant ({nb} lost the alarm when the "
+                     f"credential leaked, {nc} gained it), "
+                     f"p = {mcnemar_exact(nb, nc):.3e}.")
+            L.append(f"- Secondary, *assumes independence this design does not have*: "
+                     f"Fisher exact one-sided p = {p:.3e}.\n")
             rl, hm = ab.get("ratelimit"), ab.get("hmac")
             if rl and hm:
                 p2 = fisher_one_sided(rl["legit_admitted_flooded"],
@@ -243,8 +304,36 @@ def main():
                          f"{rl['legit_attempts_flooded']} "
                          f"({100 * rl['legit_admitted_flooded'] / rl['legit_attempts_flooded']:.1f} %) "
                          f"against HMAC {hm['legit_admitted_flooded']}/"
-                         f"{hm['legit_attempts_flooded']} (100.0 %): "
-                         f"Fisher exact one-sided p = {p2:.3e}.\n")
+                         f"{hm['legit_attempts_flooded']} (100.0 %).")
+
+                # The m = 5 operator attempts within a trial share that trial's token-bucket
+                # phase, so they are clustered, not independent. Quantify the clustering, then
+                # test at the level of the trial, which is the independent unit.
+                RL, HM = paired.get("ratelimit", {}), paired.get("hmac", {})
+                aseeds = sorted(s for s in RL if s in HM
+                                and RL[s]["attack_rate"] > 0 and HM[s]["attack_rate"] > 0
+                                and RL[s].get("avail_test_valid", True)
+                                and HM[s].get("avail_test_valid", True))
+                m = 5
+                counts = [RL[s]["legit_admitted"] for s in aseeds]
+                allornothing = sum(1 for k in counts if k in (0, m))
+                icc = icc_oneway(counts, m)
+                deff = 1 + (m - 1) * icc
+                nb2 = sum(1 for s in aseeds
+                          if HM[s]["legit_admitted"] == m and RL[s]["legit_admitted"] < m)
+                nc2 = sum(1 for s in aseeds
+                          if HM[s]["legit_admitted"] < m and RL[s]["legit_admitted"] == m)
+                L.append(f"- **Clustering.** The {m} attempts in a trial share its bucket "
+                         f"phase: {allornothing}/{len(aseeds)} rate-limiter trials admitted "
+                         f"either all {m} or none. ICC = {icc:.3f}, design effect "
+                         f"{deff:.2f}, so the effective sample size is about "
+                         f"{len(aseeds) * m / deff:.0f}, not {len(aseeds) * m}.")
+                L.append(f"- **Primary test (paired by seed at the trial level, McNemar "
+                         f"exact, one-sided):** {nb2 + nc2} discordant pairs, "
+                         f"p = {mcnemar_exact(nb2, nc2):.3e}.")
+                L.append(f"- Secondary, *treats {len(aseeds) * m} clustered attempts as "
+                         f"independent and ignores the pairing*: Fisher exact one-sided "
+                         f"p = {p2:.3e}. The conclusion is unchanged; the precision is not.\n")
 
         # ---- credential-compromise matrix
         acl = ["transport", "transport_leaked", "acl_shared_leaked", "acl_operator_leaked",
