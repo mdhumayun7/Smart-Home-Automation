@@ -149,14 +149,14 @@ control. The principle is textbook and the attack class is published~\cite{pirat
 claim no new vulnerability. The contribution is that a guard encoding this inference compiles
 silently, emits no diagnostic, survives review, and costs a \emph{safety} rather than merely a
 security property---and that an ablation with a fair baseline is sufficient to find it
-(Sections~\ref{sec:results} and~\ref{sec:discussion}).
+(Sections~\ref{sec:results}, \ref{sec:config} and~\ref{sec:discussion}).
 
 \item \textbf{A response-time decomposition that found a defect nothing else could.}
 Decomposing the safety loop's worst-case response time shows the blocking term is identically
 zero by construction, the loop's own work is constant-time, and the residual is a single
 composite hardware quantity---reducing four unknowns to one and identifying exactly what a
 measurement must isolate. In doing so it exposed an unbounded drain in the safety path that had
-survived 120 host checks, 3{,}000{,}000 sanitizer-backed fuzz iterations, 9{,}600 adversarial
+survived 129 host checks, 3{,}000{,}000 sanitizer-backed fuzz iterations, 9{,}600 adversarial
 trials and exhaustive model checking (Section~\ref{sec:timing}).
 
 \item \textbf{An ablation separating three properties that are routinely conflated.} One
@@ -177,15 +177,19 @@ holds both a credential the list must permit and the key required to sign: no co
 tested survives that. All eight scenarios were reproduced against Mosquitto 2.0.18 with TLS and
 per-client ACLs, which agreed with the model in every case. The comparison also
 yields a negative result we did not anticipate: under key compromise the monotonic replay
-counter locks the legitimate owner out of the system entirely
+counter locks the legitimate owner out of the system entirely. The mechanism is not ours to
+claim---Wara and Yu note in passing that raising a device's frame counter causes lower-counter
+frames to be discarded~\cite{wara2020}, without a citation or an experiment---but it had not been
+measured, and we measure it as a complete lockout
 (Sections~\ref{sec:acl} and~\ref{sec:brokerval}).
 
 \item \textbf{A reproducible artifact with an explicit evidence taxonomy.} Firmware,
 specifications, harnesses, analysis scripts and figure sources are public, and results
 regenerate byte-identically from committed seeds. Every number is labelled by one of five evidence categories,
-no physical quantity is reported that was not measured, and we document four harness defects
-that produced plausible but wrong numbers---two of which flattered the conclusion the experiment
-was built to support.
+no physical quantity is reported that was not measured, and we document five defects in our own
+measurement and analysis infrastructure that produced plausible but wrong numbers---two of which
+flattered the conclusion the experiment was built to support, and one of which was a statistical
+test on constant data that could not have failed and was nonetheless reported as having passed.
 \end{enumerate}
 
 The isolation design itself (core pinning, bounded non-blocking queues, a zero-timeout status
@@ -752,8 +756,10 @@ dependency, which allows them to be tested on a host without hardware.
 The unmodified firmware compiles against host models of Arduino, FreeRTOS, Wi-Fi, MQTT,
 non-volatile storage and the display. The firmware source is not altered for testing, which is
 what makes the simulation results meaningful. The suite runs nineteen scenarios at three clock
-start values across two vendor framework versions, plus build-configuration and header-synchrony
-checks, for 120 checks in total.
+start values across two vendor framework versions, giving 120 scenario checks, plus four
+build-configuration checks, three negative build-guard checks and two header-synchrony checks:
+\textbf{129 checks in total}. An earlier version of this paper reported the 120 scenario checks as
+the total, which undercounted the suite by nine.
 
 The three clock start values include one immediately below the 32-bit wrap of the millisecond
 counter. All elapsed-time comparisons are written in the wrap-safe form
@@ -1045,11 +1051,11 @@ credential leaked, with none gaining it: McNemar exact, one-sided, $p = 5.5\time
 (Fisher, which assumes the independence this design does not have, gives
 $9.8\times10^{-119}$). The 50 successes are exactly the trials in
 which the adversary was silent. The cause is an unsound compile-time guard, analysed in
-Section~\ref{sec:discussion}: the firmware accepted ``TLS enabled and a broker login configured'' as
+Section~\ref{sec:config}: the firmware accepted ``TLS enabled and a broker login configured'' as
 sufficient to permit unauthenticated remote disarm. It is not. The broker terminates TLS and
 re-originates every message, so an arriving command carries no evidence of its publisher, and the
 macro recording that a broker login is configured describes only this device, not any publisher's
-authorization. We make no claim that TLS is broken; Section~\ref{sec:discussion} states precisely what
+authorization. We make no claim that TLS is broken; Section~\ref{sec:config} states precisely what
 it does and does not protect.
 
 \subsection{Broker access control against application-layer authentication}
@@ -1326,6 +1332,115 @@ behaviour. The corpus now signs its mutation seed with a deliberately incorrect 
 mutation can produce a valid command by accident. Had this not been chased down it would have
 become a false claim.
 
+\section{The Configuration Defect: a Guard that Encodes an Unsound Inference}
+\label{sec:config}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{guard_decision.pdf}
+\caption{The compile guard before and after. Both branches of the original guard reach the
+same outcome: a build in which any admitted \texttt{DISARM} is acted on. A signed build reaches
+it legitimately; an unsigned one reaches it through a transport test that cannot establish
+publisher authority. The repair removes the unsound branch rather than adding a mechanism, and
+the research baseline reaches the same outcome only through an explicit acknowledgement macro.
+Transcribed from the preprocessor conditions and from \texttt{handleCommands}.}
+\label{fig:guard}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{security_paths.pdf}
+\caption{Where broker credentials decide admission and where the command key decides authority.
+Under \texttt{AUTH\_COMMANDS} an adversary holding leaked broker credentials but not the command
+key is rejected and the alarm still fires in all 300 trials; an adversary who has taken the
+controller host holds both a permitted credential and the key, so both layers pass the command
+and the alarm fires in only 50 of 300. With the removed guard the tag check is short-circuited
+and an adversary holding only leaked credentials disarms the system. The control, identical in
+both builds, shows an adversary without credentials refused at the broker. Every relationship
+drawn is taken from the implementation; the counts are measured, from
+\texttt{ablation.jsonl}.}
+\label{fig:security}
+\end{figure}
+
+The leaked-credential arm fails for a reason worth stating precisely, because the defect is not
+in a cryptographic primitive but in a build condition. The firmware permitted unauthenticated
+remote disarm whenever TLS was enabled \emph{and} a broker login was configured. Read as an
+implication, that guard asserts: TLS enabled and a broker username supplied, therefore every
+message delivered on the command topic originates from an authorized principal. Both conjuncts
+fail to support the conclusion, and for different reasons.
+
+TLS, as configured, validates the \emph{broker's} certificate. The device presents no client
+certificate, so its own identity rests entirely on username and password; and because MQTT is a
+store-and-forward protocol in which the broker terminates TLS and re-originates each message,
+every publisher holds a separate session. A command arriving over the device's session carries
+no cryptographic evidence about who published it. TLS secures a hop; it does not convey
+end-to-end provenance across a relay. Fig.~\ref{fig:security} contrasts the two builds. The second conjunct is worse: the macro recording that a
+broker login is configured is set by the presence of a username in the device's own build, so it
+is a fact about the \emph{subscriber}, not about any publisher's authorization. The guard used
+the subscriber's credential state as a proxy for every publisher's authority, which is a
+category error. Even with a correct broker access-control list, authorization is then enforced
+outside the device's trust boundary and is only as strong as credential secrecy.
+
+We emphasise that nothing here bears on the security of TLS, and we do not claim it is broken.
+TLS protects the confidentiality and integrity of the device-to-broker hop, authenticates the
+broker, and prevents on-path injection into that hop. It does not authenticate a publisher end
+to end, it has no notion of what a command means, and it offers nothing once a valid credential
+is in an adversary's possession --- at which point the adversary simply \emph{is} a legitimate
+client. Transport security and application-layer authorization are orthogonal, and no quantity
+of the former supplies the latter.
+
+Fig.~\ref{fig:guard} sets the two guards side by side. The minimal correct repair is to delete
+the unsound branch rather than to add a mechanism.
+Unauthenticated remote disarm now requires an explicit acknowledgement macro named for what the
+builder is accepting, which the research baseline defines so the original behaviour remains
+reproducible. We separately refuse to compile a signed-command build that still uses the
+repository's published demo key, since authentication that verifies against a published key is
+not authentication, and such a build would log every command as authenticated while any reader
+of the repository could forge one. Three negative build checks assert that both guards continue
+to reject the unsafe configurations. We deliberately did not add timestamp freshness, nonce
+challenge-response, or key rotation: the first requires a trusted clock the device does not
+have, the second costs a round trip on an at-most-once path, and the third is a fleet-management
+concern. Adding them would raise the contribution count without evidence to support it.
+
+\section{Corpus Analysis and Generalizability}
+\label{sec:corpus}
+
+The defect of Section~\ref{sec:config} is one defect in one codebase, and a single
+self-reported finding is an anecdote until it is shown to generalise. We therefore built a
+corpus of 135 open-source embedded MQTT projects by fixed criteria from 22 GitHub queries,
+shallow-cloned each and recorded its commit, and ran a static rule for the guard shape: a
+preprocessor conditional naming a transport-security identifier and a privileged capability
+while not requiring application-layer authentication.
+
+\textbf{The rule found nothing.} Zero hits in 135 projects. We therefore make no claim that the
+pattern is widespread, and the finding remains a single-system case study.
+
+The rule was also wrong at first, and the zero was meaningless until that was found. Run
+against our own firmware before the repair it also returned zero, because our guard names
+\texttt{AUTH\_COMMANDS} \emph{negated} and the rule treated any mention of an authentication
+identifier as evidence that authentication was required. A negated identifier is evidence for
+the pattern, not against it. Eight controls now accompany the rule, including the real
+pre-repair guard as a positive control.
+
+The reason for the zero is itself informative. The pattern can only arise in a project that
+implements application-layer authentication as an option and then writes a build condition
+choosing between it and transport security. Only 30 of the 135 projects both subscribe to MQTT
+and contain any authentication identifier at all, and reading those shows most matches are in
+vendored code rather than in the project's own command path. \emph{The defect reported here is
+a defect of a comparatively sophisticated project}; a simpler one cannot make it, having no
+application-layer authentication to weigh against transport security.
+
+A weaker rule asked whether command authorization rests entirely on broker credentials. It
+flagged 18 projects, all of which we read: 9 were confirmed and 9 were false positives, among
+them monitoring projects the rule could not distinguish from actuators and one whose only match
+was in a bundled example sketch. The confirmed cases include a garage door opener in which a
+payload of \texttt{"trigger"} reaches \texttt{digitalWrite(RELAY\_PIN, HIGH)}, an alarm keypad,
+a heating relay and a boiler's setpoints. We report this as an existence claim and not a rate:
+the rule over-counts by about half and under-counts by an unknown amount, since three confirmed
+cases actuate through Modbus, RF or serial frames and were caught only by an incidental GPIO
+write. Full method, per-project verdicts and bias analysis are in the repository.
+
+
 \section{Independent Hardware Validation Framework}\label{sec:hw}
 
 The results above establish H1. They cannot establish H2, because the simulated clock does not
@@ -1441,113 +1556,6 @@ Because the tag is checked on the network core before the bounded command queue,
 invalid commands is discarded without ever occupying a queue slot. The queue therefore retains
 capacity for the one valid command, and admission is decided by validity rather than arrival
 order. A rate limiter inverts this: it decides by arrival order, which an attacker controls.
-
-\subsection{A compile-time guard that encodes an unsound inference}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{guard_decision.pdf}
-\caption{The compile guard before and after. Both branches of the original guard reach the
-same outcome: a build in which any admitted \texttt{DISARM} is acted on. A signed build reaches
-it legitimately; an unsigned one reaches it through a transport test that cannot establish
-publisher authority. The repair removes the unsound branch rather than adding a mechanism, and
-the research baseline reaches the same outcome only through an explicit acknowledgement macro.
-Transcribed from the preprocessor conditions and from \texttt{handleCommands}.}
-\label{fig:guard}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{security_paths.pdf}
-\caption{Where broker credentials decide admission and where the command key decides authority.
-Under \texttt{AUTH\_COMMANDS} an adversary holding leaked broker credentials but not the command
-key is rejected and the alarm still fires in all 300 trials; an adversary who has taken the
-controller host holds both a permitted credential and the key, so both layers pass the command
-and the alarm fires in only 50 of 300. With the removed guard the tag check is short-circuited
-and an adversary holding only leaked credentials disarms the system. The control, identical in
-both builds, shows an adversary without credentials refused at the broker. Every relationship
-drawn is taken from the implementation; the counts are measured, from
-\texttt{ablation.jsonl}.}
-\label{fig:security}
-\end{figure}
-
-The leaked-credential arm fails for a reason worth stating precisely, because the defect is not
-in a cryptographic primitive but in a build condition. The firmware permitted unauthenticated
-remote disarm whenever TLS was enabled \emph{and} a broker login was configured. Read as an
-implication, that guard asserts: TLS enabled and a broker username supplied, therefore every
-message delivered on the command topic originates from an authorized principal. Both conjuncts
-fail to support the conclusion, and for different reasons.
-
-TLS, as configured, validates the \emph{broker's} certificate. The device presents no client
-certificate, so its own identity rests entirely on username and password; and because MQTT is a
-store-and-forward protocol in which the broker terminates TLS and re-originates each message,
-every publisher holds a separate session. A command arriving over the device's session carries
-no cryptographic evidence about who published it. TLS secures a hop; it does not convey
-end-to-end provenance across a relay. Fig.~\ref{fig:security} contrasts the two builds. The second conjunct is worse: the macro recording that a
-broker login is configured is set by the presence of a username in the device's own build, so it
-is a fact about the \emph{subscriber}, not about any publisher's authorization. The guard used
-the subscriber's credential state as a proxy for every publisher's authority, which is a
-category error. Even with a correct broker access-control list, authorization is then enforced
-outside the device's trust boundary and is only as strong as credential secrecy.
-
-We emphasise that nothing here bears on the security of TLS, and we do not claim it is broken.
-TLS protects the confidentiality and integrity of the device-to-broker hop, authenticates the
-broker, and prevents on-path injection into that hop. It does not authenticate a publisher end
-to end, it has no notion of what a command means, and it offers nothing once a valid credential
-is in an adversary's possession --- at which point the adversary simply \emph{is} a legitimate
-client. Transport security and application-layer authorization are orthogonal, and no quantity
-of the former supplies the latter.
-
-Fig.~\ref{fig:guard} sets the two guards side by side. The minimal correct repair is to delete
-the unsound branch rather than to add a mechanism.
-Unauthenticated remote disarm now requires an explicit acknowledgement macro named for what the
-builder is accepting, which the research baseline defines so the original behaviour remains
-reproducible. We separately refuse to compile a signed-command build that still uses the
-repository's published demo key, since authentication that verifies against a published key is
-not authentication, and such a build would log every command as authenticated while any reader
-of the repository could forge one. Three negative build checks assert that both guards continue
-to reject the unsafe configurations. We deliberately did not add timestamp freshness, nonce
-challenge-response, or key rotation: the first requires a trusted clock the device does not
-have, the second costs a round trip on an at-most-once path, and the third is a fleet-management
-concern. Adding them would raise the contribution count without evidence to support it.
-
-\subsection{Does the guard pattern occur elsewhere?}
-\label{sec:corpus}
-
-The defect of Section~\ref{sec:discussion} is one defect in one codebase, and a single
-self-reported finding is an anecdote until it is shown to generalise. We therefore built a
-corpus of 135 open-source embedded MQTT projects by fixed criteria from 22 GitHub queries,
-shallow-cloned each and recorded its commit, and ran a static rule for the guard shape: a
-preprocessor conditional naming a transport-security identifier and a privileged capability
-while not requiring application-layer authentication.
-
-\textbf{The rule found nothing.} Zero hits in 135 projects. We therefore make no claim that the
-pattern is widespread, and the finding remains a single-system case study.
-
-The rule was also wrong at first, and the zero was meaningless until that was found. Run
-against our own firmware before the repair it also returned zero, because our guard names
-\texttt{AUTH\_COMMANDS} \emph{negated} and the rule treated any mention of an authentication
-identifier as evidence that authentication was required. A negated identifier is evidence for
-the pattern, not against it. Eight controls now accompany the rule, including the real
-pre-repair guard as a positive control.
-
-The reason for the zero is itself informative. The pattern can only arise in a project that
-implements application-layer authentication as an option and then writes a build condition
-choosing between it and transport security. Only 30 of the 135 projects both subscribe to MQTT
-and contain any authentication identifier at all, and reading those shows most matches are in
-vendored code rather than in the project's own command path. \emph{The defect reported here is
-a defect of a comparatively sophisticated project}; a simpler one cannot make it, having no
-application-layer authentication to weigh against transport security.
-
-A weaker rule asked whether command authorization rests entirely on broker credentials. It
-flagged 18 projects, all of which we read: 9 were confirmed and 9 were false positives, among
-them monitoring projects the rule could not distinguish from actuators and one whose only match
-was in a bundled example sketch. The confirmed cases include a garage door opener in which a
-payload of \texttt{"trigger"} reaches \texttt{digitalWrite(RELAY\_PIN, HIGH)}, an alarm keypad,
-a heating relay and a boiler's setpoints. We report this as an existence claim and not a rate:
-the rule over-counts by about half and under-counts by an unknown amount, since three confirmed
-cases actuate through Modbus, RF or serial frames and were caught only by an incidental GPIO
-write. Full method, per-project verdicts and bias analysis are in the repository.
 
 \subsection{Relationship to prior measurement}
 
@@ -1834,6 +1842,12 @@ art.~33, 2026, doi:10.3390/info17010033.
 end-to-end secure protocol with renewable hash chains for IoT environments,'' \emph{Journal of
 King Saud University Computer and Information Sciences}, vol.~38, no.~6, art.~539, 2026,
 doi:10.1007/s44443-026-00972-4.
+
+\bibitem{wara2020} M.~S.~Wara and Q.~Yu, ``New replay attacks on ZigBee devices for
+Internet-of-Things (IoT) applications,'' University of New Hampshire; IEEE, 2020. NSF Public
+Access Repository accession 10215772. Venue not independently verifiable: the accessible copy
+carries an IEEE copyright line but names no conference, so we assert no venue, volume or page
+range.
 
 \end{thebibliography}
 
